@@ -221,13 +221,23 @@ def upload_design_and_confirm(request):
         return redirect(request.META.get('HTTP_REFERER', '/orders/'))
     
     try:
-        logger.info("API 설정 조회 시작")
-        # API 설정에서 Google Drive 정보 가져오기
-        api_settings = APISettings.objects.first()
-        logger.info(f"API 설정 조회 결과: {api_settings}")
+        logger.info("Google Drive 설정 확인 시작")
+        
+        # 환경 변수 확인 (배포 환경 우선)
+        has_env_config = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON') and os.environ.get('GOOGLE_DRIVE_PARENT_FOLDER_ID')
+        logger.info(f"환경 변수 설정 여부: {bool(has_env_config)}")
+        
+        # 환경 변수가 없으면 데이터베이스 설정 확인
+        if not has_env_config:
+            logger.info("API 설정 조회 시작")
+            api_settings = APISettings.objects.first()
+            logger.info(f"API 설정 조회 결과: {api_settings}")
+        else:
+            logger.info("환경 변수 사용 - 데이터베이스 설정 건너뜀")
+            api_settings = None
         
         # Google Drive API 설정 확인
-        if not api_settings or not api_settings.google_drive_credentials_path:
+        if not has_env_config and (not api_settings or not api_settings.google_drive_credentials_path):
             logger.warning("Google Drive API 설정이 없습니다. 임시로 로컬 처리합니다.")
             
             # 주문 상태를 PRODUCING으로 변경 (Google Drive 없이)
@@ -249,23 +259,26 @@ def upload_design_and_confirm(request):
             )
             return redirect(request.META.get('HTTP_REFERER', '/orders/'))
         
-        # Google Drive 폴더 ID 확인
-        if not api_settings.google_drive_parent_folder_id or api_settings.google_drive_parent_folder_id == 'admin':
-            logger.error(f"Google Drive 폴더 ID가 올바르지 않습니다: {api_settings.google_drive_parent_folder_id}")
-            messages.error(
-                request,
-                f'⚠️ Google Drive 폴더 ID가 설정되지 않았습니다.<br>'
-                f'현재 값: "{api_settings.google_drive_parent_folder_id}"<br>'
-                f'설정 페이지에서 올바른 폴더 ID를 입력해주세요.<br>'
-                f'(Google Drive에서 폴더 우클릭 → 공유 → 링크에서 폴더 ID 복사)'
-            )
-            return redirect(request.META.get('HTTP_REFERER', '/orders/'))
+        # Google Drive 폴더 ID 확인 (로컬 환경만)
+        if not has_env_config:
+            if not api_settings.google_drive_parent_folder_id or api_settings.google_drive_parent_folder_id == 'admin':
+                logger.error(f"Google Drive 폴더 ID가 올바르지 않습니다: {api_settings.google_drive_parent_folder_id}")
+                messages.error(
+                    request,
+                    f'⚠️ Google Drive 폴더 ID가 설정되지 않았습니다.<br>'
+                    f'현재 값: "{api_settings.google_drive_parent_folder_id}"<br>'
+                    f'설정 페이지에서 올바른 폴더 ID를 입력해주세요.<br>'
+                    f'(Google Drive에서 폴더 우클릭 → 공유 → 링크에서 폴더 ID 복사)'
+                )
+                return redirect(request.META.get('HTTP_REFERER', '/orders/'))
+            
+            logger.info(f"로컬: Google Drive parent folder ID: {api_settings.google_drive_parent_folder_id}")
+            logger.info(f"로컬: OAuth 사용 여부: {api_settings.use_oauth}")
+        else:
+            logger.info(f"배포: 환경 변수에서 폴더 ID 사용")
         
-        logger.info(f"Google Drive parent folder ID: {api_settings.google_drive_parent_folder_id}")
-        logger.info(f"OAuth 사용 여부: {api_settings.use_oauth}")
-        
-        # OAuth 또는 서비스 계정 선택
-        if api_settings.use_oauth and api_settings.oauth_credentials_path:
+        # OAuth 또는 서비스 계정 선택 (로컬 환경만, 배포는 항상 Service Account)
+        if not has_env_config and api_settings and api_settings.use_oauth and api_settings.oauth_credentials_path:
             logger.info("OAuth 2.0 방식 사용")
             logger.info(f"OAuth credentials path: {api_settings.oauth_credentials_path}")
             
