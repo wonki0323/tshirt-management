@@ -11,7 +11,7 @@ from datetime import datetime
 import pandas as pd
 from io import BytesIO
 import os
-from .models import Order, Status
+from .models import Order, OrderThumbnail, Status
 from .forms import ManualOrderForm
 from utils import calculate_business_days
 from utils.google_drive import get_drive_service, upload_design_files
@@ -38,6 +38,9 @@ class OrderListView(LoginRequiredMixin, ListView):
         else:
             # 기본적으로 완료된 주문은 제외
             queryset = queryset.exclude(status=Status.COMPLETED)
+        
+        # 주문 항목들을 미리 로드하여 N+1 쿼리 방지
+        queryset = queryset.prefetch_related('items')
         
         return queryset
     
@@ -92,13 +95,37 @@ def change_order_status(request):
     # 상태 변경 로직
     if order.status == Status.NEW:
         if next_status == Status.CONSULTING:
-            # 굿즈 주문의 경우 상담 시작
+            # 굿즈 주문의 경우 상담 시작 -> 재고 차감
+            # 재고 차감 시도
+            stock_errors = []
+            for item in order.items.all():
+                if item.product_option:
+                    success = item.product_option.decrease_stock(item.quantity)
+                    if not success:
+                        stock_errors.append(f"{item.product_option.product.name} - {item.product_option.option_detail}")
+            
+            if stock_errors:
+                messages.error(request, f'재고가 부족한 상품이 있습니다: {", ".join(stock_errors)}')
+                return redirect(request.META.get('HTTP_REFERER', '/orders/'))
+            
             order.status = Status.CONSULTING
-            messages.success(request, f'주문 {order.smartstore_order_id}의 상담을 시작했습니다.')
+            messages.success(request, f'주문 {order.smartstore_order_id}의 상담을 시작했습니다. (재고 차감 완료)')
         elif next_status == Status.PRODUCED:
-            # 일반 주문의 경우 바로 발송 준비
+            # 일반 주문의 경우 바로 발송 준비 -> 재고 차감
+            # 재고 차감 시도
+            stock_errors = []
+            for item in order.items.all():
+                if item.product_option:
+                    success = item.product_option.decrease_stock(item.quantity)
+                    if not success:
+                        stock_errors.append(f"{item.product_option.product.name} - {item.product_option.option_detail}")
+            
+            if stock_errors:
+                messages.error(request, f'재고가 부족한 상품이 있습니다: {", ".join(stock_errors)}')
+                return redirect(request.META.get('HTTP_REFERER', '/orders/'))
+            
             order.status = Status.PRODUCED
-            messages.success(request, f'주문 {order.smartstore_order_id}를 발송 준비 상태로 변경했습니다.')
+            messages.success(request, f'주문 {order.smartstore_order_id}를 발송 준비 상태로 변경했습니다. (재고 차감 완료)')
     
     elif order.status == Status.CONSULTING:
         if next_status == Status.PRODUCING:
@@ -193,9 +220,11 @@ def upload_design_and_confirm(request):
     
     order_id = request.POST.get('order_id')
     design_files = request.FILES.getlist('design_files')
+    thumbnail_images = request.FILES.getlist('thumbnail_images')
     
     logger.info(f"주문 ID: {order_id}")
     logger.info(f"업로드 파일 개수: {len(design_files)}")
+    logger.info(f"썸네일 이미지 개수: {len(thumbnail_images)}")
     
     if not order_id:
         logger.error("주문 ID가 없습니다.")
@@ -239,6 +268,16 @@ def upload_design_and_confirm(request):
         # Google Drive API 설정 확인
         if not has_env_config and (not api_settings or not api_settings.google_drive_credentials_path):
             logger.warning("Google Drive API 설정이 없습니다. 임시로 로컬 처리합니다.")
+            
+            # 썸네일 이미지 저장 (여러 장 가능)
+            if thumbnail_images:
+                for idx, thumbnail in enumerate(thumbnail_images, 1):
+                    logger.info(f"썸네일 이미지 {idx} 저장: {thumbnail.name}")
+                    OrderThumbnail.objects.create(
+                        order=order,
+                        image=thumbnail,
+                        order_number=idx
+                    )
             
             # 주문 상태를 PRODUCING으로 변경 (Google Drive 없이)
             order.status = Status.PRODUCING
@@ -377,6 +416,16 @@ def upload_design_and_confirm(request):
                 saved_files.append(design_file.name)
                 logger.info(f"로컬 저장 완료: {file_path}")
             
+            # 썸네일 이미지 저장 (여러 장 가능)
+            if thumbnail_images:
+                for idx, thumbnail in enumerate(thumbnail_images, 1):
+                    logger.info(f"썸네일 이미지 {idx} 저장: {thumbnail.name}")
+                    OrderThumbnail.objects.create(
+                        order=order,
+                        image=thumbnail,
+                        order_number=idx
+                    )
+            
             # 주문 상태를 PRODUCING으로 변경
             order.status = Status.PRODUCING
             order.confirmed_date = timezone.now()
@@ -421,29 +470,59 @@ def upload_design_and_confirm(request):
 @login_required
 def manual_order_create(request):
     """수동 주문 등록"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     if request.method == 'POST':
+        logger.info("=== 수동 주문 등록 시작 ===")
+        logger.info(f"POST 데이터: {dict(request.POST)}")
+        
         form = ManualOrderForm(request.POST)
+        
         if form.is_valid():
+            logger.info("폼 유효성 검사 통과")
             try:
                 order = form.save()
+                logger.info(f"주문 생성 성공: {order.smartstore_order_id}")
                 messages.success(
                     request, 
                     f'수동 주문이 성공적으로 등록되었습니다. 주문번호: {order.smartstore_order_id}'
                 )
                 return redirect('order_list')
             except Exception as e:
+                logger.error(f"주문 저장 중 에러: {str(e)}", exc_info=True)
                 messages.error(request, f'주문 등록 중 오류가 발생했습니다: {str(e)}')
+        else:
+            logger.error(f"폼 유효성 검사 실패")
+            logger.error(f"폼 에러: {form.errors}")
+            logger.error(f"Non-field 에러: {form.non_field_errors()}")
+            for field, errors in form.errors.items():
+                messages.error(request, f'{field}: {", ".join(errors)}')
     else:
         form = ManualOrderForm()
     
-    # 제품 옵션에 가격 정보 추가
+    # 제품 옵션에 가격 정보 추가 (기본가 + 옵션가)
     from products.models import ProductOption
     product_options = ProductOption.objects.filter(is_active=True).select_related('product')
+    
+    # 각 옵션의 최종 가격 계산 (제품 기본가 + 옵션가)
+    options_with_price = []
+    for option in product_options:
+        total_price = option.product.base_price + option.base_price
+        options_with_price.append({
+            'id': option.id,
+            'product_name': option.product.name,
+            'option_detail': option.option_detail,
+            'base_price': option.base_price,
+            'product_base_price': option.product.base_price,
+            'total_price': total_price,
+            'base_cost': option.base_cost,
+        })
     
     return render(request, 'orders/manual_order_form.html', {
         'form': form,
         'title': '수동 주문 등록',
-        'product_options': product_options
+        'product_options': options_with_price
     })
 
 
@@ -470,3 +549,27 @@ def check_customer_exists(request):
 def debug_upload(request):
     """시안 업로드 디버깅 페이지"""
     return render(request, 'orders/debug_upload.html')
+
+
+@login_required
+@require_POST
+def cancel_order(request, pk):
+    """주문 취소"""
+    order = get_object_or_404(Order, pk=pk)
+    
+    # 이미 완료된 주문은 취소 불가
+    if order.status == Status.COMPLETED:
+        messages.error(request, '완료된 주문은 취소할 수 없습니다.')
+        return redirect('order_detail', pk=pk)
+    
+    # 이미 취소된 주문
+    if order.status == Status.CANCELED:
+        messages.warning(request, '이미 취소된 주문입니다.')
+        return redirect('order_detail', pk=pk)
+    
+    # 주문 취소 처리
+    order.status = Status.CANCELED
+    order.save()
+    
+    messages.success(request, f'주문 {order.smartstore_order_id}이(가) 취소되었습니다.')
+    return redirect('order_detail', pk=pk)

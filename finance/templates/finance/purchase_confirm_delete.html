@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}매입 삭제 확인{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h3 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> 매입 삭제 확인
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <strong>경고:</strong> 이 작업은 되돌릴 수 없습니다.
+                    </div>
+                    
+                    <p>다음 매입 내역을 삭제하시겠습니까?</p>
+                    
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <p class="mb-1"><strong>일자:</strong> {{ purchase.date|date:"Y년 m월 d일" }}</p>
+                            <p class="mb-1"><strong>항목:</strong> {{ purchase.get_category_display }}</p>
+                            {% if purchase.description %}
+                            <p class="mb-1"><strong>설명:</strong> {{ purchase.description }}</p>
+                            {% endif %}
+                            <p class="mb-1"><strong>단가:</strong> {{ purchase.amount|floatformat:0|intcomma }}원</p>
+                            <p class="mb-1"><strong>수량:</strong> {{ purchase.quantity|intcomma }}</p>
+                            <p class="mb-0"><strong>총액:</strong> 
+                                <span class="text-danger fw-bold">{{ purchase.total_amount|floatformat:0|intcomma }}원</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'purchase_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> 취소
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> 삭제
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

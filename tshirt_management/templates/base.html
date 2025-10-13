@@ -120,6 +120,12 @@
             </a>
             
             <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{% url 'financial_summary' %}" style="font-size: 0.9rem;">
+                    <i class="fas fa-chart-line me-1"></i>재무
+                </a>
+                <a class="nav-link" href="{% url 'inventory_list' %}" style="font-size: 0.9rem;">
+                    <i class="fas fa-boxes me-1"></i>재고
+                </a>
                 <a class="nav-link" href="{% url 'debug_upload' %}" style="font-size: 0.9rem;">
                     <i class="fas fa-bug me-1"></i>디버깅
                 </a>

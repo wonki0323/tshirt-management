@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     path('', views.OrderListView.as_view(), name='order_list'),
     path('<int:pk>/', views.OrderDetailView.as_view(), name='order_detail'),
+    path('<int:pk>/cancel/', views.cancel_order, name='cancel_order'),
     path('change-status/', views.change_order_status, name='change_order_status'),
     path('export-excel/', views.export_shipping_excel, name='export_shipping_excel'),
     path('upload-design/', views.upload_design_and_confirm, name='upload_design_and_confirm'),

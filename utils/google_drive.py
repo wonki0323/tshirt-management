@@ -2,7 +2,6 @@
 Google Drive API 연동 유틸리티
 """
 import os
-import json
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
@@ -17,47 +16,28 @@ def get_drive_service():
     
     try:
         logger.info("Google Drive 서비스 생성 시작")
+        from settings_app.models import APISettings
         
-        # 환경 변수에서 Service Account JSON 읽기 (배포 환경)
-        service_account_json = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON')
+        api_settings = APISettings.objects.first()
+        logger.info(f"API 설정 조회: {api_settings}")
         
-        if service_account_json:
-            logger.info("환경 변수에서 Service Account credentials 로드")
-            try:
-                credentials_info = json.loads(service_account_json)
-                credentials = service_account.Credentials.from_service_account_info(
-                    credentials_info,
-                    scopes=['https://www.googleapis.com/auth/drive.file']
-                )
-                logger.info("환경 변수에서 credentials 생성 성공")
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON 파싱 오류: {e}")
-                return None
-        else:
-            # 로컬 환경: 파일에서 읽기
-            logger.info("로컬 환경: 파일에서 credentials 로드")
-            from settings_app.models import APISettings
-            
-            api_settings = APISettings.objects.first()
-            logger.info(f"API 설정 조회: {api_settings}")
-            
-            if not api_settings or not api_settings.google_drive_credentials_path:
-                logger.error("Google Drive credentials path not configured")
-                return None
-            
-            credentials_path = api_settings.google_drive_credentials_path
-            logger.info(f"Credentials 파일 경로: {credentials_path}")
-            
-            if not os.path.exists(credentials_path):
-                logger.error(f"Google Drive credentials file not found: {credentials_path}")
-                return None
-            
-            logger.info("Credentials 파일 로드 시작")
-            credentials = service_account.Credentials.from_service_account_file(
-                credentials_path,
-                scopes=['https://www.googleapis.com/auth/drive.file']
-            )
-            logger.info("Credentials 파일 로드 성공")
+        if not api_settings or not api_settings.google_drive_credentials_path:
+            logger.error("Google Drive credentials path not configured")
+            raise FileNotFoundError("Google Drive credentials path not configured")
+        
+        credentials_path = api_settings.google_drive_credentials_path
+        logger.info(f"Credentials 파일 경로: {credentials_path}")
+        
+        if not os.path.exists(credentials_path):
+            logger.error(f"Google Drive credentials file not found: {credentials_path}")
+            raise FileNotFoundError(f"Google Drive credentials file not found: {credentials_path}")
+        
+        logger.info("Credentials 파일 로드 시작")
+        credentials = service_account.Credentials.from_service_account_file(
+            credentials_path,
+            scopes=['https://www.googleapis.com/auth/drive']
+        )
+        logger.info("Credentials 파일 로드 성공")
         
         logger.info("Google Drive API 서비스 빌드 시작")
         service = build('drive', 'v3', credentials=credentials)
@@ -173,11 +153,6 @@ def upload_design_files(service, files, order_id, customer_name, parent_folder_i
     
     try:
         logger.info(f"시안 파일 업로드 시작 - 주문ID: {order_id}, 고객명: {customer_name}, 파일수: {len(files)}")
-        
-        # parent_folder_id가 없으면 환경 변수에서 읽기
-        if not parent_folder_id:
-            parent_folder_id = os.environ.get('GOOGLE_DRIVE_PARENT_FOLDER_ID')
-            logger.info(f"환경 변수에서 폴더 ID 읽기: {parent_folder_id}")
         
         # 주문별 폴더 생성
         folder_name = f"[{order_id}]_{customer_name}"

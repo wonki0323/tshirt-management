@@ -17,6 +17,154 @@
         cursor: pointer;
         transition: all 0.2s ease;
     }
+    
+    /* 썸네일 호버 효과 */
+    .thumbnail-clickable:hover {
+        transform: scale(1.02);
+        transition: transform 0.3s ease;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    /* 썸네일 캐러셀 */
+    .thumbnail-carousel-container {
+        position: relative;
+        min-height: 400px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .thumbnail-slide {
+        display: none;
+        animation: fadeIn 0.5s;
+    }
+    
+    .thumbnail-slide.active {
+        display: block;
+    }
+    
+    .carousel-control {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background-color: rgba(0, 0, 0, 0.5);
+        color: white;
+        border: none;
+        padding: 15px 20px;
+        font-size: 24px;
+        cursor: pointer;
+        border-radius: 50%;
+        transition: all 0.3s ease;
+        z-index: 10;
+    }
+    
+    .carousel-control:hover {
+        background-color: rgba(0, 0, 0, 0.8);
+        transform: translateY(-50%) scale(1.1);
+    }
+    
+    .carousel-control.prev {
+        left: 20px;
+    }
+    
+    .carousel-control.next {
+        right: 20px;
+    }
+    
+    .carousel-indicators {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 10px;
+        z-index: 10;
+    }
+    
+    .carousel-indicators .indicator {
+        background-color: rgba(255, 255, 255, 0.5);
+        color: #333;
+        padding: 8px 12px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        min-width: 35px;
+        text-align: center;
+    }
+    
+    .carousel-indicators .indicator:hover {
+        background-color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .carousel-indicators .indicator.active {
+        background-color: #0dcaf0;
+        color: white;
+    }
+    
+    /* 이미지 전체화면 모달 */
+    .image-modal {
+        position: fixed;
+        z-index: 9999;
+        padding-top: 50px;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.95);
+        animation: fadeIn 0.3s;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    .image-modal-content {
+        margin: auto;
+        display: block;
+        max-width: 90%;
+        max-height: 85vh;
+        object-fit: contain;
+        animation: zoomIn 0.3s;
+    }
+    
+    @keyframes zoomIn {
+        from { transform: scale(0.8); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+    
+    .image-modal-close {
+        position: absolute;
+        top: 15px;
+        right: 35px;
+        color: #f1f1f1;
+        font-size: 50px;
+        font-weight: bold;
+        transition: 0.3s;
+        cursor: pointer;
+        z-index: 10000;
+    }
+    
+    .image-modal-close:hover,
+    .image-modal-close:focus {
+        color: #bbb;
+        text-decoration: none;
+    }
+    
+    #imageCaption {
+        margin: auto;
+        display: block;
+        width: 80%;
+        max-width: 700px;
+        text-align: center;
+        color: #ccc;
+        padding: 20px 0;
+        font-size: 18px;
+        font-weight: 500;
+    }
 </style>
 {% endblock %}
 
@@ -60,6 +208,60 @@
         {% endfor %}
     {% endif %}
 
+    <!-- 썸네일 이미지 캐러셀 (있는 경우) -->
+    {% if order.thumbnails.exists %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-images"></i> 시안 썸네일 ({{ order.thumbnails.count }}장) 
+                        <small class="text-white-50">(좌우 화살표로 이동, 클릭하여 확대)</small>
+                    </h5>
+                </div>
+                <div class="card-body text-center p-4">
+                    <div class="thumbnail-carousel-container position-relative">
+                        {% for thumbnail in order.thumbnails.all %}
+                        <div class="thumbnail-slide {% if forloop.first %}active{% endif %}" data-slide="{{ forloop.counter0 }}">
+                            <img src="{{ thumbnail.image.url }}" 
+                                 alt="{{ order.customer_name }} 시안 {{ forloop.counter }}" 
+                                 class="img-fluid rounded shadow-lg thumbnail-clickable"
+                                 style="max-height: 400px; object-fit: contain; cursor: pointer;"
+                                 onclick="openImageModal('{{ thumbnail.image.url }}', '{{ order.customer_name }} 시안 {{ forloop.counter }}')">
+                        </div>
+                        {% endfor %}
+                        
+                        <!-- 이전/다음 버튼 (썸네일이 2장 이상일 때만 표시) -->
+                        {% if order.thumbnails.count > 1 %}
+                        <button class="carousel-control prev" onclick="changeSlide(-1)">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button class="carousel-control next" onclick="changeSlide(1)">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                        
+                        <!-- 인디케이터 -->
+                        <div class="carousel-indicators">
+                            {% for thumbnail in order.thumbnails.all %}
+                            <span class="indicator {% if forloop.first %}active{% endif %}" 
+                                  onclick="goToSlide({{ forloop.counter0 }})">{{ forloop.counter }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 이미지 전체화면 모달 -->
+    <div id="imageModal" class="image-modal" style="display: none;" onclick="closeImageModal()">
+        <span class="image-modal-close">&times;</span>
+        <img class="image-modal-content" id="modalImage">
+        <div id="imageCaption"></div>
+    </div>
+
     <div class="row">
         <!-- 왼쪽: 주문 기본 정보 -->
         <div class="col-md-6 mb-4">
@@ -77,7 +279,7 @@
                             <tr>
                                 <th>주문 상태</th>
                                 <td>
-                                    {% if order.status == 'PRODUCING' and order.google_drive_folder_url %}
+                                    {% if order.status == 'PRODUCING' and order.google_drive_folder_url and 'http' in order.google_drive_folder_url %}
                                         <a href="{{ order.google_drive_folder_url }}" target="_blank" class="badge bg-primary text-decoration-none fs-6" title="클릭하여 시안 폴더 열기">
                                             <i class="fas fa-folder-open"></i> {{ order.get_status_display }}
                                         </a>
@@ -167,7 +369,7 @@
             </div>
 
             <!-- Google Drive 링크 (있는 경우) -->
-            {% if order.google_drive_folder_url %}
+            {% if order.google_drive_folder_url and 'http' in order.google_drive_folder_url %}
             <div class="card mt-3">
                 <div class="card-header bg-info text-white">
                     <h5 class="mb-0"><i class="fas fa-cloud"></i> Google Drive</h5>
@@ -255,43 +457,56 @@
             <h5 class="mb-0"><i class="fas fa-cog"></i> 주문 관리</h5>
         </div>
         <div class="card-body">
-            <div class="d-flex gap-2 justify-content-center">
-                {% if order.status == 'NEW' %}
-                    {% if is_general_order %}
+            {% if order.status == 'CANCELED' %}
+                <div class="alert alert-danger mb-0 text-center">
+                    <i class="fas fa-ban"></i> <strong>취소된 주문입니다.</strong>
+                </div>
+            {% else %}
+                <div class="d-flex gap-2 justify-content-center flex-wrap">
+                    {% if order.status == 'NEW' %}
+                        {% if is_general_order %}
+                            <button type="button" class="btn btn-success btn-lg status-change-btn" 
+                                    data-order-id="{{ order.id }}" 
+                                    data-next-status="PRODUCED">
+                                <i class="fas fa-forward"></i> 제작 완료 처리
+                            </button>
+                        {% else %}
+                            <button type="button" class="btn btn-info btn-lg status-change-btn" 
+                                    data-order-id="{{ order.id }}" 
+                                    data-next-status="CONSULTING">
+                                <i class="fas fa-comments"></i> 상담 시작
+                            </button>
+                        {% endif %}
+                    {% elif order.status == 'CONSULTING' %}
+                        <button type="button" class="btn btn-warning btn-lg upload-design-btn" 
+                                data-order-id="{{ order.id }}" 
+                                data-customer-name="{{ order.customer_name }}">
+                            <i class="fas fa-upload"></i> 시안 업로드
+                        </button>
+                    {% elif order.status == 'PRODUCING' %}
                         <button type="button" class="btn btn-success btn-lg status-change-btn" 
                                 data-order-id="{{ order.id }}" 
                                 data-next-status="PRODUCED">
-                            <i class="fas fa-forward"></i> 제작 완료 처리
+                            <i class="fas fa-check"></i> 제작 완료
                         </button>
-                    {% else %}
-                        <button type="button" class="btn btn-info btn-lg status-change-btn" 
-                                data-order-id="{{ order.id }}" 
-                                data-next-status="CONSULTING">
-                            <i class="fas fa-comments"></i> 상담 시작
+                    {% elif order.status == 'PRODUCED' %}
+                        <div class="alert alert-success mb-0 w-100 text-center">
+                            <i class="fas fa-check-circle"></i> 발송 대기 중입니다. 엑셀 출력 후 완료 처리하세요.
+                        </div>
+                    {% elif order.status == 'COMPLETED' %}
+                        <div class="alert alert-secondary mb-0 w-100 text-center">
+                            <i class="fas fa-check-double"></i> 완료된 주문입니다.
+                        </div>
+                    {% endif %}
+                    
+                    <!-- 취소 버튼 (완료된 주문과 이미 취소된 주문 제외) -->
+                    {% if order.status != 'COMPLETED' %}
+                        <button type="button" class="btn btn-danger btn-lg" id="cancelOrderBtn">
+                            <i class="fas fa-times-circle"></i> 주문 취소
                         </button>
                     {% endif %}
-                {% elif order.status == 'CONSULTING' %}
-                    <button type="button" class="btn btn-warning btn-lg upload-design-btn" 
-                            data-order-id="{{ order.id }}" 
-                            data-customer-name="{{ order.customer_name }}">
-                        <i class="fas fa-upload"></i> 시안 업로드
-                    </button>
-                {% elif order.status == 'PRODUCING' %}
-                    <button type="button" class="btn btn-success btn-lg status-change-btn" 
-                            data-order-id="{{ order.id }}" 
-                            data-next-status="PRODUCED">
-                        <i class="fas fa-check"></i> 제작 완료
-                    </button>
-                {% elif order.status == 'PRODUCED' %}
-                    <div class="alert alert-success mb-0 w-100 text-center">
-                        <i class="fas fa-check-circle"></i> 발송 대기 중입니다. 엑셀 출력 후 완료 처리하세요.
-                    </div>
-                {% elif order.status == 'COMPLETED' %}
-                    <div class="alert alert-secondary mb-0 w-100 text-center">
-                        <i class="fas fa-check-double"></i> 완료된 주문입니다.
-                    </div>
-                {% endif %}
-            </div>
+                </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -313,6 +528,92 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+
+// 이미지 모달 열기
+function openImageModal(imageUrl, caption) {
+    const modal = document.getElementById('imageModal');
+    const modalImg = document.getElementById('modalImage');
+    const captionText = document.getElementById('imageCaption');
+    
+    modal.style.display = 'block';
+    modalImg.src = imageUrl;
+    captionText.innerHTML = caption;
+    
+    // body 스크롤 방지
+    document.body.style.overflow = 'hidden';
+}
+
+// 이미지 모달 닫기
+function closeImageModal() {
+    const modal = document.getElementById('imageModal');
+    modal.style.display = 'none';
+    
+    // body 스크롤 복원
+    document.body.style.overflow = 'auto';
+}
+
+// ESC 키로 모달 닫기
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeImageModal();
+    }
+});
+
+// 썸네일 캐러셀 기능
+let currentSlide = 0;
+
+function changeSlide(direction) {
+    const slides = document.querySelectorAll('.thumbnail-slide');
+    const indicators = document.querySelectorAll('.carousel-indicators .indicator');
+    
+    if (slides.length === 0) return;
+    
+    // 현재 슬라이드 숨기기
+    slides[currentSlide].classList.remove('active');
+    if (indicators.length > 0) {
+        indicators[currentSlide].classList.remove('active');
+    }
+    
+    // 새 슬라이드 인덱스 계산
+    currentSlide = (currentSlide + direction + slides.length) % slides.length;
+    
+    // 새 슬라이드 표시
+    slides[currentSlide].classList.add('active');
+    if (indicators.length > 0) {
+        indicators[currentSlide].classList.add('active');
+    }
+}
+
+function goToSlide(index) {
+    const slides = document.querySelectorAll('.thumbnail-slide');
+    const indicators = document.querySelectorAll('.carousel-indicators .indicator');
+    
+    if (slides.length === 0 || index < 0 || index >= slides.length) return;
+    
+    // 현재 슬라이드 숨기기
+    slides[currentSlide].classList.remove('active');
+    if (indicators.length > 0) {
+        indicators[currentSlide].classList.remove('active');
+    }
+    
+    // 지정된 슬라이드로 이동
+    currentSlide = index;
+    
+    // 새 슬라이드 표시
+    slides[currentSlide].classList.add('active');
+    if (indicators.length > 0) {
+        indicators[currentSlide].classList.add('active');
+    }
+}
+
+// 키보드 화살표로 캐러셀 조작
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'ArrowLeft') {
+        changeSlide(-1);
+    } else if (event.key === 'ArrowRight') {
+        changeSlide(1);
+    }
+});
 
 document.addEventListener('DOMContentLoaded', function() {
     // 상태 변경 버튼 처리
@@ -401,6 +702,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <input type="text" class="form-control" id="customer_name_display" value="${customerName}" readonly>
                                 </div>
                                 <div class="mb-3">
+                                    <label for="thumbnail_images" class="form-label">
+                                        <i class="fas fa-images me-2"></i>썸네일 이미지 (여러 장 선택 가능) <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="file" class="form-control" id="thumbnail_images" name="thumbnail_images" multiple required accept="image/jpeg,image/png,image/jpg,image/gif,image/webp">
+                                    <div class="form-text">
+                                        주문 상세 페이지에서 좌우로 넘겨볼 수 있는 썸네일 (JPG, PNG, GIF, WEBP) - 여러 장 선택 가능
+                                    </div>
+                                    <div id="thumbnail-preview" class="mt-2"></div>
+                                </div>
+                                <div class="mb-3">
                                     <label for="design_files" class="form-label">
                                         <i class="fas fa-upload me-2"></i>시안 파일 (여러 파일 선택 가능)
                                     </label>
@@ -451,10 +762,44 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             const fileInput = document.getElementById('design_files');
             const fileList = document.getElementById('file-list');
+            const thumbnailInput = document.getElementById('thumbnail_image');
+            const thumbnailPreview = document.getElementById('thumbnail-preview');
             const uploadForm = document.querySelector('#uploadDesignModal form');
             const uploadProgress = document.getElementById('upload-progress');
             const uploadBtn = document.getElementById('uploadBtn');
             const cancelBtn = document.getElementById('cancelBtn');
+            
+            // 썸네일 이미지 미리보기 (여러 장)
+            if (thumbnailInput && thumbnailPreview) {
+                thumbnailInput.addEventListener('change', function(e) {
+                    if (this.files && this.files.length > 0) {
+                        let html = `
+                            <div class="alert alert-success py-2 px-3">
+                                <strong>선택된 썸네일 (${this.files.length}장):</strong>
+                                <div class="mt-2 d-flex flex-wrap gap-2">
+                        `;
+                        
+                        Array.from(this.files).forEach((file, idx) => {
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                const imgHtml = `
+                                    <div class="text-center">
+                                        <img src="${e.target.result}" alt="썸네일 ${idx + 1}" style="max-width: 150px; max-height: 150px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                                        <div class="small mt-1">${idx + 1}. ${file.name}</div>
+                                    </div>
+                                `;
+                                thumbnailPreview.querySelector('.d-flex').insertAdjacentHTML('beforeend', imgHtml);
+                            };
+                            reader.readAsDataURL(file);
+                        });
+                        
+                        html += '</div></div>';
+                        thumbnailPreview.innerHTML = html;
+                    } else {
+                        thumbnailPreview.innerHTML = '';
+                    }
+                });
+            }
             
             if (fileInput && fileList) {
                 fileInput.addEventListener('change', function(e) {
@@ -500,6 +845,33 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         document.body.classList.remove('modal-open');
     };
+    
+    // 주문 취소 버튼 처리
+    const cancelOrderBtn = document.getElementById('cancelOrderBtn');
+    if (cancelOrderBtn) {
+        cancelOrderBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // 확인 메시지
+            if (confirm('정말로 이 주문을 취소하시겠습니까?\n\n취소된 주문은 다시 복구할 수 없습니다.')) {
+                // form 생성 및 제출
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{% url "cancel_order" order.pk %}';
+                
+                // CSRF 토큰
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = getCookie('csrftoken');
+                form.appendChild(csrfInput);
+                
+                // form을 body에 추가하고 제출
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

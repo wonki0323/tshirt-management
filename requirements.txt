@@ -19,6 +19,9 @@ numpy==1.26.4
 python-dateutil==2.9.0
 tzdata==2025.2
 
+# Image Processing
+Pillow==11.0.0
+
 # Development/Testing
 Faker==37.11.0
 

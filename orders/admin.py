@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Order, OrderItem, Status
+from .models import Order, OrderItem, OrderThumbnail, Status
 
 
 class OrderItemInline(admin.TabularInline):
@@ -48,6 +48,14 @@ class OrderItemInline(admin.TabularInline):
     display_profit.short_description = "순이익"
 
 
+class OrderThumbnailInline(admin.TabularInline):
+    """주문 썸네일 인라인"""
+    model = OrderThumbnail
+    extra = 0
+    fields = ['image', 'order_number']
+    ordering = ['order_number']
+
+
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = [
@@ -63,7 +71,7 @@ class OrderAdmin(admin.ModelAdmin):
     list_filter = ['status', 'payment_date']
     search_fields = ['smartstore_order_id', 'customer_name', 'customer_phone']
     ordering = ['-payment_date']
-    inlines = [OrderItemInline]
+    inlines = [OrderItemInline, OrderThumbnailInline]
     readonly_fields = ['display_total_cost', 'display_profit']
     
     fieldsets = (

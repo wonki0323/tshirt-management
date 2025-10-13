@@ -2,6 +2,7 @@ from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils import timezone
 from products.models import ProductOption
+import os
 
 
 class Status(models.TextChoices):
@@ -45,7 +46,7 @@ class Order(models.Model):
     )
     shipping_cost = models.DecimalField(
         max_digits=10,
-        decimal_places=2,
+        decimal_places=0,  # 소수점 제거 (정수만)
         default=3500,
         validators=[MinValueValidator(0)],
         verbose_name="택배비",
@@ -53,7 +54,7 @@ class Order(models.Model):
     )
     total_order_amount = models.DecimalField(
         max_digits=12,
-        decimal_places=2,
+        decimal_places=0,  # 소수점 제거 (정수만)
         validators=[MinValueValidator(0)],
         verbose_name="총 결제 금액 (택배비 포함)"
     )
@@ -73,6 +74,13 @@ class Order(models.Model):
         blank=True,
         verbose_name="구글 드라이브 폴더 링크",
         help_text="시안/원본 통합 관리용"
+    )
+    thumbnail_image = models.ImageField(
+        upload_to='order_thumbnails/',
+        null=True,
+        blank=True,
+        verbose_name="썸네일 이미지",
+        help_text="주문 상세 페이지 상단에 표시될 시안 썸네일"
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일시")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="수정일시")
@@ -141,13 +149,13 @@ class OrderItem(models.Model):
     )
     unit_price = models.DecimalField(
         max_digits=10,
-        decimal_places=2,
+        decimal_places=0,  # 소수점 제거 (정수만)
         validators=[MinValueValidator(0)],
         verbose_name="개당 판매 가격"
     )
     unit_cost = models.DecimalField(
         max_digits=10,
-        decimal_places=2,
+        decimal_places=0,  # 소수점 제거 (정수만)
         validators=[MinValueValidator(0)],
         verbose_name="개당 원가",
         help_text="주문 시점의 ProductOption.base_cost를 복사하여 저장"
@@ -183,3 +191,34 @@ class OrderItem(models.Model):
     def profit(self):
         """항목의 순이익"""
         return self.total_price - self.total_cost
+
+
+class OrderThumbnail(models.Model):
+    """주문 썸네일 이미지 (여러 장 가능)"""
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name='thumbnails',
+        verbose_name="주문"
+    )
+    image = models.ImageField(
+        upload_to='order_thumbnails/',
+        verbose_name="썸네일 이미지"
+    )
+    order_number = models.PositiveIntegerField(
+        default=1,
+        verbose_name="순서"
+    )
+    uploaded_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="업로드일시"
+    )
+    
+    class Meta:
+        verbose_name = "주문 썸네일"
+        verbose_name_plural = "주문 썸네일"
+        ordering = ['order', 'order_number']
+    
+    def __str__(self):
+        filename = os.path.basename(self.image.name) if self.image else 'No Image'
+        return f"{self.order.smartstore_order_id} - {filename}"

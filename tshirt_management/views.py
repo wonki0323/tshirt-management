@@ -33,9 +33,16 @@ def dashboard(request):
         for expense in Expense.objects.all()
     )
     
-    # 순이익 계산 보류
-    # net_profit = total_revenue - total_purchases - total_expenses
-    net_profit = 0
+    # 스마트스토어 수수료 (매출의 6%)
+    from decimal import Decimal
+    smartstore_fee = Decimal(str(total_revenue)) * Decimal('0.06')
+    
+    # 순이익 계산 = 매출 - 매입 - 지출 - 스마트스토어 수수료
+    net_profit_with_vat = Decimal(str(total_revenue)) - Decimal(str(total_purchases)) - Decimal(str(total_expenses)) - smartstore_fee
+    
+    # 부가세 제외 순이익 = 순이익 / 1.1
+    vat_exclusive_profit = net_profit_with_vat / Decimal('1.1')
+    vat_amount = net_profit_with_vat - vat_exclusive_profit
     
     # ORDERS: 주문 상태별 개수 (요구사항 1)
     order_stats = {
@@ -52,7 +59,10 @@ def dashboard(request):
         'total_revenue': total_revenue,
         'total_purchases': total_purchases,
         'total_expenses': total_expenses,
-        'net_profit': net_profit,
+        'smartstore_fee': smartstore_fee,
+        'net_profit_with_vat': net_profit_with_vat,
+        'vat_amount': vat_amount,
+        'vat_exclusive_profit': vat_exclusive_profit,
         'order_stats': order_stats,
         'total_products': total_products,
     }

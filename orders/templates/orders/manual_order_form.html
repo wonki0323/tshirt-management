@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load humanize %}
 
 {% block title %}수동 주문 등록{% endblock %}
 
@@ -153,24 +154,47 @@
                             <div class="col-12">
                                 <div class="mb-3">
                                     <label for="id_product_options" class="form-label">
-                                        {{ form.product_options.label }}
+                                        제품 옵션 선택 (수량 입력)
                                     </label>
-                                    <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
-                                        {% for option in product_options %}
-                                            <div class="form-check">
-                                                <input type="checkbox" 
-                                                       class="form-check-input" 
-                                                       name="product_options" 
-                                                       value="{{ option.id }}" 
-                                                       id="id_product_options_{{ option.id }}"
-                                                       data-price="{{ option.base_price }}">
-                                                <label class="form-check-label" for="id_product_options_{{ option.id }}">
-                                                    {{ option.product.name }} - {{ option.option_detail }} ({{ option.base_price|floatformat:0 }}원)
-                                                </label>
-                                            </div>
-                                        {% endfor %}
-                                    </div>
-                                    <div class="form-text">{{ form.product_options.help_text }}</div>
+                                <div class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 50%;">제품명 - 옵션</th>
+                                                <th style="width: 25%;">가격</th>
+                                                <th style="width: 25%;">수량</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for option in product_options %}
+                                            <tr>
+                                                <td>
+                                                    {{ option.product_name }} - {{ option.option_detail }}
+                                                    <br>
+                                                    <small class="text-muted">[기본가: {{ option.product_base_price|floatformat:0|intcomma }}원 + 옵션가: {{ option.base_price|floatformat:0|intcomma }}원]</small>
+                                                </td>
+                                                <td class="align-middle">
+                                                    <span class="text-primary fw-bold">{{ option.total_price|floatformat:0|intcomma }}원</span>
+                                                </td>
+                                                <td class="align-middle">
+                                                    <input type="number" 
+                                                           class="form-control form-control-sm product-quantity" 
+                                                           name="product_option_{{ option.id }}" 
+                                                           id="id_product_option_{{ option.id }}"
+                                                           min="0"
+                                                           value="0"
+                                                           data-option-id="{{ option.id }}"
+                                                           data-price="{{ option.total_price|floatformat:0 }}"
+                                                           data-product-price="{{ option.product_base_price|floatformat:0 }}"
+                                                           data-option-price="{{ option.base_price|floatformat:0 }}"
+                                                           placeholder="0">
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                    <div class="form-text">수량을 입력하세요 (0 = 미선택)</div>
                                     {% if form.product_options.errors %}
                                         <div class="text-danger small">{{ form.product_options.errors.0 }}</div>
                                     {% endif %}
@@ -264,7 +288,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const shippingCostInput = document.getElementById('id_shipping_cost');
     const manualTotalInput = document.getElementById('id_manual_total_input');
     const totalAmountInput = document.getElementById('id_total_order_amount');
-    const productOptionCheckboxes = document.querySelectorAll('input[name="product_options"]');
+    const productQuantityInputs = document.querySelectorAll('.product-quantity');
     const paymentDateInput = document.getElementById('id_payment_date');
     
     // 결제일시 기본값 설정 (현재 시각)
@@ -340,6 +364,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // 천 단위 콤마 포맷팅 함수
+    function formatNumberWithCommas(num) {
+        return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+    
     // 총 결제금액 자동 합산
     function calculateTotal() {
         console.log('calculateTotal 호출됨');
@@ -358,13 +387,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let itemsTotal = 0;
         
-        // 선택된 제품 옵션의 가격 합산
-        productOptionCheckboxes.forEach(checkbox => {
-            if (checkbox.checked) {
-                // 체크박스의 data-price 속성에서 가격 읽기
-                const price = parseFloat(checkbox.getAttribute('data-price')) || 0;
-                console.log('옵션 가격:', price);
-                itemsTotal += price;
+        // 수량 입력된 제품 옵션의 가격 합산
+        productQuantityInputs.forEach(input => {
+            const quantity = parseInt(input.value) || 0;
+            if (quantity > 0) {
+                // input의 data-price 속성에서 가격 읽기 (기본가 + 옵션가)
+                const price = parseFloat(input.getAttribute('data-price')) || 0;
+                const subtotal = price * quantity;
+                console.log(`옵션 ID: ${input.getAttribute('data-option-id')}, 가격: ${price}, 수량: ${quantity}, 소계: ${subtotal}`);
+                itemsTotal += subtotal;
             }
         });
         
@@ -377,8 +408,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('택배비:', shippingCost);
         console.log('최종 총액:', total);
         
-        // 값 설정 - readonly를 제거했으므로 정상 작동
-        totalAmountInput.value = total.toFixed(0);  // 소수점 제거
+        // 값 설정 - 소수점 제거하고 정수만 표시
+        totalAmountInput.value = Math.round(total);
         
         // 다시 readonly 설정 (사용자가 직접 수정 못하도록)
         if (!manualTotalInput.checked) {
@@ -393,8 +424,8 @@ document.addEventListener('DOMContentLoaded', function() {
     manualTotalInput.addEventListener('change', calculateTotal);
     shippingCostInput.addEventListener('input', calculateTotal);
     
-    productOptionCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', calculateTotal);
+    productQuantityInputs.forEach(input => {
+        input.addEventListener('input', calculateTotal);
     });
     
     // 초기 계산
@@ -405,8 +436,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const customerName = customerNameInput.value.trim();
         const customerPhone = customerPhoneInput.value.trim();
         const manualItems = document.getElementById('id_manual_items').value.trim();
-        const productOptions = document.querySelectorAll('input[name="product_options"]:checked');
         const totalAmount = parseFloat(totalAmountInput.value) || 0;
+        
+        // 수량이 입력된 제품 옵션 확인
+        let hasProductOptions = false;
+        productQuantityInputs.forEach(input => {
+            const quantity = parseInt(input.value) || 0;
+            if (quantity > 0) {
+                hasProductOptions = true;
+            }
+        });
         
         if (!customerName || !customerPhone) {
             e.preventDefault();
@@ -414,7 +453,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
         
-        if (productOptions.length === 0 && !manualItems) {
+        if (!hasProductOptions && !manualItems) {
             e.preventDefault();
             alert('제품 옵션을 선택하거나 주문 항목을 입력해주세요.');
             return false;

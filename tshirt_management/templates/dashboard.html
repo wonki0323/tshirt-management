@@ -250,9 +250,9 @@
                 <div class="finance-stat-number neutral">{{ total_expenses|floatformat:0|intcomma }}원</div>
                 <div class="finance-stat-label">지출</div>
             </a>
-            <a href="{% url 'order_list' %}?status=COMPLETED" class="finance-stat-item" style="text-decoration: none; color: inherit;">
-                <div class="finance-stat-number {% if net_profit >= 0 %}positive{% else %}negative{% endif %}">
-                    {{ net_profit|floatformat:0|intcomma }}원
+            <a href="{% url 'net_profit_summary' %}" class="finance-stat-item" style="text-decoration: none; color: inherit;">
+                <div class="finance-stat-number {% if vat_exclusive_profit >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ vat_exclusive_profit|floatformat:0|intcomma }}원
                 </div>
                 <div class="finance-stat-label">순이익</div>
             </a>

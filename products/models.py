@@ -23,11 +23,19 @@ class Product(models.Model):
     )
     base_price = models.DecimalField(
         max_digits=10,
-        decimal_places=2,
+        decimal_places=0,  # 소수점 제거 (정수만)
         default=0,
         validators=[MinValueValidator(0)],
         verbose_name="기본 판매가",
         help_text="제품의 기본 판매 가격 (옵션별로 다를 수 있음)"
+    )
+    base_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=0,  # 소수점 제거 (정수만)
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name="기본 원가",
+        help_text="옵션이 없을 때 사용되는 기본 제품 원가"
     )
     is_active = models.BooleanField(
         default=True,
@@ -61,7 +69,7 @@ class ProductOption(models.Model):
     )
     base_price = models.DecimalField(
         max_digits=10,
-        decimal_places=2,
+        decimal_places=0,  # 소수점 제거 (정수만)
         default=0,
         validators=[MinValueValidator(0)],
         verbose_name="판매가",
@@ -69,11 +77,22 @@ class ProductOption(models.Model):
     )
     base_cost = models.DecimalField(
         max_digits=10,
-        decimal_places=2,
+        decimal_places=0,  # 소수점 제거 (정수만)
         default=0,
         validators=[MinValueValidator(0)],
         verbose_name="제품 원가 (부가세 포함)",
         help_text="이 옵션의 원가 (부가세 포함)"
+    )
+    stock_quantity = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name="재고 수량",
+        help_text="재고 수량 (NULL이면 무제한)"
+    )
+    track_inventory = models.BooleanField(
+        default=True,
+        verbose_name="재고 추적",
+        help_text="재고를 추적할지 여부 (프린터 잉크 등은 체크 해제)"
     )
     is_active = models.BooleanField(
         default=True,
@@ -101,3 +120,38 @@ class ProductOption(models.Model):
     def is_general(self):
         """일반 카테고리인지 확인"""
         return self.product.category == CategoryChoices.GENERAL
+    
+    @property
+    def stock_status(self):
+        """재고 상태 반환"""
+        if not self.track_inventory:
+            return "무제한"
+        if self.stock_quantity is None:
+            return "무제한"
+        if self.stock_quantity <= 0:
+            return "품절"
+        if self.stock_quantity <= 10:
+            return "부족"
+        return "정상"
+    
+    def decrease_stock(self, quantity):
+        """재고 차감"""
+        if not self.track_inventory:
+            return True
+        if self.stock_quantity is None:
+            return True
+        if self.stock_quantity >= quantity:
+            self.stock_quantity -= quantity
+            self.save()
+            return True
+        return False
+    
+    def increase_stock(self, quantity):
+        """재고 증가"""
+        if not self.track_inventory:
+            return
+        if self.stock_quantity is None:
+            self.stock_quantity = quantity
+        else:
+            self.stock_quantity += quantity
+        self.save()

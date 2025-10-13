@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}재무 요약{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">
+            <i class="fas fa-chart-line"></i> 재무 요약 및 세금 계산
+        </h1>
+    </div>
+
+    <!-- 기간 필터 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">연도</label>
+                    <select name="year" class="form-select">
+                        <option value="2023" {% if year == 2023 %}selected{% endif %}>2023년</option>
+                        <option value="2024" {% if year == 2024 %}selected{% endif %}>2024년</option>
+                        <option value="2025" {% if year == 2025 %}selected{% endif %}>2025년</option>
+                        <option value="2026" {% if year == 2026 %}selected{% endif %}>2026년</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">월 (선택)</label>
+                    <select name="month" class="form-select">
+                        <option value="">전체</option>
+                        <option value="1" {% if month == 1 %}selected{% endif %}>1월</option>
+                        <option value="2" {% if month == 2 %}selected{% endif %}>2월</option>
+                        <option value="3" {% if month == 3 %}selected{% endif %}>3월</option>
+                        <option value="4" {% if month == 4 %}selected{% endif %}>4월</option>
+                        <option value="5" {% if month == 5 %}selected{% endif %}>5월</option>
+                        <option value="6" {% if month == 6 %}selected{% endif %}>6월</option>
+                        <option value="7" {% if month == 7 %}selected{% endif %}>7월</option>
+                        <option value="8" {% if month == 8 %}selected{% endif %}>8월</option>
+                        <option value="9" {% if month == 9 %}selected{% endif %}>9월</option>
+                        <option value="10" {% if month == 10 %}selected{% endif %}>10월</option>
+                        <option value="11" {% if month == 11 %}selected{% endif %}>11월</option>
+                        <option value="12" {% if month == 12 %}selected{% endif %}>12월</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="smartstoreFeeCheck" {% if include_smartstore_fee %}checked{% endif %}>
+                        <input type="hidden" name="include_smartstore_fee" id="smartstoreFeeHidden" value="{% if include_smartstore_fee %}true{% else %}false{% endif %}">
+                        <label class="form-check-label" for="smartstoreFeeCheck">
+                            스마트스토어 수수료 6% 포함
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> 조회
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 매출/매입/지출 요약 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-shopping-cart"></i> 총 매출
+                    </h6>
+                    <h3 class="mb-0">{{ total_revenue|floatformat:0|intcomma }}원</h3>
+                    <small>완료된 주문 {{ revenue_count|intcomma }}건</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-boxes"></i> 총 매입
+                    </h6>
+                    <h3 class="mb-0">{{ total_purchase|floatformat:0|intcomma }}원</h3>
+                    <small>매입 {{ purchase_count|intcomma }}건</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-receipt"></i> 총 지출
+                    </h6>
+                    <h3 class="mb-0">{{ total_expense|floatformat:0|intcomma }}원</h3>
+                    <small>지출 {{ expense_count|intcomma }}건</small>
+                </div>
+            </div>
+        </div>
+        {% if include_smartstore_fee %}
+        <div class="col-md-3">
+            <div class="card bg-secondary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-store"></i> 스마트스토어 수수료
+                    </h6>
+                    <h3 class="mb-0">{{ smartstore_fee|floatformat:0|intcomma }}원</h3>
+                    <small>매출의 6%</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 순이익 계산 -->
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-calculator"></i> 순이익 계산</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="alert alert-light">
+                        <h6 class="mb-3">계산식:</h6>
+                        {% if include_smartstore_fee %}
+                        <p class="mb-1">
+                            <strong>순이익</strong> = 매출 - 매입 - 지출 - 스마트스토어 수수료
+                        </p>
+                        <p class="mb-0">
+                            = {{ total_revenue|floatformat:0|intcomma }}원 
+                            - {{ total_purchase|floatformat:0|intcomma }}원 
+                            - {{ total_expense|floatformat:0|intcomma }}원 
+                            - {{ smartstore_fee|floatformat:0|intcomma }}원
+                            = <strong class="text-success">{{ net_profit|floatformat:0|intcomma }}원</strong>
+                        </p>
+                        {% else %}
+                        <p class="mb-1">
+                            <strong>순이익</strong> = 매출 - 매입 - 지출
+                        </p>
+                        <p class="mb-0">
+                            = {{ total_revenue|floatformat:0|intcomma }}원 
+                            - {{ total_purchase|floatformat:0|intcomma }}원 
+                            - {{ total_expense|floatformat:0|intcomma }}원 
+                            = <strong class="text-success">{{ net_profit|floatformat:0|intcomma }}원</strong>
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-md-6">
+                    <h4 class="text-success">순이익 (부가세 포함)</h4>
+                    <h2 class="display-4 text-success">{{ net_profit|floatformat:0|intcomma }}원</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 부가세 계산 -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-percent"></i> 부가세 계산 (10%)</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="alert alert-light">
+                        <h6 class="mb-3">계산식:</h6>
+                        <p class="mb-1">
+                            <strong>부가세 제외 순이익</strong> = 순이익 ÷ 1.1
+                        </p>
+                        <p class="mb-1">
+                            = {{ net_profit|floatformat:0|intcomma }}원 ÷ 1.1 
+                            = <strong class="text-primary">{{ vat_exclusive_profit|floatformat:0|intcomma }}원</strong>
+                        </p>
+                        <p class="mb-0">
+                            <strong>부가세</strong> = 순이익 - 부가세 제외 순이익 
+                            = <strong class="text-danger">{{ vat_amount|floatformat:0|intcomma }}원</strong>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>부가세 제외 순이익</h5>
+                    <h3 class="text-primary">{{ vat_exclusive_profit|floatformat:0|intcomma }}원</h3>
+                </div>
+                <div class="col-md-6">
+                    <h5>부가세 (10%)</h5>
+                    <h3 class="text-danger">{{ vat_amount|floatformat:0|intcomma }}원</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 종합소득세 계산 -->
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0"><i class="fas fa-file-invoice-dollar"></i> 종합소득세 계산 (2023-2024년 귀속)</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="alert alert-light">
+                        <h6 class="mb-3">계산식:</h6>
+                        <p class="mb-1">
+                            <strong>과세표준</strong> = 부가세 제외 순이익 = {{ vat_exclusive_profit|floatformat:0|intcomma }}원
+                        </p>
+                        <p class="mb-1">
+                            <strong>산출세액</strong> = (과세표준 × 해당구간세율) - 누진공제액
+                        </p>
+                        <p class="mb-0">
+                            = <strong class="text-danger">{{ income_tax|intcomma }}원</strong>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 세율표 -->
+            <div class="table-responsive mb-3">
+                <table class="table table-sm table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>과세표준 (Tax Base)</th>
+                            <th>세율 (Tax Rate)</th>
+                            <th>누진공제 (Progressive Deduction)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1,400만원 이하</td>
+                            <td>6%</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td>1,400만원 초과 ~ 5,000만원 이하</td>
+                            <td>15%</td>
+                            <td>1,260,000원</td>
+                        </tr>
+                        <tr>
+                            <td>5,000만원 초과 ~ 8,800만원 이하</td>
+                            <td>24%</td>
+                            <td>5,760,000원</td>
+                        </tr>
+                        <tr>
+                            <td>8,800만원 초과 ~ 1억 5,000만원 이하</td>
+                            <td>35%</td>
+                            <td>15,440,000원</td>
+                        </tr>
+                        <tr>
+                            <td>1억 5,000만원 초과 ~ 3억원 이하</td>
+                            <td>38%</td>
+                            <td>19,940,000원</td>
+                        </tr>
+                        <tr>
+                            <td>3억원 초과 ~ 5억원 이하</td>
+                            <td>40%</td>
+                            <td>25,940,000원</td>
+                        </tr>
+                        <tr>
+                            <td>5억원 초과 ~ 10억원 이하</td>
+                            <td>42%</td>
+                            <td>35,940,000원</td>
+                        </tr>
+                        <tr>
+                            <td>10억원 초과</td>
+                            <td>45%</td>
+                            <td>65,940,000원</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <hr>
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>과세표준 (부가세 제외)</h5>
+                    <h3 class="text-info">{{ vat_exclusive_profit|floatformat:0|intcomma }}원</h3>
+                </div>
+                <div class="col-md-6">
+                    <h5>종합소득세 (산출세액)</h5>
+                    <h3 class="text-danger">{{ income_tax|intcomma }}원</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 최종 실수령액 -->
+    <div class="card border-success">
+        <div class="card-header bg-success text-white">
+            <h4 class="mb-0"><i class="fas fa-money-bill-wave"></i> 최종 실수령액</h4>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-light">
+                <h6 class="mb-3">계산식:</h6>
+                <p class="mb-0">
+                    <strong>실수령액</strong> = 부가세 제외 순이익 - 종합소득세
+                    = {{ vat_exclusive_profit|floatformat:0|intcomma }}원 - {{ income_tax|intcomma }}원
+                </p>
+            </div>
+            <hr>
+            <div class="text-center">
+                <h2 class="display-3 text-success fw-bold">{{ net_income|floatformat:0|intcomma }}원</h2>
+                <p class="text-muted">세후 순이익</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4 text-end">
+        <a href="{% url 'purchase_list' %}" class="btn btn-info">
+            <i class="fas fa-boxes"></i> 매입 관리
+        </a>
+        <a href="{% url 'expense_list' %}" class="btn btn-warning">
+            <i class="fas fa-receipt"></i> 지출 관리
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkbox = document.getElementById('smartstoreFeeCheck');
+    const hiddenInput = document.getElementById('smartstoreFeeHidden');
+    
+    // 체크박스 변경 시 hidden input 값 업데이트
+    checkbox.addEventListener('change', function() {
+        hiddenInput.value = this.checked ? 'true' : 'false';
+    });
+});
+</script>
+{% endblock %}
+

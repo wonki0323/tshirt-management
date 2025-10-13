@@ -1,11 +1,39 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.contrib import messages
 from django.urls import reverse_lazy
-from .models import Product
+from .models import Product, ProductOption
 from .forms import ProductForm, ProductOptionFormSet
+
+
+@login_required
+def inventory_list(request):
+    """재고 현황 조회"""
+    # 모든 제품 옵션을 조회 (재고 추적 여부 무관)
+    options = ProductOption.objects.filter(
+        is_active=True
+    ).select_related('product').order_by('product__name', 'option_detail')
+    
+    # 재고 부족 경고
+    low_stock_count = 0
+    out_of_stock_count = 0
+    
+    for option in options:
+        if option.track_inventory and option.stock_quantity is not None:
+            if option.stock_quantity <= 0:
+                out_of_stock_count += 1
+            elif option.stock_quantity <= 10:
+                low_stock_count += 1
+    
+    context = {
+        'options': options,
+        'low_stock_count': low_stock_count,
+        'out_of_stock_count': out_of_stock_count,
+    }
+    
+    return render(request, 'products/inventory_list.html', context)
 
 
 class ProductListView(LoginRequiredMixin, ListView):
@@ -33,8 +61,22 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         return context
     
     def form_valid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         context = self.get_context_data()
         formset = context['formset']
+        
+        logger.info(f"=== 제품 생성 시작 ===")
+        logger.info(f"제품명: {form.cleaned_data.get('name')}")
+        logger.info(f"Formset valid: {formset.is_valid()}")
+        
+        if not formset.is_valid():
+            logger.error(f"Formset errors: {formset.errors}")
+            logger.error(f"Formset non-form errors: {formset.non_form_errors()}")
+            for i, form_errors in enumerate(formset.errors):
+                if form_errors:
+                    logger.error(f"Form {i} errors: {form_errors}")
         
         if formset.is_valid():
             self.object = form.save()
@@ -43,6 +85,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
             messages.success(self.request, f'제품 "{self.object.name}"이 성공적으로 생성되었습니다.')
             return super().form_valid(form)
         else:
+            messages.error(self.request, '옵션 정보에 오류가 있습니다. 다시 확인해주세요.')
             return self.render_to_response(self.get_context_data(form=form))
 
 
@@ -62,8 +105,22 @@ class ProductUpdateView(LoginRequiredMixin, UpdateView):
         return context
     
     def form_valid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         context = self.get_context_data()
         formset = context['formset']
+        
+        logger.info(f"=== 제품 수정 시작 ===")
+        logger.info(f"제품명: {form.cleaned_data.get('name')}")
+        logger.info(f"Formset valid: {formset.is_valid()}")
+        
+        if not formset.is_valid():
+            logger.error(f"Formset errors: {formset.errors}")
+            logger.error(f"Formset non-form errors: {formset.non_form_errors()}")
+            for i, form_errors in enumerate(formset.errors):
+                if form_errors:
+                    logger.error(f"Form {i} errors: {form_errors}")
         
         if formset.is_valid():
             self.object = form.save()
@@ -72,6 +129,7 @@ class ProductUpdateView(LoginRequiredMixin, UpdateView):
             messages.success(self.request, f'제품 "{self.object.name}"이 성공적으로 수정되었습니다.')
             return super().form_valid(form)
         else:
+            messages.error(self.request, '옵션 정보에 오류가 있습니다. 다시 확인해주세요.')
             return self.render_to_response(self.get_context_data(form=form))
 
 

@@ -94,16 +94,16 @@ class ManualOrderForm(forms.Form):
         })
     )
     
-    # 제품 옵션 선택
-    product_options = forms.ModelMultipleChoiceField(
-        queryset=ProductOption.objects.filter(is_active=True),
-        label="제품 옵션 선택",
-        widget=forms.CheckboxSelectMultiple(attrs={
-            'class': 'form-check-input'
-        }),
-        required=False,
-        help_text="등록된 제품 옵션 중에서 선택하세요"
-    )
+    # 제품 옵션 선택 (수량 입력 방식으로 변경되어 사용하지 않음, 하지만 템플릿 에러 방지를 위해 유지)
+    # product_options = forms.ModelMultipleChoiceField(
+    #     queryset=ProductOption.objects.filter(is_active=True),
+    #     label="제품 옵션 선택",
+    #     widget=forms.CheckboxSelectMultiple(attrs={
+    #         'class': 'form-check-input'
+    #     }),
+    #     required=False,
+    #     help_text="등록된 제품 옵션 중에서 선택하세요"
+    # )
     
     # 수동 입력 항목 (메모)
     manual_items = forms.CharField(
@@ -130,18 +130,49 @@ class ManualOrderForm(forms.Form):
     
     def clean(self):
         """전체 폼 유효성 검사"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         cleaned_data = super().clean()
-        product_options = cleaned_data.get('product_options')
         manual_items = cleaned_data.get('manual_items')
         total_order_amount = cleaned_data.get('total_order_amount')
         
+        logger.info("=== 폼 유효성 검사 시작 ===")
+        logger.info(f"manual_items: {manual_items}")
+        logger.info(f"total_order_amount: {total_order_amount}")
+        
+        # POST 데이터에서 수량이 입력된 제품 옵션 확인
+        has_product_options = False
+        if hasattr(self, 'data') and self.data:
+            logger.info(f"POST 데이터 키: {list(self.data.keys())}")
+            for key in self.data.keys():
+                if key.startswith('product_option_'):
+                    try:
+                        value = self.data.get(key, '')
+                        logger.info(f"{key}: {value}")
+                        if value and value.strip():
+                            quantity = int(value)
+                            if quantity > 0:
+                                has_product_options = True
+                                logger.info(f"수량 입력 발견: {key} = {quantity}")
+                                break
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"{key} 변환 실패: {e}")
+                        continue
+        
+        logger.info(f"has_product_options: {has_product_options}")
+        
         # 제품 옵션 없이 수동 입력만 있는 경우, 결제금액이 있으면 진행 가능
-        if not product_options and manual_items and total_order_amount and total_order_amount > 0:
+        if not has_product_options and manual_items and total_order_amount and total_order_amount > 0:
             # 수동 입력 + 결제금액이 있으면 OK
+            logger.info("수동 입력 + 결제금액 있음 - 통과")
             pass
-        elif not product_options and not manual_items:
+        elif not has_product_options and not manual_items:
             # 둘 다 없으면 에러
+            logger.error("제품 옵션도 없고 수동 입력도 없음")
             raise ValidationError('제품 옵션을 선택하거나 수동으로 주문 항목을 입력해주세요.')
+        else:
+            logger.info("유효성 검사 통과")
         
         return cleaned_data
     
@@ -156,7 +187,7 @@ class ManualOrderForm(forms.Form):
         final_customer_name = generate_customer_id(customer_name, customer_phone)
         
         # 주문 ID 생성 (수동 등록용) - 중복 방지
-        base_id = f"MANUAL_{timezone.now().strftime('%Y%m%d_%H%M%S')}"
+        base_id = f"M{timezone.now().strftime('%Y%m%d_%H%M%S')}"
         manual_order_id = base_id
         counter = 1
         while Order.objects.filter(smartstore_order_id=manual_order_id).exists():
@@ -174,26 +205,41 @@ class ManualOrderForm(forms.Form):
             payment_date=self.cleaned_data['payment_date']
         )
         
-        # 제품 옵션 선택 처리
-        product_options = self.cleaned_data.get('product_options', [])
-        for product_option in product_options:
-            # 수량과 단가를 옵션의 base_price 사용
-            quantity = 1  # 기본 수량
-            unit_price = product_option.base_price if product_option.base_price > 0 else product_option.base_cost * Decimal('2')
-            
-            OrderItem.objects.create(
-                order=order,
-                product_option=product_option,
-                smartstore_product_name=product_option.product.name,
-                smartstore_option_text=product_option.option_detail,
-                quantity=quantity,
-                unit_price=unit_price,
-                unit_cost=product_option.base_cost
-            )
+        # 제품 옵션 선택 처리 (수량 포함)
+        from products.models import ProductOption
+        
+        for key, value in self.data.items():
+            if key.startswith('product_option_'):
+                try:
+                    quantity = int(value) if value else 0
+                    if quantity > 0:
+                        # 옵션 ID 추출
+                        option_id = int(key.replace('product_option_', ''))
+                        product_option = ProductOption.objects.get(id=option_id)
+                        
+                        # 단가 = 제품 기본가 + 옵션가
+                        unit_price = product_option.product.base_price + product_option.base_price
+                        
+                        OrderItem.objects.create(
+                            order=order,
+                            product_option=product_option,
+                            smartstore_product_name=product_option.product.name,
+                            smartstore_option_text=product_option.option_detail,
+                            quantity=quantity,
+                            unit_price=unit_price,
+                            unit_cost=0  # 수동 등록은 원가 0
+                        )
+                except (ValueError, TypeError, ProductOption.DoesNotExist) as e:
+                    # 잘못된 값이나 존재하지 않는 옵션은 건너뜀
+                    continue
         
         # 수동 입력 항목 처리 (메모로 저장)
         manual_items = self.cleaned_data.get('manual_items', '')
-        if manual_items and not product_options:
+        
+        # 제품 옵션 개수 확인
+        has_product_items = OrderItem.objects.filter(order=order).exists()
+        
+        if manual_items and not has_product_items:
             # 제품 옵션이 없고 수동 입력만 있는 경우, 하나의 OrderItem으로 저장
             OrderItem.objects.create(
                 order=order,

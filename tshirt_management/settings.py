@@ -137,6 +137,10 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # WhiteNoise 설정 (정적 파일 압축 및 캐싱)
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+# Media files (User uploaded files)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 

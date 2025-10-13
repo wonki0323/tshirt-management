@@ -4,7 +4,25 @@
 {% block title %}매입 목록{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">매입 목록</h1>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">
+            <i class="fas fa-shopping-cart"></i> 매입 목록
+        </h1>
+        <a href="{% url 'purchase_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> 매입 등록
+        </a>
+    </div>
+
+    <!-- 메시지 표시 -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message|safe }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
 
 {% if purchases %}
 <div class="table-responsive">
@@ -28,8 +46,12 @@
                 <td>{{ purchase.description|default:"-" }}</td>
                 <td>{{ purchase.amount|floatformat:0|intcomma }}원</td>
                 <td>{{ purchase.quantity|intcomma }}</td>
-                <td>{{ purchase.total_amount|floatformat:0|intcomma }}원</td>
-                <td><a href="{% url 'admin:finance_purchase_change' purchase.pk %}" class="btn btn-sm btn-outline-secondary">상세</a></td>
+                <td class="fw-bold">{{ purchase.total_amount|floatformat:0|intcomma }}원</td>
+                <td>
+                    <a href="{% url 'purchase_delete' purchase.pk %}" class="btn btn-sm btn-danger">
+                        <i class="fas fa-trash"></i> 삭제
+                    </a>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
@@ -55,5 +77,7 @@
     등록된 매입 내역이 없습니다.
 </div>
 {% endif %}
+
+</div>
 {% endblock %}
 
