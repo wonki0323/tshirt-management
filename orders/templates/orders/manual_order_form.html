@@ -2,6 +2,14 @@
 
 {% block title %}수동 주문 등록{% endblock %}
 
+{% block extra_css %}
+<style>
+    .readonly-field {
+        background-color: #e9ecef;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -38,7 +46,7 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="{{ form.customer_name.id_for_label }}" class="form-label">
+                                    <label for="id_customer_name" class="form-label">
                                         {{ form.customer_name.label }}
                                     </label>
                                     {{ form.customer_name }}
@@ -49,7 +57,7 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="{{ form.customer_phone.id_for_label }}" class="form-label">
+                                    <label for="id_customer_phone" class="form-label">
                                         {{ form.customer_phone.label }}
                                     </label>
                                     {{ form.customer_phone }}
@@ -60,9 +68,14 @@
                             </div>
                             <div class="col-12">
                                 <div class="mb-3">
-                                    <label for="{{ form.shipping_address.id_for_label }}" class="form-label">
+                                    <label for="id_shipping_address" class="form-label">
                                         {{ form.shipping_address.label }}
                                     </label>
+                                    <div class="input-group mb-2">
+                                        <button type="button" class="btn btn-outline-primary" id="addressSearchBtn">
+                                            <i class="fas fa-search"></i> 주소 검색
+                                        </button>
+                                    </div>
                                     {{ form.shipping_address }}
                                     {% if form.shipping_address.errors %}
                                         <div class="text-danger small">{{ form.shipping_address.errors.0 }}</div>
@@ -78,26 +91,53 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="{{ form.total_order_amount.id_for_label }}" class="form-label">
+                                    <label for="id_shipping_cost" class="form-label">
+                                        {{ form.shipping_cost.label }}
+                                    </label>
+                                    <div class="input-group">
+                                        {{ form.shipping_cost }}
+                                        <span class="input-group-text">원</span>
+                                    </div>
+                                    <div class="form-text">{{ form.shipping_cost.help_text }}</div>
+                                    {% if form.shipping_cost.errors %}
+                                        <div class="text-danger small">{{ form.shipping_cost.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_payment_date" class="form-label">
+                                        {{ form.payment_date.label }}
+                                    </label>
+                                    {{ form.payment_date }}
+                                    {% if form.payment_date.errors %}
+                                        <div class="text-danger small">{{ form.payment_date.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <div class="form-check mb-2">
+                                        {{ form.manual_total_input }}
+                                        <label class="form-check-label" for="id_manual_total_input">
+                                            {{ form.manual_total_input.label }}
+                                        </label>
+                                        <div class="form-text">{{ form.manual_total_input.help_text }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="id_total_order_amount" class="form-label">
                                         {{ form.total_order_amount.label }}
                                     </label>
                                     <div class="input-group">
                                         {{ form.total_order_amount }}
                                         <span class="input-group-text">원</span>
                                     </div>
+                                    <div class="form-text">제품 옵션 선택 시 자동으로 계산됩니다 (택배비 포함)</div>
                                     {% if form.total_order_amount.errors %}
                                         <div class="text-danger small">{{ form.total_order_amount.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="{{ form.payment_date.id_for_label }}" class="form-label">
-                                        {{ form.payment_date.label }}
-                                    </label>
-                                    {{ form.payment_date }}
-                                    {% if form.payment_date.errors %}
-                                        <div class="text-danger small">{{ form.payment_date.errors.0 }}</div>
                                     {% endif %}
                                 </div>
                             </div>
@@ -112,15 +152,20 @@
                             <!-- 제품 옵션 선택 -->
                             <div class="col-12">
                                 <div class="mb-3">
-                                    <label for="{{ form.product_options.id_for_label }}" class="form-label">
+                                    <label for="id_product_options" class="form-label">
                                         {{ form.product_options.label }}
                                     </label>
-                                    <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
-                                        {% for choice in form.product_options %}
+                                    <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                                        {% for option in product_options %}
                                             <div class="form-check">
-                                                {{ choice.tag }}
-                                                <label class="form-check-label" for="{{ choice.id_for_label }}">
-                                                    {{ choice.choice_label }}
+                                                <input type="checkbox" 
+                                                       class="form-check-input" 
+                                                       name="product_options" 
+                                                       value="{{ option.id }}" 
+                                                       id="id_product_options_{{ option.id }}"
+                                                       data-price="{{ option.base_price }}">
+                                                <label class="form-check-label" for="id_product_options_{{ option.id }}">
+                                                    {{ option.product.name }} - {{ option.option_detail }} ({{ option.base_price|floatformat:0 }}원)
                                                 </label>
                                             </div>
                                         {% endfor %}
@@ -135,7 +180,7 @@
                             <!-- 수동 입력 -->
                             <div class="col-12">
                                 <div class="mb-3">
-                                    <label for="{{ form.manual_items.id_for_label }}" class="form-label">
+                                    <label for="id_manual_items" class="form-label">
                                         {{ form.manual_items.label }}
                                     </label>
                                     {{ form.manual_items }}
@@ -155,6 +200,13 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- 폼 에러 -->
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {{ form.non_field_errors.0 }}
+                            </div>
+                        {% endif %}
 
                         <!-- 제출 버튼 -->
                         <div class="d-flex justify-content-end gap-2">
@@ -181,12 +233,16 @@
                         <li>이름만 같고 연락처 다름: <code>김철수B</code>, <code>김철수C</code></li>
                     </ul>
                     
-                    <h6>주문 항목 입력 형식</h6>
+                    <h6>수동 입력 항목</h6>
                     <div class="small">
-                        <code>제품명, 옵션, 수량, 단가</code><br>
-                        예시:<br>
-                        <code>라운드 반팔 티셔츠, 화이트/L, 2, 15000</code><br>
-                        <code>후드티, 블랙/M, 1, 25000</code>
+                        <p>제품 옵션을 선택하지 않고 텍스트로 주문 내용을 입력할 수 있습니다.</p>
+                        <p>메모로도 활용 가능하며, 결제금액만 입력하면 주문이 등록됩니다.</p>
+                    </div>
+                    
+                    <h6>자동 합산</h6>
+                    <div class="small">
+                        <p>제품 옵션을 선택하면 총 결제금액이 자동으로 계산됩니다 (택배비 포함).</p>
+                        <p>수동 입력을 원하시면 체크박스를 선택하세요.</p>
                     </div>
                 </div>
             </div>
@@ -194,13 +250,69 @@
     </div>
 </div>
 
+<!-- Daum 주소 검색 API -->
+<script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const customerNameInput = document.getElementById('{{ form.customer_name.id_for_label }}');
-    const customerPhoneInput = document.getElementById('{{ form.customer_phone.id_for_label }}');
+    const customerNameInput = document.getElementById('id_customer_name');
+    const customerPhoneInput = document.getElementById('id_customer_phone');
     const customerIdPreview = document.getElementById('customerIdPreview');
     const generatedCustomerId = document.getElementById('generatedCustomerId');
+    const addressInput = document.getElementById('id_shipping_address');
+    const addressSearchBtn = document.getElementById('addressSearchBtn');
+    const shippingCostInput = document.getElementById('id_shipping_cost');
+    const manualTotalInput = document.getElementById('id_manual_total_input');
+    const totalAmountInput = document.getElementById('id_total_order_amount');
+    const productOptionCheckboxes = document.querySelectorAll('input[name="product_options"]');
+    const paymentDateInput = document.getElementById('id_payment_date');
     
+    // 결제일시 기본값 설정 (현재 시각)
+    if (!paymentDateInput.value) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        paymentDateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+    
+    // 주소 검색 버튼 클릭
+    addressSearchBtn.addEventListener('click', function() {
+        new daum.Postcode({
+            oncomplete: function(data) {
+                // 도로명 주소 또는 지번 주소
+                let fullAddress = data.address;
+                let extraAddress = '';
+                
+                // 도로명 주소인 경우
+                if (data.addressType === 'R') {
+                    if (data.bname !== '') {
+                        extraAddress += data.bname;
+                    }
+                    if (data.buildingName !== '') {
+                        extraAddress += (extraAddress !== '' ? ', ' + data.buildingName : data.buildingName);
+                    }
+                    fullAddress += (extraAddress !== '' ? ' (' + extraAddress + ')' : '');
+                }
+                
+                // 주소 입력란에 값 설정
+                addressInput.value = `[${data.zonecode}] ${fullAddress}`;
+                addressInput.removeAttribute('readonly');
+                addressInput.focus();
+                
+                // 제주/도서산간 지역 체크 (간단한 예시)
+                if (data.sido === '제주특별자치도' || data.sigungu.includes('도서')) {
+                    shippingCostInput.value = '5000';
+                    alert('제주/도서산간 지역은 택배비가 5,000원으로 자동 변경되었습니다.');
+                    calculateTotal();
+                }
+            }
+        }).open();
+    });
+    
+    // 고객 존재 여부 확인
     function checkCustomerExists() {
         const customerName = customerNameInput.value.trim();
         const customerPhone = customerPhoneInput.value.trim();
@@ -228,16 +340,58 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 입력 필드 변경 시 고객 확인
+    // 총 결제금액 자동 합산
+    function calculateTotal() {
+        if (manualTotalInput.checked) {
+            // 수동 입력 모드
+            totalAmountInput.removeAttribute('readonly');
+            totalAmountInput.classList.remove('readonly-field');
+            return;
+        }
+        
+        // 자동 합산 모드
+        totalAmountInput.setAttribute('readonly', 'readonly');
+        totalAmountInput.classList.add('readonly-field');
+        
+        let itemsTotal = 0;
+        
+        // 선택된 제품 옵션의 가격 합산
+        productOptionCheckboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                // 체크박스의 data-price 속성에서 가격 읽기
+                const price = parseFloat(checkbox.getAttribute('data-price')) || 0;
+                itemsTotal += price;
+            }
+        });
+        
+        // 택배비 추가
+        const shippingCost = parseFloat(shippingCostInput.value) || 0;
+        const total = itemsTotal + shippingCost;
+        
+        totalAmountInput.value = total.toFixed(2);
+    }
+    
+    // 이벤트 리스너 등록
     customerNameInput.addEventListener('input', checkCustomerExists);
     customerPhoneInput.addEventListener('input', checkCustomerExists);
+    
+    manualTotalInput.addEventListener('change', calculateTotal);
+    shippingCostInput.addEventListener('input', calculateTotal);
+    
+    productOptionCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', calculateTotal);
+    });
+    
+    // 초기 계산
+    calculateTotal();
     
     // 폼 제출 시 확인
     document.getElementById('manualOrderForm').addEventListener('submit', function(e) {
         const customerName = customerNameInput.value.trim();
         const customerPhone = customerPhoneInput.value.trim();
-        const manualItems = document.getElementById('{{ form.manual_items.id_for_label }}').value.trim();
+        const manualItems = document.getElementById('id_manual_items').value.trim();
         const productOptions = document.querySelectorAll('input[name="product_options"]:checked');
+        const totalAmount = parseFloat(totalAmountInput.value) || 0;
         
         if (!customerName || !customerPhone) {
             e.preventDefault();
@@ -248,6 +402,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (productOptions.length === 0 && !manualItems) {
             e.preventDefault();
             alert('제품 옵션을 선택하거나 주문 항목을 입력해주세요.');
+            return false;
+        }
+        
+        if (totalAmount <= 0) {
+            e.preventDefault();
+            alert('총 결제금액을 입력해주세요.');
             return false;
         }
         

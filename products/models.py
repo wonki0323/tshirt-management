@@ -21,6 +21,14 @@ class Product(models.Model):
         verbose_name="카테고리",
         help_text="굿즈는 시안이 필요하고, 일반은 시안이 불필요합니다"
     )
+    base_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name="기본 판매가",
+        help_text="제품의 기본 판매 가격 (옵션별로 다를 수 있음)"
+    )
     is_active = models.BooleanField(
         default=True,
         verbose_name="활성화",
@@ -51,13 +59,21 @@ class ProductOption(models.Model):
         verbose_name="옵션 상세",
         help_text="예: 화이트 / L 사이즈"
     )
+    base_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name="판매가",
+        help_text="이 옵션의 판매 가격"
+    )
     base_cost = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         default=0,
         validators=[MinValueValidator(0)],
-        verbose_name="기본 원가",
-        help_text="관리자가 입력하는 기본 원가"
+        verbose_name="제품 원가 (부가세 포함)",
+        help_text="이 옵션의 원가 (부가세 포함)"
     )
     is_active = models.BooleanField(
         default=True,

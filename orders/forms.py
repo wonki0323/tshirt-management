@@ -4,6 +4,8 @@
 import re
 from django import forms
 from django.core.exceptions import ValidationError
+from django.utils import timezone
+from decimal import Decimal
 from .models import Order, OrderItem
 from products.models import ProductOption
 from utils.customer_utils import generate_customer_id
@@ -18,7 +20,8 @@ class ManualOrderForm(forms.Form):
         label="고객명",
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': '고객명을 입력하세요'
+            'placeholder': '고객명을 입력하세요',
+            'id': 'id_customer_name'
         })
     )
     
@@ -27,7 +30,8 @@ class ManualOrderForm(forms.Form):
         label="연락처",
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': '010-1234-5678'
+            'placeholder': '010-1234-5678',
+            'id': 'id_customer_phone'
         })
     )
     
@@ -36,26 +40,57 @@ class ManualOrderForm(forms.Form):
         widget=forms.Textarea(attrs={
             'class': 'form-control',
             'rows': 3,
-            'placeholder': '배송 주소를 입력하세요'
+            'placeholder': '주소 검색 버튼을 클릭하세요',
+            'id': 'id_shipping_address',
+            'readonly': 'readonly'
         })
     )
     
     # 주문 정보
+    shipping_cost = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        initial=3500,
+        label="택배비",
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': '3500',
+            'id': 'id_shipping_cost',
+            'value': '3500'
+        }),
+        help_text="기본 3,500원 (제주/도서산간 변경 가능)"
+    )
+    
+    manual_total_input = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="총 결제금액 수동 입력",
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input',
+            'id': 'id_manual_total_input'
+        }),
+        help_text="체크하면 자동 합산이 비활성화됩니다"
+    )
+    
     total_order_amount = forms.DecimalField(
         max_digits=12,
         decimal_places=2,
-        label="총 결제 금액",
+        label="총 결제 금액 (택배비 포함)",
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
-            'placeholder': '0'
+            'placeholder': '0',
+            'id': 'id_total_order_amount',
+            'readonly': 'readonly'
         })
     )
     
     payment_date = forms.DateTimeField(
+        initial=timezone.now,
         label="결제일시",
         widget=forms.DateTimeInput(attrs={
             'class': 'form-control',
-            'type': 'datetime-local'
+            'type': 'datetime-local',
+            'id': 'id_payment_date'
         })
     )
     
@@ -70,16 +105,17 @@ class ManualOrderForm(forms.Form):
         help_text="등록된 제품 옵션 중에서 선택하세요"
     )
     
-    # 수동 입력 항목들
+    # 수동 입력 항목 (메모)
     manual_items = forms.CharField(
-        label="수동 입력 항목 (선택사항)",
+        label="수동 입력 항목 / 메모 (선택사항)",
         widget=forms.Textarea(attrs={
             'class': 'form-control',
             'rows': 5,
-            'placeholder': '제품명, 옵션, 수량, 단가를 한 줄씩 입력하세요\n예: 라운드 반팔 티셔츠, 화이트/L, 2, 15000'
+            'placeholder': '제품 옵션을 선택하지 않고 직접 입력하거나 메모를 작성하세요',
+            'id': 'id_manual_items'
         }),
         required=False,
-        help_text="각 항목을 한 줄씩 입력하세요. 형식: 제품명, 옵션, 수량, 단가"
+        help_text="제품 옵션 대신 텍스트로 주문 내용을 입력하거나 메모로 활용할 수 있습니다"
     )
     
     def clean_customer_phone(self):
@@ -92,40 +128,19 @@ class ManualOrderForm(forms.Form):
                 raise ValidationError('올바른 연락처를 입력해주세요.')
         return phone
     
-    def clean_manual_items(self):
-        """수동 입력 항목 유효성 검사"""
-        manual_items = self.cleaned_data.get('manual_items')
-        if not manual_items:
-            return manual_items
-        
-        lines = manual_items.strip().split('\n')
-        for i, line in enumerate(lines, 1):
-            line = line.strip()
-            if not line:
-                continue
-            
-            parts = [part.strip() for part in line.split(',')]
-            if len(parts) != 4:
-                raise ValidationError(f'{i}번째 줄의 형식이 올바르지 않습니다. 형식: 제품명, 옵션, 수량, 단가')
-            
-            try:
-                quantity = int(parts[2])
-                unit_price = float(parts[3])
-                if quantity <= 0 or unit_price < 0:
-                    raise ValueError()
-            except ValueError:
-                raise ValidationError(f'{i}번째 줄의 수량 또는 단가가 올바르지 않습니다.')
-        
-        return manual_items
-    
     def clean(self):
         """전체 폼 유효성 검사"""
         cleaned_data = super().clean()
         product_options = cleaned_data.get('product_options')
         manual_items = cleaned_data.get('manual_items')
+        total_order_amount = cleaned_data.get('total_order_amount')
         
-        # 제품 옵션 선택과 수동 입력 중 하나는 반드시 있어야 함
-        if not product_options and not manual_items:
+        # 제품 옵션 없이 수동 입력만 있는 경우, 결제금액이 있으면 진행 가능
+        if not product_options and manual_items and total_order_amount and total_order_amount > 0:
+            # 수동 입력 + 결제금액이 있으면 OK
+            pass
+        elif not product_options and not manual_items:
+            # 둘 다 없으면 에러
             raise ValidationError('제품 옵션을 선택하거나 수동으로 주문 항목을 입력해주세요.')
         
         return cleaned_data
@@ -154,6 +169,7 @@ class ManualOrderForm(forms.Form):
             customer_name=final_customer_name,
             customer_phone=customer_phone,
             shipping_address=self.cleaned_data['shipping_address'],
+            shipping_cost=self.cleaned_data.get('shipping_cost', Decimal('3500')),
             total_order_amount=self.cleaned_data['total_order_amount'],
             payment_date=self.cleaned_data['payment_date']
         )
@@ -161,9 +177,9 @@ class ManualOrderForm(forms.Form):
         # 제품 옵션 선택 처리
         product_options = self.cleaned_data.get('product_options', [])
         for product_option in product_options:
-            # 수량과 단가를 기본값으로 설정 (실제로는 사용자가 입력해야 함)
+            # 수량과 단가를 옵션의 base_price 사용
             quantity = 1  # 기본 수량
-            unit_price = product_option.base_cost * 2  # 기본 판매가 (원가의 2배)
+            unit_price = product_option.base_price if product_option.base_price > 0 else product_option.base_cost * Decimal('2')
             
             OrderItem.objects.create(
                 order=order,
@@ -175,34 +191,18 @@ class ManualOrderForm(forms.Form):
                 unit_cost=product_option.base_cost
             )
         
-        # 수동 입력 항목들 처리
+        # 수동 입력 항목 처리 (메모로 저장)
         manual_items = self.cleaned_data.get('manual_items', '')
-        if manual_items:
-            lines = manual_items.strip().split('\n')
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                
-                parts = [part.strip() for part in line.split(',')]
-                if len(parts) >= 4:
-                    product_name = parts[0]
-                    option_text = parts[1]
-                    try:
-                        quantity = int(parts[2])
-                        unit_price = float(parts[3])
-                        
-                        # OrderItem 생성
-                        OrderItem.objects.create(
-                            order=order,
-                            smartstore_product_name=product_name,
-                            smartstore_option_text=option_text,
-                            quantity=quantity,
-                            unit_price=unit_price,
-                            unit_cost=0  # 수동 등록시 원가는 0으로 설정
-                        )
-                    except (ValueError, IndexError) as e:
-                        # 잘못된 형식의 항목은 건너뛰기
-                        continue
+        if manual_items and not product_options:
+            # 제품 옵션이 없고 수동 입력만 있는 경우, 하나의 OrderItem으로 저장
+            OrderItem.objects.create(
+                order=order,
+                smartstore_product_name="수동 입력 주문",
+                smartstore_option_text="",
+                manual_text=manual_items,
+                quantity=1,
+                unit_price=self.cleaned_data['total_order_amount'] - self.cleaned_data.get('shipping_cost', Decimal('3500')),
+                unit_cost=0  # 수동 등록시 원가는 0으로 설정
+            )
         
         return order

@@ -436,9 +436,14 @@ def manual_order_create(request):
     else:
         form = ManualOrderForm()
     
+    # 제품 옵션에 가격 정보 추가
+    from products.models import ProductOption
+    product_options = ProductOption.objects.filter(is_active=True).select_related('product')
+    
     return render(request, 'orders/manual_order_form.html', {
         'form': form,
-        'title': '수동 주문 등록'
+        'title': '수동 주문 등록',
+        'product_options': product_options
     })
 
 

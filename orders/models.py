@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator
+from django.utils import timezone
 from products.models import ProductOption
 
 
@@ -28,6 +29,7 @@ class Order(models.Model):
         verbose_name="주문 상태"
     )
     payment_date = models.DateTimeField(
+        default=timezone.now,
         verbose_name="결제일시"
     )
     customer_name = models.CharField(
@@ -41,11 +43,19 @@ class Order(models.Model):
     shipping_address = models.TextField(
         verbose_name="배송 주소"
     )
+    shipping_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=3500,
+        validators=[MinValueValidator(0)],
+        verbose_name="택배비",
+        help_text="기본 3,500원 (제주/도서산간 변경 가능)"
+    )
     total_order_amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        verbose_name="총 결제 금액"
+        verbose_name="총 결제 금액 (택배비 포함)"
     )
     confirmed_date = models.DateTimeField(
         null=True,
@@ -77,12 +87,13 @@ class Order(models.Model):
 
     @property
     def total_cost(self):
-        """주문의 총 원가 계산"""
-        return sum(item.total_cost for item in self.items.all())
+        """주문의 총 원가 계산 (제품 원가 + 택배비)"""
+        items_cost = sum(item.total_cost for item in self.items.all())
+        return items_cost + self.shipping_cost
 
     @property
     def profit(self):
-        """주문의 순이익 계산"""
+        """주문의 순이익 계산 (총 결제금액 - 총 원가)"""
         return self.total_order_amount - self.total_cost
     
     @property
@@ -118,7 +129,14 @@ class OrderItem(models.Model):
         verbose_name="스마트스토어 옵션 텍스트",
         help_text="스마트스토어에서 넘어온 원본 옵션 텍스트"
     )
+    manual_text = models.TextField(
+        blank=True,
+        default='',
+        verbose_name="수동 입력 항목 (메모)",
+        help_text="제품 옵션을 선택하지 않고 수동으로 입력한 항목 또는 메모"
+    )
     quantity = models.PositiveIntegerField(
+        default=1,
         verbose_name="수량"
     )
     unit_price = models.DecimalField(
