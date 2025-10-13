@@ -312,8 +312,11 @@ def upload_design_and_confirm(request):
                 parent_folder_id
             )
         else:
-            logger.info("서비스 계정 방식 사용 (레거시)")
-            logger.info(f"Google Drive credentials path: {api_settings.google_drive_credentials_path}")
+            logger.info("서비스 계정 방식 사용")
+            if has_env_config:
+                logger.info("배포 환경: 환경 변수에서 credentials 사용")
+            else:
+                logger.info(f"로컬 환경: Google Drive credentials path: {api_settings.google_drive_credentials_path}")
             
             # 서비스 계정 서비스 초기화
             logger.info("Google Drive 서비스 초기화 시작")
@@ -326,7 +329,8 @@ def upload_design_and_confirm(request):
             logger.info("Google Drive 서비스 초기화 성공")
             
             # 서비스 계정을 사용한 파일 업로드
-            parent_folder_id = api_settings.google_drive_parent_folder_id
+            # parent_folder_id는 upload_design_files 함수 내에서 환경 변수에서 읽음
+            parent_folder_id = api_settings.google_drive_parent_folder_id if api_settings else None
             logger.info(f"파일 업로드 시작 - 주문ID: {order.smartstore_order_id}, 고객명: {order.customer_name}")
             
             upload_result = upload_design_files(
