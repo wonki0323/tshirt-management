@@ -277,21 +277,31 @@ def upload_design_and_confirm(request):
         else:
             logger.info(f"배포: 환경 변수에서 폴더 ID 사용")
         
-        # OAuth 또는 서비스 계정 선택 (로컬 환경만, 배포는 항상 Service Account)
-        if not has_env_config and api_settings and api_settings.use_oauth and api_settings.oauth_credentials_path:
+        # OAuth 또는 서비스 계정 선택
+        # 배포 환경에서는 GOOGLE_OAUTH_TOKEN_BASE64 환경 변수가 있으면 OAuth 사용
+        use_oauth = os.environ.get('GOOGLE_OAUTH_TOKEN_BASE64') or (not has_env_config and api_settings and api_settings.use_oauth and api_settings.oauth_credentials_path)
+        
+        if use_oauth:
             logger.info("OAuth 2.0 방식 사용")
-            logger.info(f"OAuth credentials path: {api_settings.oauth_credentials_path}")
             
-            # 토큰 경로 설정 (없으면 기본 경로)
-            if not api_settings.oauth_token_path:
-                api_settings.oauth_token_path = os.path.join(settings.BASE_DIR, 'oauth_tokens', 'token.pickle')
-                api_settings.save()
-            
-            logger.info(f"OAuth token path: {api_settings.oauth_token_path}")
-            
-            # OAuth 서비스 초기화
-            logger.info("OAuth 서비스 초기화 시작")
-            service = get_oauth_service(api_settings.oauth_credentials_path, api_settings.oauth_token_path)
+            # 환경 변수에서 토큰이 있으면 그것을 사용 (배포 환경)
+            if os.environ.get('GOOGLE_OAUTH_TOKEN_BASE64'):
+                logger.info("배포 환경: 환경 변수에서 OAuth 토큰 사용")
+                service = get_oauth_service()  # credentials_path, token_path 없이 호출
+            else:
+                # 로컬 환경
+                logger.info(f"로컬 환경: OAuth credentials path: {api_settings.oauth_credentials_path}")
+                
+                # 토큰 경로 설정 (없으면 기본 경로)
+                if not api_settings.oauth_token_path:
+                    api_settings.oauth_token_path = os.path.join(settings.BASE_DIR, 'oauth_tokens', 'token.pickle')
+                    api_settings.save()
+                
+                logger.info(f"OAuth token path: {api_settings.oauth_token_path}")
+                
+                # OAuth 서비스 초기화
+                logger.info("OAuth 서비스 초기화 시작")
+                service = get_oauth_service(api_settings.oauth_credentials_path, api_settings.oauth_token_path)
             
             if not service:
                 logger.error("OAuth 서비스 초기화 실패")
@@ -301,7 +311,14 @@ def upload_design_and_confirm(request):
             logger.info("OAuth 서비스 초기화 성공")
             
             # OAuth를 사용한 파일 업로드
-            parent_folder_id = api_settings.google_drive_parent_folder_id
+            # parent_folder_id는 환경 변수 또는 DB 설정에서 가져옴
+            if os.environ.get('GOOGLE_DRIVE_PARENT_FOLDER_ID'):
+                parent_folder_id = os.environ.get('GOOGLE_DRIVE_PARENT_FOLDER_ID')
+                logger.info(f"배포: 환경 변수에서 폴더 ID 사용: {parent_folder_id}")
+            else:
+                parent_folder_id = api_settings.google_drive_parent_folder_id if api_settings else None
+                logger.info(f"로컬: DB에서 폴더 ID 사용: {parent_folder_id}")
+            
             logger.info(f"OAuth 파일 업로드 시작 - 주문ID: {order.smartstore_order_id}, 고객명: {order.customer_name}")
             
             upload_result = upload_design_files_oauth(

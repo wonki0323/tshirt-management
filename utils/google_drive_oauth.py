@@ -2,6 +2,7 @@
 Google Drive OAuth 2.0 연동 유틸리티
 """
 import os
+import json
 import pickle
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -15,13 +16,13 @@ logger = logging.getLogger(__name__)
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 
-def get_oauth_service(credentials_path, token_path):
+def get_oauth_service(credentials_path=None, token_path=None):
     """
     OAuth 2.0을 사용하여 Google Drive API 서비스 객체를 생성합니다.
     
     Args:
-        credentials_path: OAuth 2.0 클라이언트 credentials JSON 파일 경로
-        token_path: 토큰을 저장할 pickle 파일 경로
+        credentials_path: OAuth 2.0 클라이언트 credentials JSON 파일 경로 (선택)
+        token_path: 토큰을 저장할 pickle 파일 경로 (선택)
     
     Returns:
         Google Drive API service 객체
@@ -30,50 +31,63 @@ def get_oauth_service(credentials_path, token_path):
     
     try:
         logger.info(f"OAuth 서비스 생성 시작")
-        logger.info(f"Credentials 경로: {credentials_path}")
-        logger.info(f"Credentials 경로 타입: {type(credentials_path)}")
-        logger.info(f"Credentials 경로 repr: {repr(credentials_path)}")
-        logger.info(f"Token 경로: {token_path}")
         
-        # 경로 공백 제거
-        credentials_path = credentials_path.strip()
-        token_path = token_path.strip()
+        # 환경 변수에서 토큰 읽기 (배포 환경 우선)
+        token_base64 = os.environ.get('GOOGLE_OAUTH_TOKEN_BASE64')
         
-        logger.info(f"정리된 Credentials 경로: {credentials_path}")
-        logger.info(f"정리된 Token 경로: {token_path}")
-        
-        # 파일 존재 확인
-        if not os.path.exists(credentials_path):
-            logger.error(f"❌ OAuth Credentials 파일이 존재하지 않습니다: {credentials_path}")
-            return None
-        
-        logger.info(f"✅ OAuth Credentials 파일 존재 확인")
-        
-        # 토큰 파일이 있으면 로드
-        if os.path.exists(token_path):
-            logger.info("기존 토큰 파일 로드 시도")
+        if token_base64:
+            logger.info("환경 변수에서 OAuth 토큰 로드")
+            import base64
+            token_data = base64.b64decode(token_base64)
+            creds = pickle.loads(token_data)
+            logger.info("환경 변수에서 토큰 로드 성공")
+        elif token_path and os.path.exists(token_path):
+            # 로컬 환경: 파일에서 토큰 로드
+            logger.info(f"로컬: 토큰 파일에서 로드 - {token_path}")
             with open(token_path, 'rb') as token:
                 creds = pickle.load(token)
             logger.info("토큰 파일 로드 성공")
+        else:
+            logger.info("토큰이 없음 - 새로 인증 필요")
+            
+            # credentials 파일 확인
+            if not credentials_path or not os.path.exists(credentials_path):
+                logger.error(f"❌ OAuth Credentials 파일이 존재하지 않습니다: {credentials_path}")
+                return None
+            
+            logger.info(f"✅ OAuth Credentials 파일 존재 확인: {credentials_path}")
         
-        # 토큰이 없거나 유효하지 않으면 새로 받기
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                logger.info("토큰 갱신 시도")
+        # 토큰이 없거나 유효하지 않으면 갱신 시도
+        if creds and not creds.valid:
+            if creds.expired and creds.refresh_token:
+                logger.info("토큰 만료 - 갱신 시도")
                 creds.refresh(Request())
                 logger.info("토큰 갱신 성공")
+                
+                # 갱신된 토큰 저장 (로컬 환경만)
+                if token_path:
+                    os.makedirs(os.path.dirname(token_path), exist_ok=True)
+                    with open(token_path, 'wb') as token:
+                        pickle.dump(creds, token)
+                    logger.info(f"갱신된 토큰 저장 완료: {token_path}")
             else:
-                logger.info("새 토큰 발급 필요 - 브라우저 인증 시작")
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    credentials_path, SCOPES)
-                creds = flow.run_local_server(port=0)
-                logger.info("브라우저 인증 완료")
-            
-            # 토큰 저장
-            os.makedirs(os.path.dirname(token_path), exist_ok=True)
-            with open(token_path, 'wb') as token:
-                pickle.dump(creds, token)
-            logger.info(f"토큰 저장 완료: {token_path}")
+                logger.error("토큰 갱신 실패 - refresh_token 없음")
+                # 로컬에서만 새 인증 시도
+                if credentials_path and os.path.exists(credentials_path):
+                    logger.info("새 토큰 발급 필요 - 브라우저 인증 시작")
+                    flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
+                    creds = flow.run_local_server(port=0)
+                    logger.info("브라우저 인증 완료")
+                    
+                    # 토큰 저장
+                    if token_path:
+                        os.makedirs(os.path.dirname(token_path), exist_ok=True)
+                        with open(token_path, 'wb') as token:
+                            pickle.dump(creds, token)
+                        logger.info(f"토큰 저장 완료: {token_path}")
+                else:
+                    logger.error("배포 환경에서 토큰 갱신 실패 - 새로운 토큰이 필요합니다")
+                    return None
         
         # Drive API 서비스 빌드
         logger.info("Google Drive API 서비스 빌드 시작")
