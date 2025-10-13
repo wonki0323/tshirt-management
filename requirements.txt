@@ -1,35 +1,41 @@
-# Django Core
-Django==4.2.25
-django-environ==0.12.0
-
-# Database
-psycopg2-binary==2.9.11
-
-# Google Drive API
-google-api-python-client==2.154.0
-google-auth-httplib2==0.2.0
-google-auth-oauthlib==1.2.1
-
-# Excel/Data Processing
-pandas==2.0.3
-openpyxl==3.1.5
-numpy==1.26.4
-
-# Utilities
-python-dateutil==2.9.0
-tzdata==2025.2
-
-# Image Processing
-Pillow==11.0.0
-
-# Development/Testing
-Faker==37.11.0
-
-# Web Server (배포용)
-gunicorn==23.0.0
-whitenoise==6.8.2
-
-# 기타
 asgiref==3.10.0
+cachetools==6.2.0
+certifi==2025.10.5
+charset-normalizer==3.4.3
+cloudinary==1.44.1
+Django==4.2.25
+django-cloudinary-storage==0.3.0
+django-environ==0.12.0
+et_xmlfile==2.0.0
+Faker==37.11.0
+google-api-core==2.26.0
+google-api-python-client==2.184.0
+google-auth==2.41.1
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.2
+googleapis-common-protos==1.70.0
+httplib2==0.31.0
+idna==3.10
+numpy==2.0.2
+oauthlib==3.3.1
+openpyxl==3.1.5
+pandas==2.3.3
+pillow==11.0.0
+proto-plus==1.26.1
+protobuf==6.32.1
+psycopg2-binary==2.9.11
+pyasn1==0.6.1
+pyasn1_modules==0.4.2
+pyparsing==3.2.5
+python-dateutil==2.9.0.post0
+pytz==2025.2
+requests==2.32.5
+requests-oauthlib==2.0.0
+rsa==4.9.1
+six==1.17.0
 sqlparse==0.5.3
 typing_extensions==4.15.0
+tzdata==2025.2
+uritemplate==4.2.0
+urllib3==2.5.0
+whitenoise==6.11.0

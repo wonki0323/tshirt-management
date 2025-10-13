@@ -50,6 +50,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize',
     
+    # Third-party apps
+    'cloudinary_storage',
+    'cloudinary',
+    
     # Local apps
     'products',
     'orders',
@@ -197,6 +201,19 @@ LOGGING = {
         },
     },
 }
+
+# Cloudinary 설정
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': env('CLOUDINARY_CLOUD_NAME', default=''),
+    'API_KEY': env('CLOUDINARY_API_KEY', default=''),
+    'API_SECRET': env('CLOUDINARY_API_SECRET', default=''),
+}
+
+# 기본 파일 스토리지 (Cloudinary가 설정되어 있으면 사용, 아니면 로컬)
+if CLOUDINARY_STORAGE['CLOUD_NAME'] and CLOUDINARY_STORAGE['API_KEY']:
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+else:
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 # 보안 설정 (프로덕션 환경)
 if not DEBUG:

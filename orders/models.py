@@ -203,7 +203,23 @@ class OrderThumbnail(models.Model):
     )
     image = models.ImageField(
         upload_to='order_thumbnails/',
-        verbose_name="썸네일 이미지"
+        verbose_name="썸네일 이미지",
+        blank=True,
+        null=True
+    )
+    # Google Drive에 저장된 이미지 URL
+    google_drive_image_url = models.URLField(
+        max_length=500,
+        verbose_name="Google Drive 이미지 URL",
+        blank=True,
+        null=True
+    )
+    # 파일 이름 (참조용)
+    filename = models.CharField(
+        max_length=255,
+        verbose_name="파일명",
+        blank=True,
+        null=True
     )
     order_number = models.PositiveIntegerField(
         default=1,
@@ -220,5 +236,14 @@ class OrderThumbnail(models.Model):
         ordering = ['order', 'order_number']
     
     def __str__(self):
-        filename = os.path.basename(self.image.name) if self.image else 'No Image'
-        return f"{self.order.smartstore_order_id} - {filename}"
+        display_name = self.filename or (os.path.basename(self.image.name) if self.image else 'No Image')
+        return f"{self.order.smartstore_order_id} - {display_name}"
+    
+    @property
+    def image_url(self):
+        """Google Drive URL이 있으면 우선 사용, 없으면 로컬 이미지 URL 반환"""
+        if self.google_drive_image_url:
+            return self.google_drive_image_url
+        elif self.image:
+            return self.image.url
+        return None
