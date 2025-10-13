@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}시안 업로드 디버깅{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>시안 업로드 디버깅</h1>
+    
+    <div class="alert alert-info">
+        <h5>디버깅 정보</h5>
+        <p>이 페이지는 시안 업로드 기능의 문제를 진단하기 위한 테스트 페이지입니다.</p>
+    </div>
+    
+    <!-- 테스트 버튼들 -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h5>1. 기본 버튼 테스트</h5>
+            <button type="button" class="btn btn-primary" onclick="testBasicClick()">
+                기본 클릭 테스트
+            </button>
+            <div id="basicResult" class="mt-2"></div>
+        </div>
+        
+        <div class="col-md-6">
+            <h5>2. Bootstrap 모달 테스트</h5>
+            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#testModal">
+                모달 열기 테스트
+            </button>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h5>3. 시안 업로드 버튼 테스트</h5>
+            <button type="button" class="btn btn-warning" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#uploadDesignModal" 
+                    data-order-id="243" 
+                    data-customer-name="윤서연"
+                    id="uploadTestBtn">
+                <i class="fas fa-upload"></i> 시안 업로드 테스트
+            </button>
+            <div id="uploadResult" class="mt-2"></div>
+        </div>
+        
+        <div class="col-md-6">
+            <h5>4. JavaScript 상태 확인</h5>
+            <button type="button" class="btn btn-info" onclick="checkJavaScriptStatus()">
+                JavaScript 상태 확인
+            </button>
+            <div id="jsStatus" class="mt-2"></div>
+        </div>
+    </div>
+    
+    <!-- 테스트 모달 -->
+    <div class="modal fade" id="testModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">테스트 모달</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>이 모달이 열렸다면 Bootstrap이 정상적으로 작동하고 있습니다.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 시안 업로드 모달 -->
+    <div class="modal fade" id="uploadDesignModal" tabindex="-1" aria-labelledby="uploadDesignModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="uploadDesignModalLabel">시안 업로드</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="post" action="{% url 'upload_design_and_confirm' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="customer_name_display" class="form-label">고객명</label>
+                            <input type="text" class="form-control" id="customer_name_display" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="design_files" class="form-label">시안 파일</label>
+                            <input type="file" class="form-control" id="design_files" name="design_files" multiple required>
+                            <div class="form-text">여러 파일을 선택할 수 있습니다.</div>
+                        </div>
+                        <input type="hidden" name="order_id" id="modal_order_id">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                        <button type="submit" class="btn btn-primary">업로드 및 컨펌 완료</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== 디버깅 페이지 로드됨 ===');
+    
+    // 기본 클릭 테스트 함수
+    window.testBasicClick = function() {
+        console.log('기본 클릭 테스트 실행');
+        document.getElementById('basicResult').innerHTML = '<div class="alert alert-success">기본 클릭이 정상적으로 작동합니다!</div>';
+    };
+    
+    // JavaScript 상태 확인 함수
+    window.checkJavaScriptStatus = function() {
+        const status = {
+            'jQuery': typeof $ !== 'undefined',
+            'Bootstrap': typeof bootstrap !== 'undefined',
+            'Bootstrap Modal': typeof bootstrap !== 'undefined' && typeof bootstrap.Modal !== 'undefined',
+            'Modal 요소': document.getElementById('uploadDesignModal') !== null,
+            '업로드 버튼': document.getElementById('uploadTestBtn') !== null,
+            'Bootstrap 버전': typeof bootstrap !== 'undefined' ? bootstrap.Tooltip.VERSION || 'Unknown' : 'Not loaded'
+        };
+        
+        let statusHtml = '<div class="alert alert-info"><h6>JavaScript 상태:</h6><ul>';
+        for (const [key, value] of Object.entries(status)) {
+            statusHtml += `<li>${key}: ${value ? '✅' : '❌'} ${typeof value === 'string' ? `(${value})` : ''}</li>`;
+        }
+        statusHtml += '</ul></div>';
+        
+        document.getElementById('jsStatus').innerHTML = statusHtml;
+        console.log('JavaScript 상태:', status);
+    };
+    
+    // 시안 업로드 모달 이벤트 리스너
+    const uploadModal = document.getElementById('uploadDesignModal');
+    if (uploadModal) {
+        console.log('업로드 모달 요소 찾음');
+        
+        uploadModal.addEventListener('show.bs.modal', function (event) {
+            console.log('=== 시안 업로드 모달 열림 ===');
+            
+            const button = event.relatedTarget;
+            console.log('클릭된 버튼:', button);
+            
+            const orderId = button.getAttribute('data-order-id');
+            const customerName = button.getAttribute('data-customer-name');
+            
+            console.log('주문 ID:', orderId);
+            console.log('고객명:', customerName);
+            
+            const modalTitle = uploadModal.querySelector('.modal-title');
+            const customerNameDisplay = uploadModal.querySelector('#customer_name_display');
+            const orderIdInput = uploadModal.querySelector('#modal_order_id');
+            
+            if (modalTitle && customerNameDisplay && orderIdInput) {
+                modalTitle.textContent = `시안 업로드: ${customerName}`;
+                customerNameDisplay.value = customerName;
+                orderIdInput.value = orderId;
+                console.log('모달 데이터 설정 완료');
+                
+                document.getElementById('uploadResult').innerHTML = '<div class="alert alert-success">모달이 정상적으로 열렸습니다!</div>';
+            } else {
+                console.error('모달 요소를 찾을 수 없습니다!');
+                document.getElementById('uploadResult').innerHTML = '<div class="alert alert-danger">모달 요소를 찾을 수 없습니다!</div>';
+            }
+        });
+    } else {
+        console.error('업로드 모달을 찾을 수 없습니다.');
+        document.getElementById('uploadResult').innerHTML = '<div class="alert alert-danger">업로드 모달을 찾을 수 없습니다!</div>';
+    }
+    
+    // 시안 업로드 버튼 클릭 이벤트
+    const uploadBtn = document.getElementById('uploadTestBtn');
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', function(e) {
+            console.log('=== 시안 업로드 버튼 클릭됨 ===');
+            console.log('클릭된 버튼:', this);
+            console.log('버튼 속성들:', {
+                'data-order-id': this.getAttribute('data-order-id'),
+                'data-customer-name': this.getAttribute('data-customer-name'),
+                'data-bs-toggle': this.getAttribute('data-bs-toggle'),
+                'data-bs-target': this.getAttribute('data-bs-target')
+            });
+        });
+    }
+    
+    console.log('=== 디버깅 페이지 초기화 완료 ===');
+});
+</script>
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}{% if object %}제품 수정{% else %}새 제품 추가{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">
+                        {% if object %}
+                            <i class="fas fa-edit"></i> 제품 수정
+                        {% else %}
+                            <i class="fas fa-plus"></i> 새 제품 추가
+                        {% endif %}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- 제품 기본 정보 -->
+                        <div class="mb-4">
+                            <h5>기본 정보</h5>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label">제품명</label>
+                                    {{ form.name }}
+                                    {% if form.name.errors %}
+                                        <div class="text-danger">{{ form.name.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="{{ form.category.id_for_label }}" class="form-label">카테고리</label>
+                                    {{ form.category }}
+                                    {% if form.category.errors %}
+                                        <div class="text-danger">{{ form.category.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <div class="form-check">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                        활성화
+                                    </label>
+                                </div>
+                                {% if form.is_active.errors %}
+                                    <div class="text-danger">{{ form.is_active.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- 제품 옵션 -->
+                        <div class="mb-4">
+                            <h5>제품 옵션</h5>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>옵션 상세</th>
+                                            <th>기본 원가</th>
+                                            <th>활성화</th>
+                                            <th>삭제</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for form in formset %}
+                                        <tr>
+                                            <td>
+                                                {{ form.option_detail }}
+                                                {% if form.option_detail.errors %}
+                                                    <div class="text-danger">{{ form.option_detail.errors }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {{ form.base_cost }}
+                                                {% if form.base_cost.errors %}
+                                                    <div class="text-danger">{{ form.base_cost.errors }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center">
+                                                {{ form.is_active }}
+                                            </td>
+                                            <td class="text-center">
+                                                {{ form.DELETE }}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {{ formset.management_form }}
+                        </div>
+
+                        <!-- 버튼 -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'product_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> 목록으로
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> 저장
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 동적으로 옵션 행 추가/제거 기능
+document.addEventListener('DOMContentLoaded', function() {
+    const formset = document.querySelector('#id_form-TOTAL_FORMS');
+    const tbody = document.querySelector('tbody');
+    
+    // 새로운 옵션 행 추가 함수
+    function addOptionRow() {
+        const totalForms = parseInt(formset.value);
+        const newRow = tbody.querySelector('tr').cloneNode(true);
+        
+        // 새로운 인덱스로 필드명 변경
+        newRow.innerHTML = newRow.innerHTML.replace(/form-\d+/g, `form-${totalForms}`);
+        newRow.querySelectorAll('input, select').forEach(input => {
+            input.value = '';
+            input.checked = false;
+        });
+        
+        tbody.appendChild(newRow);
+        formset.value = totalForms + 1;
+    }
+    
+    // 옵션 행 삭제 함수
+    function removeOptionRow(button) {
+        const row = button.closest('tr');
+        const deleteCheckbox = row.querySelector('input[name$="-DELETE"]');
+        
+        if (deleteCheckbox) {
+            deleteCheckbox.checked = true;
+            row.style.display = 'none';
+        } else {
+            row.remove();
+        }
+    }
+    
+    // 삭제 버튼 이벤트 리스너
+    tbody.addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-delete')) {
+            removeOptionRow(e.target);
+        }
+    });
+    
+    // 옵션 추가 버튼 이벤트 리스너
+    const addOptionBtn = document.getElementById('add-option-btn');
+    if (addOptionBtn) {
+        addOptionBtn.addEventListener('click', addOptionRow);
+    }
+});
+</script>
+{% endblock %}

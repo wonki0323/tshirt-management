@@ -1,0 +1,506 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}주문 상세 - {{ order.smartstore_order_id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 제작중 상태 뱃지 호버 효과 */
+    a.badge.bg-primary:hover {
+        background-color: #0b5ed7 !important;
+        transform: scale(1.05);
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(13, 110, 253, 0.4);
+    }
+    
+    a.badge.bg-primary {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- 헤더 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1>주문 상세</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'order_list' %}">주문 관리</a></li>
+                    <li class="breadcrumb-item active">{{ order.smartstore_order_id }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="d-flex gap-2">
+            {% if prev_order %}
+            <a href="{% url 'order_detail' prev_order.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-chevron-left"></i> 이전
+            </a>
+            {% endif %}
+            <a href="{% url 'order_list' %}?status={{ order.status }}" class="btn btn-outline-primary">
+                <i class="fas fa-list"></i> 목록
+            </a>
+            {% if next_order %}
+            <a href="{% url 'order_detail' next_order.pk %}" class="btn btn-outline-secondary">
+                다음 <i class="fas fa-chevron-right"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 메시지 표시 -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message|safe }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <!-- 왼쪽: 주문 기본 정보 -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> 주문 기본 정보</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th style="width: 40%;">주문번호</th>
+                                <td class="fw-bold">{{ order.smartstore_order_id }}</td>
+                            </tr>
+                            <tr>
+                                <th>주문 상태</th>
+                                <td>
+                                    {% if order.status == 'PRODUCING' and order.google_drive_folder_url %}
+                                        <a href="{{ order.google_drive_folder_url }}" target="_blank" class="badge bg-primary text-decoration-none fs-6" title="클릭하여 시안 폴더 열기">
+                                            <i class="fas fa-folder-open"></i> {{ order.get_status_display }}
+                                        </a>
+                                    {% else %}
+                                        <span class="badge 
+                                            {% if order.status == 'NEW' %}bg-warning
+                                            {% elif order.status == 'CONSULTING' %}bg-info
+                                            {% elif order.status == 'PRODUCING' %}bg-primary
+                                            {% elif order.status == 'PRODUCED' %}bg-success
+                                            {% elif order.status == 'COMPLETED' %}bg-secondary
+                                            {% elif order.status == 'CANCELED' %}bg-danger
+                                            {% endif %}">
+                                            {{ order.get_status_display }}
+                                        </span>
+                                    {% endif %}
+                                    {% if is_general_order %}
+                                        <span class="badge bg-light text-dark" title="일반 주문">
+                                            <i class="fas fa-tshirt"></i> 일반
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark" title="굿즈 주문">
+                                            <i class="fas fa-palette"></i> 굿즈
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>결제일시</th>
+                                <td>{{ order.payment_date|date:"Y년 m월 d일 H:i" }}</td>
+                            </tr>
+                            {% if order.confirmed_date %}
+                            <tr>
+                                <th>컨펌일시</th>
+                                <td>{{ order.confirmed_date|date:"Y년 m월 d일 H:i" }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if order.due_date %}
+                            <tr>
+                                <th>마감일</th>
+                                <td class="fw-bold text-danger">{{ order.due_date|date:"Y년 m월 d일" }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th>총 주문 금액</th>
+                                <td class="fw-bold fs-5 text-primary">{{ order.total_order_amount|floatformat:0|intcomma }}원</td>
+                            </tr>
+                            <tr>
+                                <th>총 원가</th>
+                                <td>{{ order.total_cost|floatformat:0|intcomma }}원</td>
+                            </tr>
+                            <tr>
+                                <th>순이익</th>
+                                <td class="fw-bold {% if order.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ order.profit|floatformat:0|intcomma }}원
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 오른쪽: 고객 정보 -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-user"></i> 고객 정보</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <th style="width: 40%;">고객명</th>
+                                <td class="fw-bold">{{ order.customer_name }}</td>
+                            </tr>
+                            <tr>
+                                <th>연락처</th>
+                                <td>{{ order.customer_phone }}</td>
+                            </tr>
+                            <tr>
+                                <th>배송지</th>
+                                <td>{{ order.shipping_address|linebreaks }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Google Drive 링크 (있는 경우) -->
+            {% if order.google_drive_folder_url %}
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-cloud"></i> Google Drive</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{{ order.google_drive_folder_url }}" target="_blank" class="btn btn-primary w-100">
+                        <i class="fas fa-external-link-alt"></i> 시안 파일 폴더 열기
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 주문 항목 -->
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0"><i class="fas fa-box"></i> 주문 항목 ({{ order_items.count }}개)</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 5%;">#</th>
+                            <th style="width: 25%;">제품명</th>
+                            <th style="width: 25%;">옵션</th>
+                            <th style="width: 10%;" class="text-center">수량</th>
+                            <th style="width: 12%;" class="text-end">단가</th>
+                            <th style="width: 12%;" class="text-end">원가</th>
+                            <th style="width: 12%;" class="text-end">소계</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in order_items %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>
+                                <strong>{{ item.smartstore_product_name }}</strong>
+                                {% if item.product_option %}
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-tag"></i> {{ item.product_option.product.name }}
+                                    </small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ item.smartstore_option_text }}
+                                {% if item.design_image_url %}
+                                    <br>
+                                    <a href="{{ item.design_image_url }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-image"></i> 시안 보기
+                                    </a>
+                                {% endif %}
+                            </td>
+                            <td class="text-center fw-bold">{{ item.quantity }}개</td>
+                            <td class="text-end">{{ item.unit_price|floatformat:0|intcomma }}원</td>
+                            <td class="text-end text-muted">{{ item.unit_cost|floatformat:0|intcomma }}원</td>
+                            <td class="text-end fw-bold">{{ item.total_price|floatformat:0|intcomma }}원</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                주문 항목이 없습니다.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if order_items %}
+                    <tfoot class="table-light">
+                        <tr>
+                            <th colspan="6" class="text-end">합계</th>
+                            <th class="text-end">{{ order.total_order_amount|floatformat:0|intcomma }}원</th>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 액션 버튼 -->
+    <div class="card">
+        <div class="card-header bg-warning">
+            <h5 class="mb-0"><i class="fas fa-cog"></i> 주문 관리</h5>
+        </div>
+        <div class="card-body">
+            <div class="d-flex gap-2 justify-content-center">
+                {% if order.status == 'NEW' %}
+                    {% if is_general_order %}
+                        <button type="button" class="btn btn-success btn-lg status-change-btn" 
+                                data-order-id="{{ order.id }}" 
+                                data-next-status="PRODUCED">
+                            <i class="fas fa-forward"></i> 제작 완료 처리
+                        </button>
+                    {% else %}
+                        <button type="button" class="btn btn-info btn-lg status-change-btn" 
+                                data-order-id="{{ order.id }}" 
+                                data-next-status="CONSULTING">
+                            <i class="fas fa-comments"></i> 상담 시작
+                        </button>
+                    {% endif %}
+                {% elif order.status == 'CONSULTING' %}
+                    <button type="button" class="btn btn-warning btn-lg upload-design-btn" 
+                            data-order-id="{{ order.id }}" 
+                            data-customer-name="{{ order.customer_name }}">
+                        <i class="fas fa-upload"></i> 시안 업로드
+                    </button>
+                {% elif order.status == 'PRODUCING' %}
+                    <button type="button" class="btn btn-success btn-lg status-change-btn" 
+                            data-order-id="{{ order.id }}" 
+                            data-next-status="PRODUCED">
+                        <i class="fas fa-check"></i> 제작 완료
+                    </button>
+                {% elif order.status == 'PRODUCED' %}
+                    <div class="alert alert-success mb-0 w-100 text-center">
+                        <i class="fas fa-check-circle"></i> 발송 대기 중입니다. 엑셀 출력 후 완료 처리하세요.
+                    </div>
+                {% elif order.status == 'COMPLETED' %}
+                    <div class="alert alert-secondary mb-0 w-100 text-center">
+                        <i class="fas fa-check-double"></i> 완료된 주문입니다.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript -->
+<script>
+// CSRF 토큰 가져오기 함수
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // 상태 변경 버튼 처리
+    document.querySelectorAll('.status-change-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const orderId = this.getAttribute('data-order-id');
+            const nextStatus = this.getAttribute('data-next-status');
+            
+            if (!orderId || !nextStatus) {
+                alert('주문 정보를 찾을 수 없습니다.');
+                return;
+            }
+            
+            // form 생성 및 제출
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{% url "change_order_status" %}';
+            
+            // CSRF 토큰
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = getCookie('csrftoken');
+            form.appendChild(csrfInput);
+            
+            // order_id
+            const orderIdInput = document.createElement('input');
+            orderIdInput.type = 'hidden';
+            orderIdInput.name = 'order_id';
+            orderIdInput.value = orderId;
+            form.appendChild(orderIdInput);
+            
+            // next_status
+            const statusInput = document.createElement('input');
+            statusInput.type = 'hidden';
+            statusInput.name = 'next_status';
+            statusInput.value = nextStatus;
+            form.appendChild(statusInput);
+            
+            // form을 body에 추가하고 제출
+            document.body.appendChild(form);
+            form.submit();
+        });
+    });
+
+    // 시안 업로드 버튼 처리
+    document.querySelectorAll('.upload-design-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            const orderId = this.getAttribute('data-order-id');
+            const customerName = this.getAttribute('data-customer-name');
+            
+            if (!orderId || !customerName) {
+                alert('주문 정보를 찾을 수 없습니다.');
+                return;
+            }
+            
+            // 모달 표시
+            showUploadModal(orderId, customerName);
+        });
+    });
+    
+    // 모달 표시 함수
+    function showUploadModal(orderId, customerName) {
+        // 기존 모달이 있으면 제거
+        const existingModal = document.getElementById('uploadDesignModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // 모달 HTML 생성
+        const modalHTML = `
+            <div class="modal fade show" id="uploadDesignModal" tabindex="-1" style="display: block; background: rgba(0,0,0,0.5);">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">시안 업로드: ${customerName}</h5>
+                            <button type="button" class="btn-close" onclick="closeUploadModal()"></button>
+                        </div>
+                        <form method="post" action="{% url 'upload_design_and_confirm' %}" enctype="multipart/form-data">
+                            <input type="hidden" name="csrfmiddlewaretoken" value="${getCookie('csrftoken')}">
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="customer_name_display" class="form-label">고객명</label>
+                                    <input type="text" class="form-control" id="customer_name_display" value="${customerName}" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="design_files" class="form-label">
+                                        <i class="fas fa-upload me-2"></i>시안 파일 (여러 파일 선택 가능)
+                                    </label>
+                                    <input type="file" class="form-control" id="design_files" name="design_files" multiple required accept="image/*,.pdf,.ai,.psd">
+                                    <div class="form-text">
+                                        <div class="alert alert-info py-2 px-3 mt-2 mb-0">
+                                            <strong>📁 파일 선택 방법:</strong><br>
+                                            • <strong>Windows:</strong> Ctrl + 클릭으로 여러 파일 선택<br>
+                                            • <strong>Mac:</strong> Cmd (⌘) + 클릭으로 여러 파일 선택<br>
+                                            • <strong>범위 선택:</strong> Shift + 클릭<br>
+                                            <hr class="my-2">
+                                            <strong>📄 지원 형식:</strong> JPG, PNG, GIF, PDF, AI, PSD
+                                        </div>
+                                    </div>
+                                    <div id="file-list" class="mt-2"></div>
+                                </div>
+                                <input type="hidden" name="order_id" value="${orderId}">
+                                <!-- 업로드 진행 중 표시 영역 -->
+                                <div id="upload-progress" class="alert alert-warning" style="display: none;">
+                                    <div class="d-flex align-items-center">
+                                        <div class="spinner-border spinner-border-sm me-3" role="status">
+                                            <span class="visually-hidden">업로드 중...</span>
+                                        </div>
+                                        <div>
+                                            <strong>파일 업로드 중입니다...</strong><br>
+                                            <small class="text-muted">잠시만 기다려주세요. 창을 닫지 마세요.</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" onclick="closeUploadModal()" id="cancelBtn">취소</button>
+                                <button type="submit" class="btn btn-primary" id="uploadBtn">
+                                    <i class="fas fa-upload me-2"></i>업로드 및 컨펌 완료
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 모달을 body에 추가
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        document.body.classList.add('modal-open');
+        
+        // 파일 선택 이벤트 리스너 추가
+        setTimeout(() => {
+            const fileInput = document.getElementById('design_files');
+            const fileList = document.getElementById('file-list');
+            const uploadForm = document.querySelector('#uploadDesignModal form');
+            const uploadProgress = document.getElementById('upload-progress');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const cancelBtn = document.getElementById('cancelBtn');
+            
+            if (fileInput && fileList) {
+                fileInput.addEventListener('change', function(e) {
+                    if (this.files.length > 0) {
+                        let html = '<div class="alert alert-success py-2 px-3"><strong>선택된 파일 (' + this.files.length + '개):</strong><ul class="mb-0 mt-1">';
+                        for (let i = 0; i < this.files.length; i++) {
+                            const file = this.files[i];
+                            const sizeInMB = (file.size / 1024 / 1024).toFixed(2);
+                            html += '<li>' + file.name + ' (' + sizeInMB + ' MB)</li>';
+                        }
+                        html += '</ul></div>';
+                        fileList.innerHTML = html;
+                    } else {
+                        fileList.innerHTML = '';
+                    }
+                });
+            }
+            
+            // form submit 이벤트 처리
+            if (uploadForm) {
+                uploadForm.addEventListener('submit', function(e) {
+                    // 로딩 표시
+                    uploadProgress.style.display = 'block';
+                    
+                    // 버튼 비활성화
+                    uploadBtn.disabled = true;
+                    uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>업로드 중...';
+                    
+                    // 취소 버튼도 비활성화
+                    cancelBtn.disabled = true;
+                    
+                    // form은 정상적으로 제출됨 (e.preventDefault() 하지 않음)
+                });
+            }
+        }, 100);
+    }
+    
+    // 모달 닫기 함수
+    window.closeUploadModal = function() {
+        const modal = document.getElementById('uploadDesignModal');
+        if (modal) {
+            modal.remove();
+        }
+        document.body.classList.remove('modal-open');
+    };
+});
+</script>
+{% endblock %}
+

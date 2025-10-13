@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}API 설정{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">API 설정</h1>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">API 키 및 설정 관리</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="name" class="form-label">설정명</label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   value="{{ settings.name|default:'API 설정' }}" required>
+                        </div>
+                        
+                        <h6 class="mt-4 mb-3">Google Drive 설정</h6>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="use_oauth" name="use_oauth" 
+                                       {% if settings.use_oauth %}checked{% endif %}>
+                                <label class="form-check-label" for="use_oauth">
+                                    <strong>OAuth 2.0 사용</strong> (권장)
+                                </label>
+                            </div>
+                            <div class="form-text">
+                                OAuth 2.0을 사용하면 사용자 계정으로 직접 업로드하여 서비스 계정의 스토리지 제한 문제를 해결할 수 있습니다.
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3" id="oauth-settings" style="display: {% if settings.use_oauth %}block{% else %}none{% endif %};">
+                            <label for="oauth_credentials_path" class="form-label">OAuth 2.0 Credentials JSON 파일 경로</label>
+                            <input type="text" class="form-control" id="oauth_credentials_path" 
+                                   name="oauth_credentials_path" 
+                                   value="{{ settings.oauth_credentials_path|default:'' }}"
+                                   placeholder="/Users/wonkikim/Downloads/oauth2_credentials.json">
+                            <div class="form-text">
+                                <strong>설정 방법:</strong><br>
+                                1. Google Cloud Console → OAuth 2.0 클라이언트 ID 생성<br>
+                                2. 애플리케이션 유형: "데스크톱 앱"<br>
+                                3. JSON 다운로드 후 경로 입력<br>
+                                <a href="/OAUTH2_SETUP_GUIDE.md" target="_blank" class="btn btn-sm btn-info mt-2">
+                                    📖 상세 설정 가이드 보기
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3" id="service-account-settings" style="display: {% if not settings.use_oauth %}block{% else %}none{% endif %};">
+                            <label for="google_drive_credentials_path" class="form-label">서비스 계정 키 파일 경로 (레거시)</label>
+                            <input type="text" class="form-control" id="google_drive_credentials_path" 
+                                   name="google_drive_credentials_path" 
+                                   value="{{ settings.google_drive_credentials_path|default:'' }}"
+                                   placeholder="/path/to/credentials.json">
+                            <div class="form-text text-warning">
+                                ⚠️ 서비스 계정은 스토리지 제한이 있어 파일 업로드가 실패할 수 있습니다. OAuth 2.0 사용을 권장합니다.
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="google_drive_parent_folder_id" class="form-label">상위 폴더 ID</label>
+                            <input type="text" class="form-control" id="google_drive_parent_folder_id" 
+                                   name="google_drive_parent_folder_id" 
+                                   value="{{ settings.google_drive_parent_folder_id|default:'' }}"
+                                   placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms">
+                            <div class="form-text">
+                                <strong>폴더 ID 확인 방법:</strong><br>
+                                1. Google Drive에서 폴더 열기<br>
+                                2. 브라우저 주소창의 URL 확인<br>
+                                3. <code>https://drive.google.com/drive/folders/<strong>폴더ID</strong></code><br>
+                                4. 폴더ID 부분을 복사하여 입력<br>
+                                <span class="text-danger">⚠️ "admin"이 아닌 실제 폴더 ID를 입력해주세요!</span>
+                            </div>
+                        </div>
+                        
+                        <h6 class="mt-4 mb-3">스마트스토어 설정</h6>
+                        <div class="mb-3">
+                            <label for="smartstore_client_id" class="form-label">클라이언트 ID</label>
+                            <input type="text" class="form-control" id="smartstore_client_id" 
+                                   name="smartstore_client_id" 
+                                   value="{{ settings.smartstore_client_id|default:'' }}"
+                                   placeholder="your_client_id">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="smartstore_client_secret" class="form-label">클라이언트 시크릿</label>
+                            <input type="password" class="form-control" id="smartstore_client_secret" 
+                                   name="smartstore_client_secret" 
+                                   value="{{ settings.smartstore_client_secret|default:'' }}"
+                                   placeholder="your_client_secret">
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>설정 저장
+                            </button>
+                            <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>대시보드로 돌아가기
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">설정 가이드</h6>
+                </div>
+                <div class="card-body">
+                    <h6>Google Drive 설정</h6>
+                    <ol class="small">
+                        <li>Google Cloud Console에서 프로젝트 생성</li>
+                        <li>Drive API 활성화</li>
+                        <li>서비스 계정 생성 및 키 다운로드</li>
+                        <li>키 파일 경로를 위 입력란에 입력</li>
+                        <li>폴더 ID는 Google Drive URL에서 확인</li>
+                    </ol>
+                    
+                    <h6 class="mt-3">스마트스토어 설정</h6>
+                    <ol class="small">
+                        <li>네이버 개발자센터에서 앱 등록</li>
+                        <li>스마트스토어 API 권한 신청</li>
+                        <li>클라이언트 ID와 시크릿 발급</li>
+                        <li>위 입력란에 입력</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const useOauthCheckbox = document.getElementById('use_oauth');
+    const oauthSettings = document.getElementById('oauth-settings');
+    const serviceAccountSettings = document.getElementById('service-account-settings');
+    
+    useOauthCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            oauthSettings.style.display = 'block';
+            serviceAccountSettings.style.display = 'none';
+        } else {
+            oauthSettings.style.display = 'none';
+            serviceAccountSettings.style.display = 'block';
+        }
+    });
+});
+</script>
+{% endblock %}
+

@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}수동 주문 등록{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>수동 주문 등록</h1>
+        <a href="{% url 'order_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> 주문 목록으로 돌아가기
+        </a>
+    </div>
+
+    <!-- 메시지 표시 -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">주문 정보 입력</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="manualOrderForm">
+                        {% csrf_token %}
+                        
+                        <!-- 고객 정보 -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary border-bottom pb-2">고객 정보</h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.customer_name.id_for_label }}" class="form-label">
+                                        {{ form.customer_name.label }}
+                                    </label>
+                                    {{ form.customer_name }}
+                                    {% if form.customer_name.errors %}
+                                        <div class="text-danger small">{{ form.customer_name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.customer_phone.id_for_label }}" class="form-label">
+                                        {{ form.customer_phone.label }}
+                                    </label>
+                                    {{ form.customer_phone }}
+                                    {% if form.customer_phone.errors %}
+                                        <div class="text-danger small">{{ form.customer_phone.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="{{ form.shipping_address.id_for_label }}" class="form-label">
+                                        {{ form.shipping_address.label }}
+                                    </label>
+                                    {{ form.shipping_address }}
+                                    {% if form.shipping_address.errors %}
+                                        <div class="text-danger small">{{ form.shipping_address.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 주문 정보 -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary border-bottom pb-2">주문 정보</h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.total_order_amount.id_for_label }}" class="form-label">
+                                        {{ form.total_order_amount.label }}
+                                    </label>
+                                    <div class="input-group">
+                                        {{ form.total_order_amount }}
+                                        <span class="input-group-text">원</span>
+                                    </div>
+                                    {% if form.total_order_amount.errors %}
+                                        <div class="text-danger small">{{ form.total_order_amount.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.payment_date.id_for_label }}" class="form-label">
+                                        {{ form.payment_date.label }}
+                                    </label>
+                                    {{ form.payment_date }}
+                                    {% if form.payment_date.errors %}
+                                        <div class="text-danger small">{{ form.payment_date.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 주문 항목 -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary border-bottom pb-2">주문 항목</h6>
+                            </div>
+                            
+                            <!-- 제품 옵션 선택 -->
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="{{ form.product_options.id_for_label }}" class="form-label">
+                                        {{ form.product_options.label }}
+                                    </label>
+                                    <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                        {% for choice in form.product_options %}
+                                            <div class="form-check">
+                                                {{ choice.tag }}
+                                                <label class="form-check-label" for="{{ choice.id_for_label }}">
+                                                    {{ choice.choice_label }}
+                                                </label>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="form-text">{{ form.product_options.help_text }}</div>
+                                    {% if form.product_options.errors %}
+                                        <div class="text-danger small">{{ form.product_options.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- 수동 입력 -->
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="{{ form.manual_items.id_for_label }}" class="form-label">
+                                        {{ form.manual_items.label }}
+                                    </label>
+                                    {{ form.manual_items }}
+                                    <div class="form-text">{{ form.manual_items.help_text }}</div>
+                                    {% if form.manual_items.errors %}
+                                        <div class="text-danger small">{{ form.manual_items.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 고객 ID 미리보기 -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="alert alert-info" id="customerIdPreview" style="display: none;">
+                                    <strong>생성될 고객 ID:</strong> <span id="generatedCustomerId"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 제출 버튼 -->
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{% url 'order_list' %}" class="btn btn-secondary">취소</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> 주문 등록
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 도움말 -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">도움말</h6>
+                </div>
+                <div class="card-body">
+                    <h6>고객 ID 관리</h6>
+                    <ul class="small">
+                        <li>동일한 이름과 연락처: <code>김철수-001</code>, <code>김철수-002</code></li>
+                        <li>이름만 같고 연락처 다름: <code>김철수B</code>, <code>김철수C</code></li>
+                    </ul>
+                    
+                    <h6>주문 항목 입력 형식</h6>
+                    <div class="small">
+                        <code>제품명, 옵션, 수량, 단가</code><br>
+                        예시:<br>
+                        <code>라운드 반팔 티셔츠, 화이트/L, 2, 15000</code><br>
+                        <code>후드티, 블랙/M, 1, 25000</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const customerNameInput = document.getElementById('{{ form.customer_name.id_for_label }}');
+    const customerPhoneInput = document.getElementById('{{ form.customer_phone.id_for_label }}');
+    const customerIdPreview = document.getElementById('customerIdPreview');
+    const generatedCustomerId = document.getElementById('generatedCustomerId');
+    
+    function checkCustomerExists() {
+        const customerName = customerNameInput.value.trim();
+        const customerPhone = customerPhoneInput.value.trim();
+        
+        if (customerName && customerPhone) {
+            fetch(`{% url 'check_customer_exists' %}?customer_name=${encodeURIComponent(customerName)}&customer_phone=${encodeURIComponent(customerPhone)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.generated_id) {
+                        generatedCustomerId.textContent = data.generated_id;
+                        customerIdPreview.style.display = 'block';
+                        
+                        if (data.exists) {
+                            customerIdPreview.className = 'alert alert-warning';
+                        } else {
+                            customerIdPreview.className = 'alert alert-info';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking customer:', error);
+                });
+        } else {
+            customerIdPreview.style.display = 'none';
+        }
+    }
+    
+    // 입력 필드 변경 시 고객 확인
+    customerNameInput.addEventListener('input', checkCustomerExists);
+    customerPhoneInput.addEventListener('input', checkCustomerExists);
+    
+    // 폼 제출 시 확인
+    document.getElementById('manualOrderForm').addEventListener('submit', function(e) {
+        const customerName = customerNameInput.value.trim();
+        const customerPhone = customerPhoneInput.value.trim();
+        const manualItems = document.getElementById('{{ form.manual_items.id_for_label }}').value.trim();
+        const productOptions = document.querySelectorAll('input[name="product_options"]:checked');
+        
+        if (!customerName || !customerPhone) {
+            e.preventDefault();
+            alert('고객명과 연락처를 입력해주세요.');
+            return false;
+        }
+        
+        if (productOptions.length === 0 && !manualItems) {
+            e.preventDefault();
+            alert('제품 옵션을 선택하거나 주문 항목을 입력해주세요.');
+            return false;
+        }
+        
+        return confirm('주문을 등록하시겠습니까?');
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}대시보드{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+        overflow: hidden;
+    }
+    
+    .dashboard-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 25px;
+        text-align: center;
+    }
+    
+    .dashboard-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        font-weight: 700;
+    }
+    
+    .dashboard-header p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin: 0;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .stat-icon {
+        font-size: 2.5rem;
+        margin-bottom: 15px;
+        display: block;
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+        color: #2c3e50;
+    }
+    
+    .stat-label {
+        font-size: 1rem;
+        color: #7f8c8d;
+        font-weight: 500;
+    }
+    
+    .orders-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 15px;
+        padding: 20px;
+    }
+    
+    .order-stat-item {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .order-stat-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .order-stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+    
+    .order-stat-label {
+        font-size: 0.9rem;
+        color: #7f8c8d;
+        font-weight: 500;
+    }
+    
+    .finance-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 20px;
+        padding: 20px;
+    }
+    
+    .finance-stat-item {
+        text-align: center;
+        padding: 15px;
+    }
+    
+    .finance-stat-number {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+    
+    .finance-stat-label {
+        font-size: 0.9rem;
+        color: #7f8c8d;
+        font-weight: 500;
+    }
+    
+    .positive {
+        color: #27ae60;
+    }
+    
+    .negative {
+        color: #e74c3c;
+    }
+    
+    .neutral {
+        color: #3498db;
+    }
+    
+    .products-section {
+        padding: 20px;
+        text-align: center;
+    }
+    
+    .products-count {
+        font-size: 3rem;
+        font-weight: 700;
+        color: #667eea;
+        margin-bottom: 10px;
+    }
+    
+    .products-label {
+        font-size: 1.1rem;
+        color: #7f8c8d;
+        margin-bottom: 20px;
+    }
+    
+    .add-product-btn {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 25px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: inline-block;
+    }
+    
+    .add-product-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        color: white;
+        text-decoration: none;
+    }
+    
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .orders-stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .finance-stats {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- 대시보드 헤더 -->
+    <div class="dashboard-header">
+        <h1>AKINO PROJECT</h1>
+    </div>
+
+    <!-- 1. ORDERS -->
+    <div class="dashboard-card">
+        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <h2 class="mb-0">📦 주문 관리</h2>
+        </div>
+        <div class="orders-stats">
+            <a href="{% url 'order_list' %}?status=NEW" class="order-stat-item">
+                <div class="order-stat-number" style="color: #f39c12;">{{ order_stats.new }}</div>
+                <div class="order-stat-label">신규주문</div>
+            </a>
+            <a href="{% url 'order_list' %}?status=CONSULTING" class="order-stat-item">
+                <div class="order-stat-number" style="color: #3498db;">{{ order_stats.consulting }}</div>
+                <div class="order-stat-label">상담</div>
+            </a>
+            <a href="{% url 'order_list' %}?status=PRODUCING" class="order-stat-item">
+                <div class="order-stat-number" style="color: #9b59b6;">{{ order_stats.producing }}</div>
+                <div class="order-stat-label">제작중</div>
+            </a>
+            <a href="{% url 'order_list' %}?status=PRODUCED" class="order-stat-item">
+                <div class="order-stat-number" style="color: #27ae60;">{{ order_stats.produced }}</div>
+                <div class="order-stat-label">발송</div>
+            </a>
+        </div>
+    </div>
+
+    <!-- 2. FINANCE -->
+    <div class="dashboard-card">
+        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <h2 class="mb-0">💰 재무 현황</h2>
+        </div>
+        <div class="finance-stats">
+            <a href="{% url 'order_list' %}?status=COMPLETED" class="finance-stat-item" style="text-decoration: none; color: inherit;">
+                <div class="finance-stat-number positive">{{ total_revenue|floatformat:0|intcomma }}원</div>
+                <div class="finance-stat-label">매출</div>
+            </a>
+            <a href="{% url 'purchase_list' %}" class="finance-stat-item" style="text-decoration: none; color: inherit;">
+                <div class="finance-stat-number neutral">{{ total_purchases|floatformat:0|intcomma }}원</div>
+                <div class="finance-stat-label">매입</div>
+            </a>
+            <a href="{% url 'expense_list' %}" class="finance-stat-item" style="text-decoration: none; color: inherit;">
+                <div class="finance-stat-number neutral">{{ total_expenses|floatformat:0|intcomma }}원</div>
+                <div class="finance-stat-label">지출</div>
+            </a>
+            <a href="{% url 'order_list' %}?status=COMPLETED" class="finance-stat-item" style="text-decoration: none; color: inherit;">
+                <div class="finance-stat-number {% if net_profit >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ net_profit|floatformat:0|intcomma }}원
+                </div>
+                <div class="finance-stat-label">순이익</div>
+            </a>
+        </div>
+    </div>
+
+    <!-- 3. PRODUCTS -->
+    <div class="dashboard-card">
+        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <h2 class="mb-0">👕 제품 관리</h2>
+        </div>
+        <div class="products-section">
+            <div class="products-count">{{ total_products }}</div>
+            <div class="products-label">등록된 제품 수</div>
+            <a href="{% url 'product_list' %}" class="add-product-btn">
+                <i class="fas fa-plus me-2"></i>제품 관리
+            </a>
+        </div>
+    </div>
+
+    <!-- 4. MANAGEMENT -->
+    <div class="dashboard-card">
+        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <h2 class="mb-0">⚙️ 관리 기능</h2>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-2">
+                    <a href="{% url 'expense_list' %}" class="btn btn-outline-primary btn-sm w-100">
+                        <i class="fas fa-receipt me-1"></i>지출 관리
+                    </a>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <a href="{% url 'purchase_list' %}" class="btn btn-outline-primary btn-sm w-100">
+                        <i class="fas fa-shopping-cart me-1"></i>매입 관리
+                    </a>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <a href="{% url 'order_list' %}?status=CANCELED" class="btn btn-outline-danger btn-sm w-100">
+                        <i class="fas fa-times-circle me-1"></i>취소 주문
+                    </a>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <a href="/admin/" class="btn btn-outline-secondary btn-sm w-100">
+                        <i class="fas fa-tools me-1"></i>관리자
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
