@@ -342,15 +342,18 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 총 결제금액 자동 합산
     function calculateTotal() {
+        console.log('calculateTotal 호출됨');
+        
         if (manualTotalInput.checked) {
             // 수동 입력 모드
             totalAmountInput.removeAttribute('readonly');
             totalAmountInput.classList.remove('readonly-field');
+            console.log('수동 입력 모드');
             return;
         }
         
-        // 자동 합산 모드
-        totalAmountInput.setAttribute('readonly', 'readonly');
+        // 자동 합산 모드 - readonly 제거하여 값 변경 가능하게
+        totalAmountInput.removeAttribute('readonly');
         totalAmountInput.classList.add('readonly-field');
         
         let itemsTotal = 0;
@@ -360,15 +363,27 @@ document.addEventListener('DOMContentLoaded', function() {
             if (checkbox.checked) {
                 // 체크박스의 data-price 속성에서 가격 읽기
                 const price = parseFloat(checkbox.getAttribute('data-price')) || 0;
+                console.log('옵션 가격:', price);
                 itemsTotal += price;
             }
         });
+        
+        console.log('제품 총액:', itemsTotal);
         
         // 택배비 추가
         const shippingCost = parseFloat(shippingCostInput.value) || 0;
         const total = itemsTotal + shippingCost;
         
-        totalAmountInput.value = total.toFixed(2);
+        console.log('택배비:', shippingCost);
+        console.log('최종 총액:', total);
+        
+        // 값 설정 - readonly를 제거했으므로 정상 작동
+        totalAmountInput.value = total.toFixed(0);  // 소수점 제거
+        
+        // 다시 readonly 설정 (사용자가 직접 수정 못하도록)
+        if (!manualTotalInput.checked) {
+            totalAmountInput.setAttribute('readonly', 'readonly');
+        }
     }
     
     // 이벤트 리스너 등록
