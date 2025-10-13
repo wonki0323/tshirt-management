@@ -1,0 +1,27 @@
+services:
+  # Web Service
+  - type: web
+    name: tshirt-management
+    runtime: python
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate"
+    startCommand: "gunicorn tshirt_management.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.6
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tshirt-db
+          property: connectionString
+
+databases:
+  # PostgreSQL Database
+  - name: tshirt-db
+    databaseName: tshirt_management
+    user: tshirt_admin
+
