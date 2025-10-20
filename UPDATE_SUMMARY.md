@@ -287,3 +287,7 @@ python manage.py migrate --run-syncdb
 **버전**: v2.0.0
 **상태**: ✅ 로컬 테스트 완료, 배포 대기
 
+
+
+
+

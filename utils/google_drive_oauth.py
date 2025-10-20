@@ -4,6 +4,7 @@ Google Drive OAuth 2.0 연동 유틸리티
 import os
 import json
 import pickle
+import base64
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
@@ -61,15 +62,40 @@ def get_oauth_service(credentials_path=None, token_path=None):
         if creds and not creds.valid:
             if creds.expired and creds.refresh_token:
                 logger.info("토큰 만료 - 갱신 시도")
-                creds.refresh(Request())
-                logger.info("토큰 갱신 성공")
-                
-                # 갱신된 토큰 저장 (로컬 환경만)
-                if token_path:
-                    os.makedirs(os.path.dirname(token_path), exist_ok=True)
-                    with open(token_path, 'wb') as token:
-                        pickle.dump(creds, token)
-                    logger.info(f"갱신된 토큰 저장 완료: {token_path}")
+                try:
+                    creds.refresh(Request())
+                    logger.info("토큰 갱신 성공")
+                    
+                    # 갱신된 토큰 저장 (로컬 환경만)
+                    if token_path:
+                        os.makedirs(os.path.dirname(token_path), exist_ok=True)
+                        with open(token_path, 'wb') as token:
+                            pickle.dump(creds, token)
+                        logger.info(f"갱신된 토큰 저장 완료: {token_path}")
+                    
+                    # 배포 환경에서 토큰 갱신된 경우 로그 출력
+                    if token_base64:
+                        logger.warning("⚠️ 배포 환경에서 토큰이 갱신되었습니다. 새 토큰을 환경 변수에 업데이트해야 합니다!")
+                        logger.warning(f"갱신된 토큰 (Base64): {base64.b64encode(pickle.dumps(creds)).decode()[:100]}...")
+                        
+                except Exception as refresh_error:
+                    logger.error(f"토큰 갱신 중 오류 발생: {refresh_error}")
+                    # 로컬에서만 새 인증 시도
+                    if credentials_path and os.path.exists(credentials_path):
+                        logger.info("새 토큰 발급 필요 - 브라우저 인증 시작")
+                        flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
+                        creds = flow.run_local_server(port=0)
+                        logger.info("브라우저 인증 완료")
+                        
+                        # 토큰 저장
+                        if token_path:
+                            os.makedirs(os.path.dirname(token_path), exist_ok=True)
+                            with open(token_path, 'wb') as token:
+                                pickle.dump(creds, token)
+                            logger.info(f"토큰 저장 완료: {token_path}")
+                    else:
+                        logger.error("배포 환경에서 토큰 갱신 실패 - 새로운 토큰이 필요합니다")
+                        return None
             else:
                 logger.error("토큰 갱신 실패 - refresh_token 없음")
                 # 로컬에서만 새 인증 시도

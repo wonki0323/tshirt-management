@@ -115,3 +115,7 @@ class ExpenseForm(forms.ModelForm):
         model = Expense
         fields = ['date', 'category', 'description', 'amount', 'quantity']
 
+
+
+
+
