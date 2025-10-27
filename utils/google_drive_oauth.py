@@ -92,6 +92,14 @@ def get_oauth_service(credentials_path=None, token_path=None):
                 token_data = base64.b64decode(token_base64)
                 creds = pickle.loads(token_data)
                 logger.info("환경 변수에서 Pickle 토큰 로드 성공")
+                
+                # 토큰 정보 상세 로그 (디버깅)
+                logger.info(f"✅ Token 존재: {hasattr(creds, 'token') and bool(creds.token)}")
+                logger.info(f"✅ Refresh Token 존재: {hasattr(creds, 'refresh_token') and bool(creds.refresh_token)}")
+                logger.info(f"✅ Client ID 존재: {hasattr(creds, 'client_id') and bool(creds.client_id)}")
+                logger.info(f"✅ Valid: {creds.valid if hasattr(creds, 'valid') else 'N/A'}")
+                logger.info(f"✅ Expired: {creds.expired if hasattr(creds, 'expired') else 'N/A'}")
+                
             except Exception as e:
                 logger.error(f"Pickle 토큰 파싱 실패: {e}")
                 creds = None
@@ -114,11 +122,17 @@ def get_oauth_service(credentials_path=None, token_path=None):
         
         # 토큰이 없거나 유효하지 않으면 갱신 시도
         if creds and not creds.valid:
-            if creds.expired and creds.refresh_token:
-                logger.info("토큰 만료 - 갱신 시도")
+            # refresh_token 존재 여부 안전하게 확인
+            has_refresh_token = hasattr(creds, 'refresh_token') and creds.refresh_token
+            is_expired = hasattr(creds, 'expired') and creds.expired
+            
+            logger.info(f"토큰 검증 - 만료: {is_expired}, Refresh Token 보유: {has_refresh_token}")
+            
+            if has_refresh_token:
+                logger.info("토큰 갱신 시도 (refresh_token 사용)")
                 try:
                     creds.refresh(Request())
-                    logger.info("토큰 갱신 성공")
+                    logger.info("✅ 토큰 갱신 성공")
                     
                     # 갱신된 토큰 저장 (로컬 환경만)
                     if token_path:
@@ -144,7 +158,7 @@ def get_oauth_service(credentials_path=None, token_path=None):
                         logger.warning(f"갱신된 토큰 (JSON Base64, 처음 100자): {token_json_base64_new[:100]}...")
                         
                 except Exception as refresh_error:
-                    logger.error(f"토큰 갱신 중 오류 발생: {refresh_error}")
+                    logger.error(f"❌ 토큰 갱신 중 오류 발생: {refresh_error}")
                     # 로컬에서만 새 인증 시도
                     if credentials_path and os.path.exists(credentials_path):
                         logger.info("새 토큰 발급 필요 - 브라우저 인증 시작")
@@ -159,10 +173,13 @@ def get_oauth_service(credentials_path=None, token_path=None):
                                 pickle.dump(creds, token)
                             logger.info(f"토큰 저장 완료: {token_path}")
                     else:
-                        logger.error("배포 환경에서 토큰 갱신 실패 - 새로운 토큰이 필요합니다")
+                        logger.error("❌ 배포 환경에서 토큰 갱신 실패 - 새로운 토큰이 필요합니다")
+                        logger.error("📝 해결 방법: 로컬에서 새 토큰을 생성하고 GOOGLE_OAUTH_TOKEN_BASE64를 업데이트하세요")
                         return None
             else:
-                logger.error("토큰 갱신 실패 - refresh_token 없음")
+                logger.error("❌ 토큰 갱신 불가 - refresh_token이 없습니다")
+                logger.error(f"📋 토큰 정보: valid={creds.valid if hasattr(creds, 'valid') else 'N/A'}, "
+                           f"expired={creds.expired if hasattr(creds, 'expired') else 'N/A'}")
                 # 로컬에서만 새 인증 시도
                 if credentials_path and os.path.exists(credentials_path):
                     logger.info("새 토큰 발급 필요 - 브라우저 인증 시작")
@@ -177,7 +194,8 @@ def get_oauth_service(credentials_path=None, token_path=None):
                             pickle.dump(creds, token)
                         logger.info(f"토큰 저장 완료: {token_path}")
                 else:
-                    logger.error("배포 환경에서 토큰 갱신 실패 - 새로운 토큰이 필요합니다")
+                    logger.error("❌ 배포 환경에서 refresh_token 없음 - 새로운 토큰이 필요합니다")
+                    logger.error("📝 해결 방법: 로컬에서 새 토큰을 생성하고 GOOGLE_OAUTH_TOKEN_BASE64를 업데이트하세요")
                     return None
         
         # Drive API 서비스 빌드
