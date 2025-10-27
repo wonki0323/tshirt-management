@@ -1026,10 +1026,31 @@ function copyTrackingNumber() {
     }, 2000);
 }
 
-// 이미지를 클립보드에 복사
+// 이미지를 클립보드에 복사 (또는 다운로드)
 async function copyImageToClipboard(imageUrl, event) {
     const btn = event.target.closest('button');
     const originalHTML = btn.innerHTML;
+    
+    // Clipboard API 지원 여부 확인
+    if (!navigator.clipboard || !window.ClipboardItem) {
+        // 지원하지 않으면 다운로드 링크 제공
+        const link = document.createElement('a');
+        link.href = imageUrl;
+        link.download = '완료사진.jpg';
+        link.target = '_blank';
+        link.click();
+        
+        btn.innerHTML = '<i class="fas fa-download"></i> 다운로드됨';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-success');
+        
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-primary');
+        }, 2000);
+        return;
+    }
     
     try {
         // 버튼 상태 변경 (로딩)
@@ -1062,19 +1083,23 @@ async function copyImageToClipboard(imageUrl, event) {
     } catch (error) {
         console.error('이미지 복사 실패:', error);
         
-        // 에러 표시
-        btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 복사 실패';
+        // 복사 실패 시 다운로드로 대체
+        const link = document.createElement('a');
+        link.href = imageUrl;
+        link.download = '완료사진.jpg';
+        link.target = '_blank';
+        link.click();
+        
+        btn.innerHTML = '<i class="fas fa-download"></i> 다운로드됨';
         btn.classList.remove('btn-primary');
-        btn.classList.add('btn-danger');
+        btn.classList.add('btn-success');
         
         setTimeout(() => {
             btn.innerHTML = originalHTML;
-            btn.classList.remove('btn-danger');
+            btn.classList.remove('btn-success');
             btn.classList.add('btn-primary');
             btn.disabled = false;
         }, 2000);
-        
-        alert('이미지 복사에 실패했습니다. 최신 브라우저를 사용해주세요.');
     }
 }
 
