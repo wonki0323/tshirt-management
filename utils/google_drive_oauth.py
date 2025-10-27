@@ -34,21 +34,47 @@ def get_oauth_service(credentials_path=None, token_path=None):
         logger.info(f"OAuth 서비스 생성 시작")
         
         # 환경 변수에서 토큰 읽기 (배포 환경 우선)
+        # JSON 형식 우선 확인 (client_id, client_secret 포함)
+        token_json_base64 = os.environ.get('GOOGLE_OAUTH_TOKEN_JSON')
         token_base64 = os.environ.get('GOOGLE_OAUTH_TOKEN_BASE64')
         
-        if token_base64:
-            logger.info("환경 변수에서 OAuth 토큰 로드")
-            import base64
-            token_data = base64.b64decode(token_base64)
-            creds = pickle.loads(token_data)
-            logger.info("환경 변수에서 토큰 로드 성공")
+        if token_json_base64:
+            logger.info("환경 변수에서 OAuth 토큰 로드 (JSON 형식)")
+            try:
+                token_json_str = base64.b64decode(token_json_base64).decode()
+                token_dict = json.loads(token_json_str)
+                
+                # JSON에서 Credentials 객체 생성
+                from google.oauth2.credentials import Credentials
+                creds = Credentials(
+                    token=token_dict.get('token'),
+                    refresh_token=token_dict.get('refresh_token'),
+                    token_uri=token_dict.get('token_uri'),
+                    client_id=token_dict.get('client_id'),
+                    client_secret=token_dict.get('client_secret'),
+                    scopes=token_dict.get('scopes')
+                )
+                logger.info("환경 변수에서 JSON 토큰 로드 성공")
+            except Exception as e:
+                logger.error(f"JSON 토큰 파싱 실패: {e}")
+                creds = None
+        elif token_base64:
+            logger.info("환경 변수에서 OAuth 토큰 로드 (Pickle 형식)")
+            try:
+                token_data = base64.b64decode(token_base64)
+                creds = pickle.loads(token_data)
+                logger.info("환경 변수에서 Pickle 토큰 로드 성공")
+            except Exception as e:
+                logger.error(f"Pickle 토큰 파싱 실패: {e}")
+                creds = None
         elif token_path and os.path.exists(token_path):
             # 로컬 환경: 파일에서 토큰 로드
             logger.info(f"로컬: 토큰 파일에서 로드 - {token_path}")
             with open(token_path, 'rb') as token:
                 creds = pickle.load(token)
             logger.info("토큰 파일 로드 성공")
-        else:
+        
+        if not creds:
             logger.info("토큰이 없음 - 새로 인증 필요")
             
             # credentials 파일 확인
@@ -74,9 +100,20 @@ def get_oauth_service(credentials_path=None, token_path=None):
                         logger.info(f"갱신된 토큰 저장 완료: {token_path}")
                     
                     # 배포 환경에서 토큰 갱신된 경우 로그 출력
-                    if token_base64:
+                    if token_json_base64 or token_base64:
                         logger.warning("⚠️ 배포 환경에서 토큰이 갱신되었습니다. 새 토큰을 환경 변수에 업데이트해야 합니다!")
-                        logger.warning(f"갱신된 토큰 (Base64): {base64.b64encode(pickle.dumps(creds)).decode()[:100]}...")
+                        # JSON 형식으로 출력
+                        token_dict = {
+                            'token': creds.token,
+                            'refresh_token': creds.refresh_token,
+                            'token_uri': creds.token_uri,
+                            'client_id': creds.client_id,
+                            'client_secret': creds.client_secret,
+                            'scopes': creds.scopes,
+                        }
+                        token_json = json.dumps(token_dict)
+                        token_json_base64_new = base64.b64encode(token_json.encode()).decode()
+                        logger.warning(f"갱신된 토큰 (JSON Base64, 처음 100자): {token_json_base64_new[:100]}...")
                         
                 except Exception as refresh_error:
                     logger.error(f"토큰 갱신 중 오류 발생: {refresh_error}")
