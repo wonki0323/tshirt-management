@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Order, OrderItem, OrderThumbnail, Status
+from .models import Order, OrderItem, OrderThumbnail, OrderCompletionPhoto, Status
 
 
 class OrderItemInline(admin.TabularInline):
@@ -52,7 +52,15 @@ class OrderThumbnailInline(admin.TabularInline):
     """주문 썸네일 인라인"""
     model = OrderThumbnail
     extra = 0
-    fields = ['image', 'order_number']
+    fields = ['image', 'google_drive_image_url', 'filename', 'order_number']
+    ordering = ['order_number']
+
+
+class OrderCompletionPhotoInline(admin.TabularInline):
+    """제작 완료 사진 인라인"""
+    model = OrderCompletionPhoto
+    extra = 0
+    fields = ['image', 'google_drive_image_url', 'filename', 'order_number']
     ordering = ['order_number']
 
 
@@ -61,31 +69,32 @@ class OrderAdmin(admin.ModelAdmin):
     list_display = [
         'smartstore_order_id', 
         'customer_name', 
-        'status', 
+        'status',
+        'print_method',
         'payment_date', 
         'due_date',
         'total_order_amount',
         'display_total_cost',
         'display_profit'
     ]
-    list_filter = ['status', 'payment_date']
-    search_fields = ['smartstore_order_id', 'customer_name', 'customer_phone']
+    list_filter = ['status', 'print_method', 'payment_date']
+    search_fields = ['smartstore_order_id', 'customer_name', 'customer_phone', 'customer_memo']
     ordering = ['-payment_date']
-    inlines = [OrderItemInline, OrderThumbnailInline]
+    inlines = [OrderItemInline, OrderThumbnailInline, OrderCompletionPhotoInline]
     readonly_fields = ['display_total_cost', 'display_profit']
     
     fieldsets = (
         ('주문 정보', {
-            'fields': ('smartstore_order_id', 'status', 'payment_date')
+            'fields': ('smartstore_order_id', 'status', 'payment_date', 'print_method')
         }),
         ('고객 정보', {
-            'fields': ('customer_name', 'customer_phone', 'shipping_address')
+            'fields': ('customer_name', 'customer_phone', 'shipping_address', 'customer_memo')
         }),
         ('금액 정보', {
-            'fields': ('total_order_amount', 'display_total_cost', 'display_profit')
+            'fields': ('shipping_cost', 'total_order_amount', 'display_total_cost', 'display_profit')
         }),
         ('진행 상황', {
-            'fields': ('confirmed_date', 'due_date', 'google_drive_folder_url')
+            'fields': ('confirmed_date', 'due_date', 'tracking_number', 'google_drive_folder_url')
         }),
     )
 

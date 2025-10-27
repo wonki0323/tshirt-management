@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}주문 정보 수정 - {{ order.smartstore_order_id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-edit"></i> 주문 정보 수정</h1>
+        <a href="{% url 'order_detail' order.pk %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> 돌아가기
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message|safe }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">주문번호: {{ order.smartstore_order_id }}</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.customer_name.id_for_label }}" class="form-label">
+                            {{ form.customer_name.label }} <span class="text-danger">*</span>
+                        </label>
+                        {{ form.customer_name }}
+                        {% if form.customer_name.errors %}
+                            <div class="text-danger small">{{ form.customer_name.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.customer_phone.id_for_label }}" class="form-label">
+                            {{ form.customer_phone.label }}
+                        </label>
+                        {{ form.customer_phone }}
+                    </div>
+                    
+                    <div class="col-12 mb-3">
+                        <label for="{{ form.shipping_address.id_for_label }}" class="form-label">
+                            {{ form.shipping_address.label }}
+                        </label>
+                        <div class="input-group mb-2">
+                            <button type="button" class="btn btn-outline-primary" id="addressSearchBtn">
+                                <i class="fas fa-search"></i> 주소 검색
+                            </button>
+                        </div>
+                        {{ form.shipping_address }}
+                    </div>
+                    
+                    <div class="col-12 mb-3">
+                        <label for="{{ form.customer_memo.id_for_label }}" class="form-label">
+                            {{ form.customer_memo.label }}
+                        </label>
+                        {{ form.customer_memo }}
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.print_method.id_for_label }}" class="form-label">
+                            {{ form.print_method.label }}
+                        </label>
+                        {{ form.print_method }}
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.tracking_number.id_for_label }}" class="form-label">
+                            {{ form.tracking_number.label }}
+                        </label>
+                        {{ form.tracking_number }}
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.shipping_cost.id_for_label }}" class="form-label">
+                            {{ form.shipping_cost.label }}
+                        </label>
+                        {{ form.shipping_cost }}
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.total_order_amount.id_for_label }}" class="form-label">
+                            {{ form.total_order_amount.label }}
+                        </label>
+                        {{ form.total_order_amount }}
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.status.id_for_label }}" class="form-label">
+                            {{ form.status.label }}
+                        </label>
+                        {{ form.status }}
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.payment_date.id_for_label }}" class="form-label">
+                            {{ form.payment_date.label }}
+                        </label>
+                        {{ form.payment_date }}
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <a href="{% url 'order_detail' order.pk %}" class="btn btn-secondary">
+                        취소
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> 저장
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Daum 주소 검색 API -->
+<script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addressSearchBtn = document.getElementById('addressSearchBtn');
+    const addressInput = document.getElementById('{{ form.shipping_address.id_for_label }}');
+    
+    if (addressSearchBtn) {
+        addressSearchBtn.addEventListener('click', function() {
+            new daum.Postcode({
+                oncomplete: function(data) {
+                    // 도로명 주소 또는 지번 주소
+                    let fullAddress = data.address;
+                    let extraAddress = '';
+                    
+                    // 도로명 주소인 경우
+                    if (data.addressType === 'R') {
+                        if (data.bname !== '') {
+                            extraAddress += data.bname;
+                        }
+                        if (data.buildingName !== '') {
+                            extraAddress += (extraAddress !== '' ? ', ' + data.buildingName : data.buildingName);
+                        }
+                        fullAddress += (extraAddress !== '' ? ' (' + extraAddress + ')' : '');
+                    }
+                    
+                    // 주소 입력란에 값 설정
+                    addressInput.value = `[${data.zonecode}] ${fullAddress}\n`;
+                    addressInput.focus();
+                }
+            }).open();
+        });
+    }
+});
+</script>
+{% endblock %}
+

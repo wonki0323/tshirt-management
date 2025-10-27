@@ -501,28 +501,34 @@ def manual_order_create(request):
     else:
         form = ManualOrderForm()
     
-    # 제품 옵션에 가격 정보 추가 (기본가 + 옵션가)
-    from products.models import ProductOption
-    product_options = ProductOption.objects.filter(is_active=True).select_related('product')
+    # 제품별로 옵션 그룹핑 (계층 구조)
+    from products.models import Product
     
-    # 각 옵션의 최종 가격 계산 (제품 기본가 + 옵션가)
-    options_with_price = []
-    for option in product_options:
-        total_price = option.product.base_price + option.base_price
-        options_with_price.append({
-            'id': option.id,
-            'product_name': option.product.name,
-            'option_detail': option.option_detail,
-            'base_price': option.base_price,
-            'product_base_price': option.product.base_price,
-            'total_price': total_price,
-            'base_cost': option.base_cost,
-        })
+    products_with_options = []
+    products = Product.objects.filter(is_active=True).prefetch_related('options')
+    
+    for product in products:
+        options = product.options.filter(is_active=True)
+        if options.exists():
+            products_with_options.append({
+                'product': product,
+                'options': [
+                    {
+                        'id': opt.id,
+                        'option_detail': opt.option_detail,
+                        'base_price': opt.base_price,
+                        'product_base_price': product.base_price,
+                        'total_price': product.base_price + opt.base_price,
+                        'base_cost': opt.base_cost,
+                    }
+                    for opt in options
+                ]
+            })
     
     return render(request, 'orders/manual_order_form.html', {
         'form': form,
         'title': '수동 주문 등록',
-        'product_options': options_with_price
+        'products_with_options': products_with_options
     })
 
 
@@ -552,14 +558,167 @@ def debug_upload(request):
 
 
 @login_required
+def order_update(request, pk):
+    """주문 정보 수정"""
+    from .forms import OrderUpdateForm
+    
+    order = get_object_or_404(Order, pk=pk)
+    
+    if request.method == 'POST':
+        form = OrderUpdateForm(request.POST, instance=order)
+        if form.is_valid():
+            form.save()
+            messages.success(request, '주문 정보가 수정되었습니다.')
+            return redirect('order_detail', pk=order.pk)
+        else:
+            messages.error(request, '입력한 정보를 확인해주세요.')
+    else:
+        form = OrderUpdateForm(instance=order)
+    
+    return render(request, 'orders/order_update.html', {
+        'form': form,
+        'order': order
+    })
+
+
+@login_required
+@require_POST
+def order_completion(request, pk):
+    """완료 주문 결과 입력 (완료사진 + 송장번호)"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    order = get_object_or_404(Order, pk=pk)
+    
+    if order.status != Status.COMPLETED:
+        messages.error(request, '완료 상태인 주문만 결과 입력이 가능합니다.')
+        return redirect('order_detail', pk=order.pk)
+    
+    # 송장번호 입력
+    tracking_number = request.POST.get('tracking_number', '').strip()
+    if tracking_number:
+        order.tracking_number = tracking_number
+        order.save()
+    
+    # 완료사진 업로드
+    completion_photos = request.FILES.getlist('completion_photos')
+    if completion_photos:
+        from .models import OrderCompletionPhoto
+        # 기존 완료사진 개수 확인
+        existing_count = order.completion_photos.count()
+        for idx, photo in enumerate(completion_photos, existing_count + 1):
+            OrderCompletionPhoto.objects.create(
+                order=order,
+                image=photo,
+                filename=photo.name,
+                order_number=idx
+            )
+        logger.info(f"완료사진 {len(completion_photos)}장 업로드 완료")
+    
+    # 정산 목록으로 상태 변경
+    order.status = Status.SETTLED
+    order.save()
+    
+    messages.success(
+        request,
+        f'✅ 결과 입력이 완료되어 정산 목록으로 이동되었습니다.<br>'
+        f'송장번호: {order.tracking_number or "미입력"}<br>'
+        f'완료사진: {len(completion_photos)}장 업로드'
+    )
+    
+    return redirect('order_detail', pk=order.pk)
+
+
+@login_required
+def get_completion_info(request, pk):
+    """완료사진 및 송장번호 정보를 JSON으로 반환"""
+    from django.http import JsonResponse
+    
+    order = get_object_or_404(Order, pk=pk)
+    
+    # 완료사진 정보
+    completion_photos = []
+    for photo in order.completion_photos.all().order_by('order_number'):
+        completion_photos.append({
+            'image_url': photo.image.url if photo.image else photo.google_drive_image_url,
+            'filename': photo.filename,
+            'order_number': photo.order_number
+        })
+    
+    data = {
+        'tracking_number': order.tracking_number,
+        'completion_photos': completion_photos
+    }
+    
+    return JsonResponse(data)
+
+
+@login_required
+def settlement_list(request):
+    """정산 목록 (월별 필터)"""
+    from django.db.models import Sum
+    from datetime import datetime
+    
+    # 월 필터 파라미터 (YYYY-MM 형식)
+    month_param = request.GET.get('month')
+    
+    # 기본값: 현재 월
+    if not month_param:
+        now = timezone.now()
+        month_param = now.strftime('%Y-%m')
+    
+    # 연도와 월 파싱
+    try:
+        year, month = map(int, month_param.split('-'))
+    except:
+        now = timezone.now()
+        year, month = now.year, now.month
+    
+    # 정산 목록 (SETTLED 상태)
+    orders = Order.objects.filter(
+        status=Status.SETTLED,
+        payment_date__year=year,
+        payment_date__month=month
+    ).order_by('-payment_date')
+    
+    # 통계 계산
+    total_revenue = orders.aggregate(Sum('total_order_amount'))['total_order_amount__sum'] or 0
+    total_cost = sum(order.total_cost for order in orders)
+    total_profit = total_revenue - total_cost
+    
+    # 월 목록 생성 (최근 12개월)
+    from dateutil.relativedelta import relativedelta
+    months = []
+    current_date = timezone.now().date()
+    for i in range(12):
+        date = current_date - relativedelta(months=i)
+        months.append({
+            'value': date.strftime('%Y-%m'),
+            'label': date.strftime('%Y년 %m월')
+        })
+    
+    return render(request, 'orders/settlement_list.html', {
+        'orders': orders,
+        'selected_month': month_param,
+        'months': months,
+        'year': year,
+        'month': month,
+        'total_revenue': total_revenue,
+        'total_cost': total_cost,
+        'total_profit': total_profit,
+        'order_count': orders.count()
+    })
+
+
+@login_required
 @require_POST
 def cancel_order(request, pk):
     """주문 취소"""
     order = get_object_or_404(Order, pk=pk)
     
     # 이미 완료된 주문은 취소 불가
-    if order.status == Status.COMPLETED:
-        messages.error(request, '완료된 주문은 취소할 수 없습니다.')
+    if order.status == Status.COMPLETED or order.status == Status.SETTLED:
+        messages.error(request, '완료/정산된 주문은 취소할 수 없습니다.')
         return redirect('order_detail', pk=pk)
     
     # 이미 취소된 주문

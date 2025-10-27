@@ -11,8 +11,15 @@ class Status(models.TextChoices):
     CONSULTING = 'CONSULTING', '상담/시안 제작 중'
     PRODUCING = 'PRODUCING', '제작 중'
     PRODUCED = 'PRODUCED', '제작 완료 (발송 대기)'
-    COMPLETED = 'COMPLETED', '완료 (정산 포함)'
+    COMPLETED = 'COMPLETED', '완료'
+    SETTLED = 'SETTLED', '정산 목록'
     CANCELED = 'CANCELED', '주문 취소'
+
+
+class PrintMethod(models.TextChoices):
+    """인쇄 방법"""
+    DTG = 'DTG', 'DTG (Direct to Garment)'
+    DTF = 'DTF', 'DTF (Direct to Film)'
 
 
 class Order(models.Model):
@@ -43,6 +50,20 @@ class Order(models.Model):
     )
     shipping_address = models.TextField(
         verbose_name="배송 주소"
+    )
+    customer_memo = models.TextField(
+        blank=True,
+        default='',
+        verbose_name="고객 메모",
+        help_text="고객에 대한 특이사항이나 주문 관련 메모"
+    )
+    print_method = models.CharField(
+        max_length=10,
+        choices=PrintMethod.choices,
+        blank=True,
+        null=True,
+        verbose_name="인쇄 방법",
+        help_text="DTG 또는 DTF 선택"
     )
     shipping_cost = models.DecimalField(
         max_digits=10,
@@ -81,6 +102,13 @@ class Order(models.Model):
         blank=True,
         verbose_name="썸네일 이미지",
         help_text="주문 상세 페이지 상단에 표시될 시안 썸네일"
+    )
+    tracking_number = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name="송장번호",
+        help_text="택배 송장 번호"
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일시")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="수정일시")
@@ -238,6 +266,62 @@ class OrderThumbnail(models.Model):
     def __str__(self):
         display_name = self.filename or (os.path.basename(self.image.name) if self.image else 'No Image')
         return f"{self.order.smartstore_order_id} - {display_name}"
+    
+    @property
+    def image_url(self):
+        """Google Drive URL이 있으면 우선 사용, 없으면 로컬 이미지 URL 반환"""
+        if self.google_drive_image_url:
+            return self.google_drive_image_url
+        elif self.image:
+            return self.image.url
+        return None
+
+
+class OrderCompletionPhoto(models.Model):
+    """제작 완료 사진 (여러 장 가능)"""
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name='completion_photos',
+        verbose_name="주문"
+    )
+    image = models.ImageField(
+        upload_to='completion_photos/',
+        verbose_name="완료 사진",
+        blank=True,
+        null=True
+    )
+    # Google Drive에 저장된 이미지 URL
+    google_drive_image_url = models.URLField(
+        max_length=500,
+        verbose_name="Google Drive 이미지 URL",
+        blank=True,
+        null=True
+    )
+    # 파일 이름 (참조용)
+    filename = models.CharField(
+        max_length=255,
+        verbose_name="파일명",
+        blank=True,
+        null=True
+    )
+    order_number = models.PositiveIntegerField(
+        default=1,
+        verbose_name="순서"
+    )
+    uploaded_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="업로드일시"
+    )
+    
+    class Meta:
+        verbose_name = "제작 완료 사진"
+        verbose_name_plural = "제작 완료 사진"
+        ordering = ['order', 'order_number']
+    
+    def __str__(self):
+        display_name = self.filename or (os.path.basename(self.image.name) if self.image else 'No Image')
+        return f"{self.order.smartstore_order_id} - 완료사진 {self.order_number}"
     
     @property
     def image_url(self):

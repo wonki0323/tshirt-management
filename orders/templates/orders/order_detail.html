@@ -194,6 +194,9 @@
             </nav>
         </div>
         <div class="d-flex gap-2">
+            <a href="{% url 'order_update' order.pk %}" class="btn btn-warning">
+                <i class="fas fa-edit"></i> 정보 수정
+            </a>
             {% if prev_order %}
             <a href="{% url 'order_detail' prev_order.pk %}" class="btn btn-outline-secondary">
                 <i class="fas fa-chevron-left"></i> 이전
@@ -201,6 +204,9 @@
             {% endif %}
             <a href="{% url 'order_list' %}?status={{ order.status }}" class="btn btn-outline-primary">
                 <i class="fas fa-list"></i> 목록
+            </a>
+            <a href="{% url 'settlement_list' %}" class="btn btn-outline-success">
+                <i class="fas fa-calculator"></i> 정산목록
             </a>
             {% if next_order %}
             <a href="{% url 'order_detail' next_order.pk %}" class="btn btn-outline-secondary">
@@ -266,6 +272,59 @@
     </div>
     {% endif %}
 
+    <!-- 완료사진 캐러셀 (정산 상태일 때) -->
+    {% if order.status == 'SETTLED' and order.completion_photos.exists %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-check-circle"></i> 완료사진 ({{ order.completion_photos.count }}장) 
+                        <small class="text-white-50">(좌우 화살표로 이동, 클릭하여 확대)</small>
+                    </h5>
+                </div>
+                <div class="card-body text-center p-4">
+                    <div class="completion-carousel-container position-relative" style="min-height: 400px; display: flex; align-items: center; justify-content: center; width: 100%;">
+                        {% for photo in order.completion_photos.all %}
+                        <div class="completion-slide {% if forloop.first %}active{% endif %}" data-slide="{{ forloop.counter0 }}" style="display: {% if forloop.first %}flex{% else %}none{% endif %}; width: 100%; text-align: center; flex-direction: column; align-items: center; animation: fadeIn 0.5s;">
+                            <img src="{% if photo.image %}{{ photo.image.url }}{% else %}{{ photo.google_drive_image_url }}{% endif %}" 
+                                 alt="{{ order.customer_name }} 완료사진 {{ forloop.counter }}" 
+                                 class="rounded shadow-lg thumbnail-clickable"
+                                 style="max-width: 100%; max-height: 400px; width: auto; height: auto; cursor: pointer;"
+                                 onclick="openImageModal('{% if photo.image %}{{ photo.image.url }}{% else %}{{ photo.google_drive_image_url }}{% endif %}', '{{ order.customer_name }} 완료사진 {{ forloop.counter }}')">
+                            <div class="mt-3">
+                                <button type="button" class="btn btn-sm btn-primary" onclick="copyCompletionImage('{% if photo.image %}{{ photo.image.url }}{% else %}{{ photo.google_drive_image_url }}{% endif %}', this)">
+                                    <i class="fas fa-copy"></i> 이미지 복사
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        <!-- 이전/다음 버튼 (완료사진이 2장 이상일 때만 표시) -->
+                        {% if order.completion_photos.count > 1 %}
+                        <button class="carousel-control prev" onclick="changeCompletionSlide(-1)" style="position: absolute; top: 50%; transform: translateY(-50%); background-color: rgba(0, 0, 0, 0.5); color: white; border: none; padding: 15px 20px; font-size: 24px; cursor: pointer; border-radius: 50%; transition: all 0.3s ease; z-index: 10; left: 20px;">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button class="carousel-control next" onclick="changeCompletionSlide(1)" style="position: absolute; top: 50%; transform: translateY(-50%); background-color: rgba(0, 0, 0, 0.5); color: white; border: none; padding: 15px 20px; font-size: 24px; cursor: pointer; border-radius: 50%; transition: all 0.3s ease; z-index: 10; right: 20px;">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                        
+                        <!-- 인디케이터 -->
+                        <div class="carousel-indicators" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 10;">
+                            {% for photo in order.completion_photos.all %}
+                            <span class="indicator {% if forloop.first %}active{% endif %}" 
+                                  onclick="goToCompletionSlide({{ forloop.counter0 }})"
+                                  style="background-color: {% if forloop.first %}#0dcaf0{% else %}rgba(255, 255, 255, 0.5){% endif %}; color: #333; padding: 8px 12px; border-radius: 20px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s ease; min-width: 35px; text-align: center;">{{ forloop.counter }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- 이미지 전체화면 모달 -->
     <div id="imageModal" class="image-modal" style="display: none;" onclick="closeImageModal()">
         <span class="image-modal-close">&times;</span>
@@ -301,6 +360,7 @@
                                             {% elif order.status == 'PRODUCING' %}bg-primary
                                             {% elif order.status == 'PRODUCED' %}bg-success
                                             {% elif order.status == 'COMPLETED' %}bg-secondary
+                                            {% elif order.status == 'SETTLED' %}bg-dark
                                             {% elif order.status == 'CANCELED' %}bg-danger
                                             {% endif %}">
                                             {{ order.get_status_display }}
@@ -368,12 +428,41 @@
                             </tr>
                             <tr>
                                 <th>연락처</th>
-                                <td>{{ order.customer_phone }}</td>
+                                <td>{{ order.customer_phone|default:"-" }}</td>
                             </tr>
                             <tr>
                                 <th>배송지</th>
-                                <td>{{ order.shipping_address|linebreaks }}</td>
+                                <td>{{ order.shipping_address|linebreaks|default:"-" }}</td>
                             </tr>
+                            <tr>
+                                <th>고객 메모</th>
+                                <td>
+                                    {% if order.customer_memo %}
+                                        <div class="alert alert-warning mb-0 py-2" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                                            <i class="fas fa-sticky-note text-warning"></i> 
+                                            <strong>메모:</strong> {{ order.customer_memo|linebreaks }}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">메모 없음</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if order.print_method %}
+                            <tr>
+                                <th>인쇄 방법</th>
+                                <td>
+                                    <span class="badge bg-info">{{ order.get_print_method_display }}</span>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if order.tracking_number %}
+                            <tr>
+                                <th>송장번호</th>
+                                <td class="fw-bold text-success">
+                                    <i class="fas fa-truck"></i> {{ order.tracking_number }}
+                                </td>
+                            </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>
@@ -505,13 +594,15 @@
                             <i class="fas fa-check-circle"></i> 발송 대기 중입니다. 엑셀 출력 후 완료 처리하세요.
                         </div>
                     {% elif order.status == 'COMPLETED' %}
-                        <div class="alert alert-secondary mb-0 w-100 text-center">
-                            <i class="fas fa-check-double"></i> 완료된 주문입니다.
-                        </div>
+                        <button type="button" class="btn btn-success btn-lg completion-input-btn" 
+                                data-order-id="{{ order.id }}" 
+                                data-customer-name="{{ order.customer_name }}">
+                            <i class="fas fa-clipboard-check"></i> 결과 입력
+                        </button>
                     {% endif %}
                     
-                    <!-- 취소 버튼 (완료된 주문과 이미 취소된 주문 제외) -->
-                    {% if order.status != 'COMPLETED' %}
+                    <!-- 취소 버튼 (완료/정산 상태와 이미 취소된 주문 제외) -->
+                    {% if order.status != 'COMPLETED' and order.status != 'SETTLED' %}
                         <button type="button" class="btn btn-danger btn-lg" id="cancelOrderBtn">
                             <i class="fas fa-times-circle"></i> 주문 취소
                         </button>
@@ -617,12 +708,112 @@ function goToSlide(index) {
     }
 }
 
+// 완료사진 캐러셀 관련 함수들
+let currentCompletionSlide = 0;
+
+function changeCompletionSlide(direction) {
+    const slides = document.querySelectorAll('.completion-slide');
+    const indicators = document.querySelectorAll('.completion-carousel-container .carousel-indicators .indicator');
+    
+    if (slides.length === 0) return;
+    
+    // 현재 슬라이드 숨기기
+    slides[currentCompletionSlide].style.display = 'none';
+    if (indicators.length > 0) {
+        indicators[currentCompletionSlide].style.backgroundColor = 'rgba(255, 255, 255, 0.5)';
+    }
+    
+    // 새 슬라이드 인덱스 계산
+    currentCompletionSlide = (currentCompletionSlide + direction + slides.length) % slides.length;
+    
+    // 새 슬라이드 표시
+    slides[currentCompletionSlide].style.display = 'flex';
+    if (indicators.length > 0) {
+        indicators[currentCompletionSlide].style.backgroundColor = '#0dcaf0';
+    }
+}
+
+function goToCompletionSlide(index) {
+    const slides = document.querySelectorAll('.completion-slide');
+    const indicators = document.querySelectorAll('.completion-carousel-container .carousel-indicators .indicator');
+    
+    if (slides.length === 0 || index < 0 || index >= slides.length) return;
+    
+    // 현재 슬라이드 숨기기
+    slides[currentCompletionSlide].style.display = 'none';
+    if (indicators.length > 0) {
+        indicators[currentCompletionSlide].style.backgroundColor = 'rgba(255, 255, 255, 0.5)';
+    }
+    
+    // 지정된 슬라이드로 이동
+    currentCompletionSlide = index;
+    
+    // 새 슬라이드 표시
+    slides[currentCompletionSlide].style.display = 'flex';
+    if (indicators.length > 0) {
+        indicators[currentCompletionSlide].style.backgroundColor = '#0dcaf0';
+    }
+}
+
+// 완료사진 이미지 복사
+async function copyCompletionImage(imageUrl, btn) {
+    const originalHTML = btn.innerHTML;
+    
+    try {
+        // 버튼 상태 변경 (로딩)
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 복사 중...';
+        
+        // 이미지를 blob으로 가져오기
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        
+        // 클립보드에 복사
+        await navigator.clipboard.write([
+            new ClipboardItem({
+                [blob.type]: blob
+            })
+        ]);
+        
+        // 복사 성공 표시
+        btn.innerHTML = '<i class="fas fa-check"></i> 복사 완료!';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-success');
+        
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-primary');
+            btn.disabled = false;
+        }, 2000);
+        
+    } catch (error) {
+        console.error('이미지 복사 실패:', error);
+        
+        // 에러 표시
+        btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 복사 실패';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-danger');
+        
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-primary');
+            btn.disabled = false;
+        }, 2000);
+        
+        alert('이미지 복사에 실패했습니다. 최신 브라우저를 사용해주세요.');
+    }
+}
+
 // 키보드 화살표로 캐러셀 조작
 document.addEventListener('keydown', function(event) {
     if (event.key === 'ArrowLeft') {
         changeSlide(-1);
+        changeCompletionSlide(-1);
     } else if (event.key === 'ArrowRight') {
         changeSlide(1);
+        changeCompletionSlide(1);
     }
 });
 
@@ -856,6 +1047,146 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         document.body.classList.remove('modal-open');
     };
+    
+    // 완료 결과 입력 모달 표시 함수
+    function showCompletionModal(orderId, customerName) {
+        // 기존 모달이 있으면 제거
+        const existingModal = document.getElementById('completionInputModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // 모달 HTML 생성
+        const modalHTML = `
+            <div class="modal fade show" id="completionInputModal" tabindex="-1" style="display: block; background: rgba(0,0,0,0.5);">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-success text-white">
+                            <h5 class="modal-title"><i class="fas fa-clipboard-check"></i> 결과 입력: ${customerName}</h5>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeCompletionModal()"></button>
+                        </div>
+                        <form method="post" action="{% url 'order_completion' order.pk %}" enctype="multipart/form-data">
+                            <input type="hidden" name="csrfmiddlewaretoken" value="${getCookie('csrftoken')}">
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="tracking_number" class="form-label">
+                                        <i class="fas fa-truck"></i> 송장번호
+                                    </label>
+                                    <input type="text" class="form-control" id="tracking_number" name="tracking_number" 
+                                           placeholder="송장번호를 입력하세요" value="{{ order.tracking_number }}">
+                                    <div class="form-text">
+                                        택배 송장번호를 입력하세요 (선택사항)
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="completion_photos" class="form-label">
+                                        <i class="fas fa-images"></i> 완료사진 (여러 장 선택 가능)
+                                    </label>
+                                    <input type="file" class="form-control" id="completion_photos" 
+                                           name="completion_photos" multiple accept="image/*">
+                                    <div class="form-text">
+                                        제작 완료된 제품의 사진을 업로드하세요. (JPG, PNG 등)
+                                    </div>
+                                    <div id="completion-photo-preview" class="mt-2"></div>
+                                </div>
+                                
+                                <div class="alert alert-info small mb-0">
+                                    <i class="fas fa-info-circle"></i> 
+                                    결과 입력이 완료되면 상태가 <strong>정산 목록</strong>으로 변경됩니다.
+                                </div>
+                                
+                                <!-- 업로드 진행 중 표시 영역 -->
+                                <div id="completion-upload-progress" class="alert alert-warning mt-3" style="display: none;">
+                                    <div class="d-flex align-items-center">
+                                        <div class="spinner-border spinner-border-sm me-3" role="status">
+                                            <span class="visually-hidden">업로드 중...</span>
+                                        </div>
+                                        <div>
+                                            <strong>결과 입력 중입니다...</strong><br>
+                                            <small class="text-muted">잠시만 기다려주세요. 창을 닫지 마세요.</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" onclick="closeCompletionModal()" id="completionCancelBtn">취소</button>
+                                <button type="submit" class="btn btn-success" id="completionSubmitBtn">
+                                    <i class="fas fa-check-double"></i> 결과 저장
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 모달을 body에 추가
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        document.body.classList.add('modal-open');
+        
+        // 파일 선택 이벤트 리스너 추가
+        setTimeout(() => {
+            const photoInput = document.getElementById('completion_photos');
+            const photoPreview = document.getElementById('completion-photo-preview');
+            const completionForm = document.querySelector('#completionInputModal form');
+            const uploadProgress = document.getElementById('completion-upload-progress');
+            const submitBtn = document.getElementById('completionSubmitBtn');
+            const cancelBtn = document.getElementById('completionCancelBtn');
+            
+            // 완료사진 미리보기
+            if (photoInput && photoPreview) {
+                photoInput.addEventListener('change', function(e) {
+                    if (this.files && this.files.length > 0) {
+                        let html = `
+                            <div class="alert alert-success py-2 px-3">
+                                <i class="fas fa-check-circle"></i> 
+                                <strong>${this.files.length}장의 사진</strong>이 선택되었습니다.
+                            </div>
+                        `;
+                        photoPreview.innerHTML = html;
+                    } else {
+                        photoPreview.innerHTML = '';
+                    }
+                });
+            }
+            
+            // 폼 제출 시 진행 표시
+            if (completionForm) {
+                completionForm.addEventListener('submit', function(e) {
+                    uploadProgress.style.display = 'block';
+                    submitBtn.disabled = true;
+                    cancelBtn.disabled = true;
+                });
+            }
+        }, 100);
+    }
+    
+    // 완료 입력 모달 닫기
+    function closeCompletionModal() {
+        const modal = document.getElementById('completionInputModal');
+        if (modal) {
+            modal.remove();
+        }
+        document.body.classList.remove('modal-open');
+    }
+    
+    // 모달 외부 클릭 시 닫기 (완료 입력 모달)
+    document.addEventListener('click', function(e) {
+        if (e.target.id === 'completionInputModal') {
+            closeCompletionModal();
+        }
+    });
+    
+    // 결과 입력 버튼 처리
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.completion-input-btn')) {
+            const btn = e.target.closest('.completion-input-btn');
+            const orderId = btn.dataset.orderId;
+            const customerName = btn.dataset.customerName;
+            showCompletionModal(orderId, customerName);
+        }
+    });
     
     // 주문 취소 버튼 처리
     const cancelOrderBtn = document.getElementById('cancelOrderBtn');

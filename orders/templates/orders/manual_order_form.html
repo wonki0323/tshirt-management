@@ -83,6 +83,28 @@
                                     {% endif %}
                                 </div>
                             </div>
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="id_customer_memo" class="form-label">
+                                        {{ form.customer_memo.label }}
+                                    </label>
+                                    {{ form.customer_memo }}
+                                    {% if form.customer_memo.errors %}
+                                        <div class="text-danger small">{{ form.customer_memo.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_print_method" class="form-label">
+                                        {{ form.print_method.label }}
+                                    </label>
+                                    {{ form.print_method }}
+                                    {% if form.print_method.errors %}
+                                        <div class="text-danger small">{{ form.print_method.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
 
                         <!-- 주문 정보 -->
@@ -150,54 +172,86 @@
                                 <h6 class="text-primary border-bottom pb-2">주문 항목</h6>
                             </div>
                             
-                            <!-- 제품 옵션 선택 -->
+                            <!-- 제품 옵션 선택 (계층 구조) -->
                             <div class="col-12">
                                 <div class="mb-3">
-                                    <label for="id_product_options" class="form-label">
-                                        제품 옵션 선택 (수량 입력)
+                                    <label class="form-label">
+                                        <i class="fas fa-tshirt"></i> 제품 옵션 선택 (수량 입력)
                                     </label>
-                                <div class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
-                                    <table class="table table-sm">
-                                        <thead>
-                                            <tr>
-                                                <th style="width: 50%;">제품명 - 옵션</th>
-                                                <th style="width: 25%;">가격</th>
-                                                <th style="width: 25%;">수량</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for option in product_options %}
-                                            <tr>
-                                                <td>
-                                                    {{ option.product_name }} - {{ option.option_detail }}
-                                                    <br>
-                                                    <small class="text-muted">[기본가: {{ option.product_base_price|floatformat:0|intcomma }}원 + 옵션가: {{ option.base_price|floatformat:0|intcomma }}원]</small>
-                                                </td>
-                                                <td class="align-middle">
-                                                    <span class="text-primary fw-bold">{{ option.total_price|floatformat:0|intcomma }}원</span>
-                                                </td>
-                                                <td class="align-middle">
-                                                    <input type="number" 
-                                                           class="form-control form-control-sm product-quantity" 
-                                                           name="product_option_{{ option.id }}" 
-                                                           id="id_product_option_{{ option.id }}"
-                                                           min="0"
-                                                           value="0"
-                                                           data-option-id="{{ option.id }}"
-                                                           data-price="{{ option.total_price|floatformat:0 }}"
-                                                           data-product-price="{{ option.product_base_price|floatformat:0 }}"
-                                                           data-option-price="{{ option.base_price|floatformat:0 }}"
-                                                           placeholder="0">
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                    <div class="form-text">수량을 입력하세요 (0 = 미선택)</div>
-                                    {% if form.product_options.errors %}
-                                        <div class="text-danger small">{{ form.product_options.errors.0 }}</div>
-                                    {% endif %}
+                                    <div class="alert alert-info small mb-2">
+                                        <i class="fas fa-info-circle"></i> 제품명을 클릭하면 옵션 목록이 펼쳐집니다
+                                    </div>
+                                    
+                                    <!-- Accordion으로 제품별 그룹핑 -->
+                                    <div class="accordion" id="productAccordion">
+                                        {% for product_group in products_with_options %}
+                                        <div class="accordion-item">
+                                            <h2 class="accordion-header" id="heading{{ forloop.counter }}">
+                                                <button class="accordion-button collapsed" type="button" 
+                                                        data-bs-toggle="collapse" 
+                                                        data-bs-target="#collapse{{ forloop.counter }}" 
+                                                        aria-expanded="false" 
+                                                        aria-controls="collapse{{ forloop.counter }}">
+                                                    <strong>{{ product_group.product.name }}</strong>
+                                                    <span class="badge bg-secondary ms-2">{{ product_group.options|length }}개 옵션</span>
+                                                </button>
+                                            </h2>
+                                            <div id="collapse{{ forloop.counter }}" 
+                                                 class="accordion-collapse collapse" 
+                                                 aria-labelledby="heading{{ forloop.counter }}" 
+                                                 data-bs-parent="#productAccordion">
+                                                <div class="accordion-body p-0">
+                                                    <table class="table table-sm table-hover mb-0">
+                                                        <thead class="table-light">
+                                                            <tr>
+                                                                <th style="width: 50%;">옵션</th>
+                                                                <th style="width: 25%;">가격</th>
+                                                                <th style="width: 25%;">수량</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for option in product_group.options %}
+                                                            <tr>
+                                                                <td>
+                                                                    <strong>{{ option.option_detail }}</strong>
+                                                                    <br>
+                                                                    <small class="text-muted">
+                                                                        기본가: {{ option.product_base_price|floatformat:0|intcomma }}원 
+                                                                        + 옵션가: {{ option.base_price|floatformat:0|intcomma }}원
+                                                                    </small>
+                                                                </td>
+                                                                <td class="align-middle">
+                                                                    <span class="text-primary fw-bold">
+                                                                        {{ option.total_price|floatformat:0|intcomma }}원
+                                                                    </span>
+                                                                </td>
+                                                                <td class="align-middle">
+                                                                    <input type="number" 
+                                                                           class="form-control form-control-sm product-quantity" 
+                                                                           name="product_option_{{ option.id }}" 
+                                                                           id="id_product_option_{{ option.id }}"
+                                                                           min="0"
+                                                                           value="0"
+                                                                           data-option-id="{{ option.id }}"
+                                                                           data-price="{{ option.total_price|floatformat:0 }}"
+                                                                           data-product-price="{{ option.product_base_price|floatformat:0 }}"
+                                                                           data-option-price="{{ option.base_price|floatformat:0 }}"
+                                                                           placeholder="0"
+                                                                           style="width: 80px;">
+                                                                </td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    
+                                    <div class="form-text mt-2">
+                                        <i class="fas fa-lightbulb"></i> 수량을 입력하세요 (0 = 미선택)
+                                    </div>
                                 </div>
                             </div>
                             

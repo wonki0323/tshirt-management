@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}정산 목록 - {{ year }}년 {{ month }}월{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-calculator"></i> 정산 목록</h1>
+        <a href="{% url 'order_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> 주문 목록
+        </a>
+    </div>
+
+    <!-- 월 선택 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row align-items-end">
+                <div class="col-md-4">
+                    <label for="month" class="form-label">정산 월 선택</label>
+                    <select name="month" id="month" class="form-select" onchange="this.form.submit()">
+                        {% for m in months %}
+                            <option value="{{ m.value }}" {% if m.value == selected_month %}selected{% endif %}>
+                                {{ m.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 통계 카드 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="text-muted">주문 건수</h6>
+                    <h3 class="text-primary">{{ order_count }}건</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="text-muted">총 매출</h6>
+                    <h3 class="text-success">{{ total_revenue|floatformat:0|intcomma }}원</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="text-muted">총 원가</h6>
+                    <h3 class="text-danger">{{ total_cost|floatformat:0|intcomma }}원</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="text-muted">순이익</h6>
+                    <h3 class="{% if total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ total_profit|floatformat:0|intcomma }}원
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 주문 목록 -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">{{ year }}년 {{ month }}월 완료 주문</h5>
+        </div>
+        <div class="card-body">
+            {% if orders %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>주문번호</th>
+                                <th>고객명</th>
+                                <th>결제일</th>
+                                <th>인쇄방법</th>
+                                <th>결제금액</th>
+                                <th>원가</th>
+                                <th>순이익</th>
+                                <th>송장번호</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'order_detail' order.pk %}">
+                                        {{ order.smartstore_order_id }}
+                                    </a>
+                                </td>
+                                <td>{{ order.customer_name }}</td>
+                                <td>{{ order.payment_date|date:"Y-m-d" }}</td>
+                                <td>
+                                    {% if order.print_method %}
+                                        <span class="badge bg-info">{{ order.get_print_method_display }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">{{ order.total_order_amount|floatformat:0|intcomma }}원</td>
+                                <td class="text-end text-danger">{{ order.total_cost|floatformat:0|intcomma }}원</td>
+                                <td class="text-end">
+                                    <strong class="{% if order.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ order.profit|floatformat:0|intcomma }}원
+                                    </strong>
+                                </td>
+                                <td>
+                                    {% if order.tracking_number %}
+                                        {{ order.tracking_number }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info text-center">
+                    <i class="fas fa-info-circle"></i> 해당 월에 완료된 주문이 없습니다.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

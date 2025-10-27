@@ -38,10 +38,38 @@ def get_oauth_service(credentials_path=None, token_path=None):
         token_json_base64 = os.environ.get('GOOGLE_OAUTH_TOKEN_JSON')
         token_base64 = os.environ.get('GOOGLE_OAUTH_TOKEN_BASE64')
         
-        if token_json_base64:
+        # 환경 변수로 각 필드 직접 전달 (가장 안전한 방법)
+        token_value = os.environ.get('GOOGLE_OAUTH_ACCESS_TOKEN')
+        refresh_token_value = os.environ.get('GOOGLE_OAUTH_REFRESH_TOKEN')
+        client_id_value = os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
+        client_secret_value = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
+        
+        if all([refresh_token_value, client_id_value, client_secret_value]):
+            logger.info("환경 변수에서 OAuth 토큰 로드 (개별 필드)")
+            try:
+                from google.oauth2.credentials import Credentials
+                creds = Credentials(
+                    token=token_value,
+                    refresh_token=refresh_token_value,
+                    token_uri='https://oauth2.googleapis.com/token',
+                    client_id=client_id_value,
+                    client_secret=client_secret_value,
+                    scopes=['https://www.googleapis.com/auth/drive.file']
+                )
+                logger.info("환경 변수에서 개별 필드 토큰 로드 성공")
+            except Exception as e:
+                logger.error(f"개별 필드 토큰 생성 실패: {e}")
+                creds = None
+        elif token_json_base64:
             logger.info("환경 변수에서 OAuth 토큰 로드 (JSON 형식)")
             try:
-                token_json_str = base64.b64decode(token_json_base64).decode()
+                # Base64 디코딩 (공백과 줄바꿈 제거)
+                token_json_base64_clean = token_json_base64.strip().replace('\n', '').replace('\r', '').replace(' ', '')
+                logger.info(f"Base64 토큰 길이: {len(token_json_base64_clean)}")
+                
+                token_json_str = base64.b64decode(token_json_base64_clean).decode('utf-8')
+                logger.info(f"디코딩된 JSON 길이: {len(token_json_str)}")
+                
                 token_dict = json.loads(token_json_str)
                 
                 # JSON에서 Credentials 객체 생성
