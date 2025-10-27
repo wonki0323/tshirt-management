@@ -1036,14 +1036,31 @@ async function copyImageToClipboard(imageUrl, event) {
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 복사 중...';
         
-        // 이미지를 blob으로 가져오기
-        const response = await fetch(imageUrl);
-        const blob = await response.blob();
+        // Canvas를 사용하여 이미지 로드
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        // 이미지 로드 완료 대기
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = imageUrl;
+        });
+        
+        // Canvas에 이미지 그리기
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        
+        // Canvas를 Blob으로 변환
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
         
         // 클립보드에 복사
         await navigator.clipboard.write([
             new ClipboardItem({
-                [blob.type]: blob
+                'image/png': blob
             })
         ]);
         
