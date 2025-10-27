@@ -912,7 +912,7 @@ function displayViewCompletionModal(data, customerName) {
         data.completion_photos.forEach((photo, index) => {
             photosHTML += `
                 <div class="carousel-item ${index === 0 ? 'active' : ''}" style="text-align: center; position: relative;">
-                    <img src="${photo.image_url}" alt="완료사진 ${index + 1}" style="max-width: 100%; max-height: 500px; object-fit: contain; cursor: pointer;" onclick="openImageModal('${photo.image_url}')">
+                    <img src="${photo.image_url}" alt="완료사진 ${index + 1}" style="max-width: 100%; max-height: 500px; object-fit: contain;">
                     <div style="margin-top: 10px;">
                         <button type="button" class="btn btn-sm btn-primary" onclick="copyImageToClipboard('${photo.image_url}', event)">
                             <i class="fas fa-copy"></i> 이미지 복사
