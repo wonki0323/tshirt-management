@@ -13,9 +13,9 @@ def dashboard(request):
     # CANCELED 상태가 아닌 주문만 대상으로 계산
     active_orders = Order.objects.exclude(status=Status.CANCELED)
     
-    # FINANCE: 매출-매입=순이익 계산 (요구사항 10: COMPLETED 주문만)
+    # FINANCE: 매출-매입=순이익 계산 (COMPLETED 및 SETTLED 주문)
     # 매출: 완료된 주문의 총 결제 금액
-    completed_orders = Order.objects.filter(status=Status.COMPLETED)
+    completed_orders = Order.objects.filter(status__in=[Status.COMPLETED, Status.SETTLED])
     total_revenue = sum(
         order.total_order_amount 
         for order in completed_orders
