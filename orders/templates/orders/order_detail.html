@@ -764,7 +764,6 @@ async function copyCompletionImage(imageUrl, btn) {
         const link = document.createElement('a');
         link.href = imageUrl;
         link.download = '완료사진.jpg';
-        link.target = '_blank';
         link.click();
         
         btn.innerHTML = '<i class="fas fa-download"></i> 다운로드됨';
@@ -814,7 +813,6 @@ async function copyCompletionImage(imageUrl, btn) {
         const link = document.createElement('a');
         link.href = imageUrl;
         link.download = '완료사진.jpg';
-        link.target = '_blank';
         link.click();
         
         btn.innerHTML = '<i class="fas fa-download"></i> 다운로드됨';
