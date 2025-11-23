@@ -217,12 +217,14 @@
                                                 </tfoot>
                                             </table>
                                         </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-                                            <form action="{% url 'archive_order' order.id %}" method="post" class="d-inline">
+                                        <div class="modal-footer d-flex justify-content-between">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                <i class="fas fa-times me-1"></i> 닫기
+                                            </button>
+                                            <form action="{% url 'archive_order' order.id %}" method="post" onsubmit="return confirm('이 주문을 종료 목록으로 넘기시겠습니까?');">
                                                 {% csrf_token %}
-                                                <button type="submit" class="btn btn-success" onclick="return confirm('이 주문을 종료 목록으로 넘기시겠습니까?');">
-                                                    <i class="fas fa-check"></i> 넘기기
+                                                <button type="submit" class="btn btn-success btn-lg">
+                                                    <i class="fas fa-check me-1"></i> 넘기기
                                                 </button>
                                             </form>
                                         </div>
