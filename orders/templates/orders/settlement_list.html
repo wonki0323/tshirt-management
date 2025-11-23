@@ -1,18 +1,39 @@
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}정산 목록 - {{ year }}년 {{ month }}월{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1><i class="fas fa-calculator"></i> 정산 목록</h1>
-        <a href="{% url 'order_list' %}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> 주문 목록
-        </a>
+        <h1><i class="fas fa-calculator"></i> {{ page_title }}</h1>
+        <div class="btn-group">
+            {% if not is_archived %}
+                <a href="{% url 'archived_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-archive"></i> 종료 목록 (최근 30일)
+                </a>
+            {% else %}
+                <a href="{% url 'settlement_list' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-list"></i> 종료 (정산 대기)
+                </a>
+            {% endif %}
+            <a href="{% url 'order_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> 주문 목록
+            </a>
+        </div>
     </div>
 
-    <!-- 월 선택 -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- 월 선택 (정산 대기 목록일 때만 표시) -->
+    {% if not is_archived %}
     <div class="card mb-4">
         <div class="card-body">
             <form method="get" class="row align-items-end">
@@ -29,6 +50,7 @@
             </form>
         </div>
     </div>
+    {% endif %}
 
     <!-- 통계 카드 -->
     <div class="row mb-4">
@@ -71,68 +93,149 @@
     <!-- 주문 목록 -->
     <div class="card">
         <div class="card-header">
-            <h5 class="mb-0">{{ year }}년 {{ month }}월 완료 주문</h5>
+            <h5 class="mb-0">
+                {% if is_archived %}
+                    최근 30일 종료된 주문
+                {% else %}
+                    {{ year }}년 {{ month }}월 종료 (정산 대기) 주문
+                {% endif %}
+            </h5>
         </div>
         <div class="card-body">
             {% if orders %}
                 <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
                             <tr>
                                 <th>주문번호</th>
                                 <th>고객명</th>
                                 <th>결제일</th>
-                                <th>인쇄방법</th>
-                                <th>결제금액</th>
-                                <th>원가</th>
-                                <th>순이익</th>
-                                <th>송장번호</th>
+                                <th>매출/원가/이익</th>
+                                <th>상태</th>
+                                <th class="text-center">관리</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for order in orders %}
                             <tr>
                                 <td>
-                                    <a href="{% url 'order_detail' order.pk %}">
-                                        {{ order.smartstore_order_id }}
-                                    </a>
+                                    <strong>{{ order.smartstore_order_id }}</strong>
                                 </td>
                                 <td>{{ order.customer_name }}</td>
                                 <td>{{ order.payment_date|date:"Y-m-d" }}</td>
                                 <td>
-                                    {% if order.print_method %}
-                                        <span class="badge bg-info">{{ order.get_print_method_display }}</span>
-                                    {% else %}
-                                        <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-end">{{ order.total_order_amount|floatformat:0|intcomma }}원</td>
-                                <td class="text-end text-danger">{{ order.total_cost|floatformat:0|intcomma }}원</td>
-                                <td class="text-end">
-                                    <strong class="{% if order.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                        {{ order.profit|floatformat:0|intcomma }}원
-                                    </strong>
+                                    <div class="small">
+                                        매출: <span class="text-primary">{{ order.total_order_amount|floatformat:0|intcomma }}</span><br>
+                                        원가: <span class="text-danger">{{ order.total_cost|floatformat:0|intcomma }}</span><br>
+                                        이익: <span class="fw-bold {% if order.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                            {{ order.profit|floatformat:0|intcomma }}
+                                        </span>
+                                    </div>
                                 </td>
                                 <td>
-                                    {% if order.tracking_number %}
-                                        {{ order.tracking_number }}
-                                    {% else %}
-                                        <span class="text-muted">-</span>
+                                    {% if order.status == 'SETTLED' %}
+                                        <span class="badge bg-info">정산 대기</span>
+                                    {% elif order.status == 'ARCHIVED' %}
+                                        <span class="badge bg-secondary">보관됨</span>
                                     {% endif %}
                                 </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
+                                        보기
+                                    </button>
+                                </td>
                             </tr>
+
+                            <!-- 보기 모달 -->
+                            <div class="modal fade" id="orderModal{{ order.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-lg">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">주문 상세 정보 - {{ order.smartstore_order_id }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <h6>기본 정보</h6>
+                                                    <table class="table table-sm table-borderless">
+                                                        <tr><th class="w-25">고객명</th><td>{{ order.customer_name }}</td></tr>
+                                                        <tr><th>연락처</th><td>{{ order.customer_phone }}</td></tr>
+                                                        <tr><th>배송지</th><td>{{ order.shipping_address }}</td></tr>
+                                                        <tr><th>송장번호</th><td>{{ order.tracking_number|default:"-" }}</td></tr>
+                                                    </table>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <h6>완료 사진</h6>
+                                                    <div class="d-flex gap-2 overflow-auto">
+                                                        {% for photo in order.completion_photos.all %}
+                                                            <a href="{{ photo.image_url }}" target="_blank">
+                                                                <img src="{{ photo.image_url }}" class="img-thumbnail" style="height: 100px; object-fit: cover;">
+                                                            </a>
+                                                        {% empty %}
+                                                            <p class="text-muted small">완료 사진이 없습니다.</p>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <h6 class="mt-3">주문 항목</h6>
+                                            <table class="table table-sm table-bordered">
+                                                <thead>
+                                                    <tr>
+                                                        <th>제품명 / 옵션</th>
+                                                        <th class="text-center">수량</th>
+                                                        <th class="text-end">금액</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for item in order.items.all %}
+                                                    <tr>
+                                                        <td>
+                                                            {{ item.smartstore_product_name }}
+                                                            <div class="small text-muted">{{ item.smartstore_option_text }}</div>
+                                                        </td>
+                                                        <td class="text-center">{{ item.quantity }}</td>
+                                                        <td class="text-end">{{ item.total_price|floatformat:0|intcomma }}원</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                                <tfoot class="table-light">
+                                                    <tr>
+                                                        <th colspan="2" class="text-end">배송비</th>
+                                                        <td class="text-end">{{ order.shipping_cost|floatformat:0|intcomma }}원</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th colspan="2" class="text-end">총 결제금액</th>
+                                                        <td class="text-end fw-bold">{{ order.total_order_amount|floatformat:0|intcomma }}원</td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                                            {% if not is_archived %}
+                                                <form action="{% url 'archive_order' order.id %}" method="post" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-success" onclick="return confirm('이 주문을 종료 목록으로 넘기시겠습니까?');">
+                                                        <i class="fas fa-check"></i> 넘기기
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             {% else %}
                 <div class="alert alert-info text-center">
-                    <i class="fas fa-info-circle"></i> 해당 월에 완료된 주문이 없습니다.
+                    <i class="fas fa-info-circle"></i> 목록이 비어있습니다.
                 </div>
             {% endif %}
         </div>
     </div>
 </div>
 {% endblock %}
-
-

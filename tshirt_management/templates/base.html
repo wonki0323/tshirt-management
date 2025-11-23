@@ -120,6 +120,12 @@
             </a>
             
             <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{% url 'order_list' %}" style="font-size: 0.9rem;">
+                    <i class="fas fa-list me-1"></i>주문
+                </a>
+                <a class="nav-link" href="{% url 'settlement_list' %}" style="font-size: 0.9rem;">
+                    <i class="fas fa-check-circle me-1"></i>종료
+                </a>
                 <a class="nav-link" href="{% url 'financial_summary' %}" style="font-size: 0.9rem;">
                     <i class="fas fa-chart-line me-1"></i>재무
                 </a>

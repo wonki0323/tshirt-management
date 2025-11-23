@@ -13,6 +13,7 @@ class Status(models.TextChoices):
     PRODUCED = 'PRODUCED', '제작 완료 (발송 대기)'
     COMPLETED = 'COMPLETED', '완료'
     SETTLED = 'SETTLED', '정산 목록'
+    ARCHIVED = 'ARCHIVED', '종료 목록 (보관)'
     CANCELED = 'CANCELED', '주문 취소'
 
 

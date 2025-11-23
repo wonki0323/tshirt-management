@@ -15,4 +15,6 @@ urlpatterns = [
     path('check-customer/', views.check_customer_exists, name='check_customer_exists'),
     path('debug-upload/', views.debug_upload, name='debug_upload'),
     path('settlement/', views.settlement_list, name='settlement_list'),
+    path('archived/', views.archived_list, name='archived_list'),
+    path('<int:pk>/archive/', views.archive_order, name='archive_order'),
 ]

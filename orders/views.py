@@ -770,9 +770,11 @@ def get_completion_info(request, pk):
 
 @login_required
 def settlement_list(request):
-    """정산 목록 (월별 필터)"""
+    """정산 목록 (종료 대기)"""
     from django.db.models import Sum
     from datetime import datetime
+    
+    # 월 필터는 유지하되, 기본적으로 SETTLED 상태만 보여줌
     
     # 월 필터 파라미터 (YYYY-MM 형식)
     month_param = request.GET.get('month')
@@ -789,7 +791,7 @@ def settlement_list(request):
         now = timezone.now()
         year, month = now.year, now.month
     
-    # 정산 목록 (SETTLED 상태)
+    # 정산 목록 (SETTLED 상태만)
     orders = Order.objects.filter(
         status=Status.SETTLED,
         payment_date__year=year,
@@ -821,8 +823,59 @@ def settlement_list(request):
         'total_revenue': total_revenue,
         'total_cost': total_cost,
         'total_profit': total_profit,
-        'order_count': orders.count()
+        'order_count': orders.count(),
+        'page_title': '종료 (정산 대기)',
+        'is_archived': False
     })
+
+
+@login_required
+def archived_list(request):
+    """종료 목록 (보관된 주문, 최근 30일)"""
+    from django.db.models import Sum
+    from datetime import timedelta
+    
+    # 최근 30일 기준
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    
+    # ARCHIVED 상태이면서 최근 30일 내에 수정된(보관된) 주문
+    orders = Order.objects.filter(
+        status=Status.ARCHIVED,
+        updated_at__gte=thirty_days_ago
+    ).order_by('-updated_at')
+    
+    # 통계 계산
+    total_revenue = orders.aggregate(Sum('total_order_amount'))['total_order_amount__sum'] or 0
+    total_cost = sum(order.total_cost for order in orders)
+    total_profit = total_revenue - total_cost
+    
+    return render(request, 'orders/settlement_list.html', {
+        'orders': orders,
+        'total_revenue': total_revenue,
+        'total_cost': total_cost,
+        'total_profit': total_profit,
+        'order_count': orders.count(),
+        'page_title': '종료 목록 (최근 30일)',
+        'is_archived': True
+    })
+
+
+@login_required
+@require_POST
+def archive_order(request, pk):
+    """주문을 종료 목록으로 넘기기 (보관 처리)"""
+    order = get_object_or_404(Order, pk=pk)
+    
+    if order.status != Status.SETTLED:
+        messages.error(request, '정산 대기 상태인 주문만 종료 처리할 수 있습니다.')
+        return redirect('settlement_list')
+    
+    order.status = Status.ARCHIVED
+    order.save()
+    
+    messages.success(request, f'주문 {order.smartstore_order_id}이(가) 종료 목록으로 이동되었습니다.')
+    return redirect('settlement_list')
+
 
 
 @login_required
