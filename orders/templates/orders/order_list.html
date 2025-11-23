@@ -979,7 +979,7 @@ function displayViewCompletionModal(data, customerName) {
                     </div>
                     <div class="modal-footer d-flex justify-content-between">
                         <button type="button" class="btn btn-secondary" onclick="closeViewCompletionModal()">닫기</button>
-                        <form action="/orders/${data.order_id}/archive/" method="post" onsubmit="return confirm('이 주문을 종료 목록으로 넘기시겠습니까?');">
+                        <form action="/orders/${data.order_id}/archive/" method="post" id="archiveForm${data.order_id}" onsubmit="return handleArchiveSubmit(event);">
                             <input type="hidden" name="csrfmiddlewaretoken" value="${getCookie('csrftoken')}">
                             <button type="submit" class="btn btn-success btn-lg">
                                 <i class="fas fa-arrow-right me-1"></i> 넘기기
@@ -1121,6 +1121,43 @@ function closeImageModal() {
     if (modal) {
         modal.remove();
     }
+}
+
+// 넘기기 폼 제출 처리
+function handleArchiveSubmit(event) {
+    if (!confirm('이 주문을 종료 목록으로 넘기시겠습니까?')) {
+        event.preventDefault();
+        return false;
+    }
+    
+    // 폼 제출 후 모달 닫고 페이지 새로고침
+    const form = event.target;
+    
+    // AJAX로 제출
+    fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            // 모달 닫기
+            closeViewCompletionModal();
+            // 페이지 새로고침
+            window.location.reload();
+        } else {
+            alert('오류가 발생했습니다. 다시 시도해주세요.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('오류가 발생했습니다. 다시 시도해주세요.');
+    });
+    
+    event.preventDefault();
+    return false;
 }
 </script>
 {% endblock %}

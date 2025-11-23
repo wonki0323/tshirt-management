@@ -252,7 +252,7 @@ class PurchaseListView(LoginRequiredMixin, ListView):
     template_name = 'finance/purchase_list.html'
     context_object_name = 'purchases'
     paginate_by = 20
-    ordering = ['-purchase_date']
+    ordering = ['-date']
 
 
 class PurchaseCreateView(LoginRequiredMixin, CreateView):
