@@ -169,106 +169,109 @@
                         <!-- 주문 항목 -->
                         <div class="row mb-4">
                             <div class="col-12">
-                                <h6 class="text-primary border-bottom pb-2">주문 항목</h6>
+                                <h6 class="text-primary border-bottom pb-2">주문 항목 선택</h6>
                             </div>
                             
-                            <!-- 제품 옵션 선택 (계층 구조) -->
-                            <div class="col-12">
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-tshirt"></i> 제품 옵션 선택 (수량 입력)
-                                    </label>
-                                    <div class="alert alert-info small mb-2">
-                                        <i class="fas fa-info-circle"></i> 제품명을 클릭하면 옵션 목록이 펼쳐집니다
-                                    </div>
-                                    
-                                    <!-- Accordion으로 제품별 그룹핑 -->
-                                    <div class="accordion" id="productAccordion">
-                                        {% for product_group in products_with_options %}
-                                        <div class="accordion-item">
-                                            <h2 class="accordion-header" id="heading{{ forloop.counter }}">
-                                                <button class="accordion-button collapsed" type="button" 
-                                                        data-bs-toggle="collapse" 
-                                                        data-bs-target="#collapse{{ forloop.counter }}" 
-                                                        aria-expanded="false" 
-                                                        aria-controls="collapse{{ forloop.counter }}">
-                                                    <strong>{{ product_group.product.name }}</strong>
-                                                    <span class="badge bg-secondary ms-2">{{ product_group.options|length }}개 옵션</span>
-                                                </button>
-                                            </h2>
-                                            <div id="collapse{{ forloop.counter }}" 
-                                                 class="accordion-collapse collapse" 
-                                                 aria-labelledby="heading{{ forloop.counter }}" 
-                                                 data-bs-parent="#productAccordion">
-                                                <div class="accordion-body p-0">
-                                                    <table class="table table-sm table-hover mb-0">
-                                                        <thead class="table-light">
-                                                            <tr>
-                                                                <th style="width: 50%;">옵션</th>
-                                                                <th style="width: 25%;">가격</th>
-                                                                <th style="width: 25%;">수량</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {% for option in product_group.options %}
-                                                            <tr>
-                                                                <td>
-                                                                    <strong>{{ option.option_detail }}</strong>
-                                                                    <br>
-                                                                    <small class="text-muted">
-                                                                        기본가: {{ option.product_base_price|floatformat:0|intcomma }}원 
-                                                                        + 옵션가: {{ option.base_price|floatformat:0|intcomma }}원
-                                                                    </small>
-                                                                </td>
-                                                                <td class="align-middle">
-                                                                    <span class="text-primary fw-bold">
-                                                                        {{ option.total_price|floatformat:0|intcomma }}원
-                                                                    </span>
-                                                                </td>
-                                                                <td class="align-middle">
-                                                                    <input type="number" 
-                                                                           class="form-control form-control-sm product-quantity" 
-                                                                           name="product_option_{{ option.id }}" 
-                                                                           id="id_product_option_{{ option.id }}"
-                                                                           min="0"
-                                                                           value="0"
-                                                                           data-option-id="{{ option.id }}"
-                                                                           data-price="{{ option.total_price|floatformat:0 }}"
-                                                                           data-product-price="{{ option.product_base_price|floatformat:0 }}"
-                                                                           data-option-price="{{ option.base_price|floatformat:0 }}"
-                                                                           placeholder="0"
-                                                                           style="width: 80px;">
-                                                                </td>
-                                                            </tr>
-                                                            {% endfor %}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
+                            <!-- 1. 제품 및 옵션 선택 영역 -->
+                            <div class="col-12 mb-3">
+                                <div class="card bg-light border-0">
+                                    <div class="card-body">
+                                        <div class="row g-2">
+                                            <!-- 제품 선택 -->
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-bold">1. 제품 선택</label>
+                                                <select class="form-select" id="productSelect">
+                                                    <option value="">제품을 선택하세요</option>
+                                                    {% for product_group in products_with_options %}
+                                                    <option value="{{ product_group.product.id }}">{{ product_group.product.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <!-- 색상 선택 -->
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-bold">2. 색상 선택</label>
+                                                <select class="form-select" id="colorSelect" disabled>
+                                                    <option value="">색상을 선택하세요</option>
+                                                </select>
+                                            </div>
+                                            <!-- 사이즈 선택 -->
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-bold">3. 사이즈 선택</label>
+                                                <select class="form-select" id="sizeSelect" disabled>
+                                                    <option value="">사이즈를 선택하세요</option>
+                                                </select>
                                             </div>
                                         </div>
-                                        {% endfor %}
-                                    </div>
-                                    
-                                    <div class="form-text mt-2">
-                                        <i class="fas fa-lightbulb"></i> 수량을 입력하세요 (0 = 미선택)
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- 2. 선택된 옵션 목록 -->
+                            <div class="col-12 mb-3">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered" id="selectedOptionsTable">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width: 40%;">제품 옵션 정보</th>
+                                                <th style="width: 20%;" class="text-center">수량</th>
+                                                <th style="width: 25%;" class="text-end">금액</th>
+                                                <th style="width: 15%;" class="text-center">삭제</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="selectedOptionsList">
+                                            <tr id="emptyRow">
+                                                <td colspan="4" class="text-center py-4 text-muted">
+                                                    <i class="fas fa-basket-shopping mb-2" style="font-size: 2rem;"></i><br>
+                                                    위에서 옵션을 선택하면 목록에 추가됩니다.
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                             
-                            <!-- 수동 입력 -->
+                            <!-- 수동 입력 (기존 유지) -->
                             <div class="col-12">
-                                <div class="mb-3">
-                                    <label for="id_manual_items" class="form-label">
-                                        {{ form.manual_items.label }}
-                                    </label>
-                                    {{ form.manual_items }}
-                                    <div class="form-text">{{ form.manual_items.help_text }}</div>
-                                    {% if form.manual_items.errors %}
-                                        <div class="text-danger small">{{ form.manual_items.errors.0 }}</div>
-                                    {% endif %}
+                                <div class="accordion" id="manualInputAccordion">
+                                    <div class="accordion-item border-0">
+                                        <h2 class="accordion-header" id="headingManual">
+                                            <button class="accordion-button collapsed py-2 bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#collapseManual" aria-expanded="false">
+                                                <small><i class="fas fa-pen me-1"></i> 텍스트로 직접 입력하기 (선택사항)</small>
+                                            </button>
+                                        </h2>
+                                        <div id="collapseManual" class="accordion-collapse collapse" aria-labelledby="headingManual">
+                                            <div class="accordion-body">
+                                                <label for="id_manual_items" class="form-label small">{{ form.manual_items.label }}</label>
+                                                {{ form.manual_items }}
+                                                <div class="form-text">{{ form.manual_items.help_text }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+
+                        <!-- 데이터 전달을 위한 Hidden Script -->
+                        <script id="products-data" type="application/json">
+                            {
+                                {% for product_group in products_with_options %}
+                                "{{ product_group.product.id }}": {
+                                    "name": "{{ product_group.product.name }}",
+                                    "options": [
+                                        {% for option in product_group.options %}
+                                        {
+                                            "id": "{{ option.id }}",
+                                            "detail": "{{ option.option_detail }}",
+                                            "price": {{ option.total_price|floatformat:0 }},
+                                            "base_price": {{ option.product_base_price|floatformat:0 }},
+                                            "option_price": {{ option.base_price|floatformat:0 }}
+                                        }{% if not forloop.last %},{% endif %}
+                                        {% endfor %}
+                                    ]
+                                }{% if not forloop.last %},{% endif %}
+                                {% endfor %}
+                            }
+                        </script>
 
                         <!-- 고객 ID 미리보기 -->
                         <div class="row mb-4">
@@ -342,8 +345,229 @@ document.addEventListener('DOMContentLoaded', function() {
     const shippingCostInput = document.getElementById('id_shipping_cost');
     const manualTotalInput = document.getElementById('id_manual_total_input');
     const totalAmountInput = document.getElementById('id_total_order_amount');
-    const productQuantityInputs = document.querySelectorAll('.product-quantity');
     const paymentDateInput = document.getElementById('id_payment_date');
+    
+    // === 2. 스마트스토어 방식 옵션 선택 로직 시작 ===
+    const productsData = JSON.parse(document.getElementById('products-data').textContent);
+    const productSelect = document.getElementById('productSelect');
+    const colorSelect = document.getElementById('colorSelect');
+    const sizeSelect = document.getElementById('sizeSelect');
+    const selectedOptionsList = document.getElementById('selectedOptionsList');
+    const emptyRow = document.getElementById('emptyRow');
+
+    let currentOptions = []; // 현재 선택된 제품의 전체 옵션 목록
+    
+    // 1. 제품 선택 시
+    productSelect.addEventListener('change', function() {
+        const productId = this.value;
+        
+        // 초기화
+        colorSelect.innerHTML = '<option value="">색상을 선택하세요</option>';
+        colorSelect.disabled = true;
+        sizeSelect.innerHTML = '<option value="">사이즈를 선택하세요</option>';
+        sizeSelect.disabled = true;
+        
+        if (!productId) return;
+
+        currentOptions = productsData[productId].options;
+        
+        // 옵션에서 색상 추출 (중복 제거)
+        // 가정: 옵션명은 "색상 / 사이즈" 또는 "색상" 형식이거나, 그냥 문자열일 수 있음
+        const colors = new Set();
+        
+        currentOptions.forEach(opt => {
+            let color = opt.detail;
+            if (opt.detail.includes('/')) {
+                color = opt.detail.split('/')[0].trim();
+            }
+            colors.add(color);
+        });
+
+        // 색상 Select 채우기
+        colors.forEach(color => {
+            const option = document.createElement('option');
+            option.value = color;
+            option.textContent = color;
+            colorSelect.appendChild(option);
+        });
+        
+        colorSelect.disabled = false;
+    });
+
+    // 2. 색상 선택 시
+    colorSelect.addEventListener('change', function() {
+        const selectedColor = this.value;
+        
+        // 사이즈 초기화
+        sizeSelect.innerHTML = '<option value="">사이즈를 선택하세요</option>';
+        sizeSelect.disabled = true;
+        
+        if (!selectedColor) return;
+
+        // 해당 색상의 사이즈 추출
+        const sizes = [];
+        currentOptions.forEach(opt => {
+            let color = opt.detail;
+            let size = 'Free'; // 기본값
+            
+            if (opt.detail.includes('/')) {
+                const parts = opt.detail.split('/');
+                color = parts[0].trim();
+                size = parts[1].trim();
+            }
+            
+            if (color === selectedColor) {
+                sizes.push({
+                    id: opt.id,
+                    name: size,
+                    price: opt.price,
+                    detail: opt.detail // 전체 옵션명 저장
+                });
+            }
+        });
+
+        // 사이즈 Select 채우기
+        sizes.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.id; // 옵션 ID
+            // 가격이 추가되는 경우 표시
+            // 기본 가격과 비교해서 추가금이 있는지 확인 필요하지만, 여기선 총액만 표시
+            option.textContent = `${item.name} (${formatNumberWithCommas(item.price)}원)`;
+            option.dataset.price = item.price;
+            option.dataset.detail = item.detail;
+            sizeSelect.appendChild(option);
+        });
+        
+        sizeSelect.disabled = false;
+    });
+
+    // 3. 사이즈 선택 (최종 선택) -> 목록에 추가
+    sizeSelect.addEventListener('change', function() {
+        const optionId = this.value;
+        if (!optionId) return;
+
+        const selectedOption = sizeSelect.options[sizeSelect.selectedIndex];
+        const price = parseFloat(selectedOption.dataset.price);
+        const detail = selectedOption.dataset.detail;
+        const productName = productSelect.options[productSelect.selectedIndex].text;
+        const fullOptionName = `${productName} - ${detail}`;
+
+        // 이미 추가된 옵션인지 확인
+        const existingRow = document.querySelector(`tr[data-option-id="${optionId}"]`);
+        if (existingRow) {
+            // 이미 있으면 수량만 증가시키고 하이라이트
+            const quantityInput = existingRow.querySelector('.product-quantity');
+            quantityInput.value = parseInt(quantityInput.value) + 1;
+            
+            // 하이라이트 효과
+            existingRow.style.backgroundColor = '#e8f0fe';
+            setTimeout(() => existingRow.style.backgroundColor = '', 500);
+            
+            calculateTotal();
+            
+            // 선택 초기화 (연속 입력을 위해)
+            sizeSelect.value = '';
+            return;
+        }
+
+        // 빈 행 숨기기
+        if (emptyRow) emptyRow.style.display = 'none';
+
+        // 새 행 추가
+        const tr = document.createElement('tr');
+        tr.dataset.optionId = optionId;
+        tr.className = 'align-middle';
+        tr.innerHTML = `
+            <td>
+                <div class="fw-bold text-dark">${fullOptionName}</div>
+                <div class="small text-muted">단가: ${formatNumberWithCommas(price)}원</div>
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <button type="button" class="btn btn-outline-secondary btn-minus" tabindex="-1"><i class="fas fa-minus"></i></button>
+                    <input type="number" class="form-control text-center product-quantity" 
+                           name="product_option_${optionId}" value="1" min="1" 
+                           data-price="${price}" data-option-id="${optionId}">
+                    <button type="button" class="btn btn-outline-secondary btn-plus" tabindex="-1"><i class="fas fa-plus"></i></button>
+                </div>
+            </td>
+            <td class="text-end fw-bold option-total-price">
+                ${formatNumberWithCommas(price)}원
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-outline-danger btn-sm btn-remove" tabindex="-1">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        `;
+        
+        selectedOptionsList.appendChild(tr);
+        
+        // 선택 초기화
+        sizeSelect.value = '';
+        
+        // 총액 계산
+        calculateTotal();
+    });
+
+    // 4. 목록 내 이벤트 (수량 변경, 삭제) 위임
+    selectedOptionsList.addEventListener('click', function(e) {
+        const target = e.target;
+        const row = target.closest('tr');
+        if (!row) return;
+        
+        const quantityInput = row.querySelector('.product-quantity');
+        
+        // 삭제 버튼
+        if (target.closest('.btn-remove')) {
+            row.remove();
+            if (selectedOptionsList.children.length === 0 || (selectedOptionsList.children.length === 1 && selectedOptionsList.children[0].id === 'emptyRow')) {
+                if (emptyRow) emptyRow.style.display = '';
+            }
+            calculateTotal();
+            return;
+        }
+        
+        // + 버튼
+        if (target.closest('.btn-plus')) {
+            quantityInput.value = parseInt(quantityInput.value) + 1;
+            updateRowPrice(row);
+            calculateTotal();
+            return;
+        }
+        
+        // - 버튼
+        if (target.closest('.btn-minus')) {
+            const currentVal = parseInt(quantityInput.value);
+            if (currentVal > 1) {
+                quantityInput.value = currentVal - 1;
+                updateRowPrice(row);
+                calculateTotal();
+            }
+            return;
+        }
+    });
+
+    // 수량 직접 입력 시
+    selectedOptionsList.addEventListener('input', function(e) {
+        if (e.target.classList.contains('product-quantity')) {
+            const row = e.target.closest('tr');
+            updateRowPrice(row);
+            calculateTotal();
+        }
+    });
+
+    // 행 별 가격 업데이트
+    function updateRowPrice(row) {
+        const quantityInput = row.querySelector('.product-quantity');
+        const price = parseFloat(quantityInput.dataset.price);
+        const quantity = parseInt(quantityInput.value) || 0;
+        const total = price * quantity;
+        
+        row.querySelector('.option-total-price').textContent = formatNumberWithCommas(total) + '원';
+    }
+
+    // === 스마트스토어 방식 로직 끝 ===
     
     // 결제일시 기본값 설정 (현재 시각)
     if (!paymentDateInput.value) {
@@ -441,14 +665,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let itemsTotal = 0;
         
-        // 수량 입력된 제품 옵션의 가격 합산
-        productQuantityInputs.forEach(input => {
+        // (수정됨) 동적으로 추가된 product-quantity 입력 필드들 확인
+        const currentProductInputs = document.querySelectorAll('.product-quantity');
+        
+        currentProductInputs.forEach(input => {
             const quantity = parseInt(input.value) || 0;
             if (quantity > 0) {
                 // input의 data-price 속성에서 가격 읽기 (기본가 + 옵션가)
                 const price = parseFloat(input.getAttribute('data-price')) || 0;
                 const subtotal = price * quantity;
-                console.log(`옵션 ID: ${input.getAttribute('data-option-id')}, 가격: ${price}, 수량: ${quantity}, 소계: ${subtotal}`);
                 itemsTotal += subtotal;
             }
         });
@@ -478,9 +703,12 @@ document.addEventListener('DOMContentLoaded', function() {
     manualTotalInput.addEventListener('change', calculateTotal);
     shippingCostInput.addEventListener('input', calculateTotal);
     
+    // 기존 정적 리스너 제거 (동적 요소는 상위 위임으로 처리됨)
+    /*
     productQuantityInputs.forEach(input => {
         input.addEventListener('input', calculateTotal);
     });
+    */
     
     // 초기 계산
     calculateTotal();
@@ -492,9 +720,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const manualItems = document.getElementById('id_manual_items').value.trim();
         const totalAmount = parseFloat(totalAmountInput.value) || 0;
         
-        // 수량이 입력된 제품 옵션 확인
+        // 수량이 입력된 제품 옵션 확인 (동적 조회)
         let hasProductOptions = false;
-        productQuantityInputs.forEach(input => {
+        const currentInputs = document.querySelectorAll('.product-quantity');
+        currentInputs.forEach(input => {
             const quantity = parseInt(input.value) || 0;
             if (quantity > 0) {
                 hasProductOptions = true;

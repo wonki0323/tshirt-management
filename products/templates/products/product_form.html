@@ -69,8 +69,53 @@
                                     <h5 class="mb-1">제품 옵션</h5>
                                     <p class="text-muted small mb-0">옵션별로 판매가와 재고를 입력하세요.</p>
                                 </div>
+                            </div>
+
+                            <!-- 옵션 일괄 생성기 -->
+                            <div class="card mb-4 bg-light border-secondary">
+                                <div class="card-body py-3">
+                                    <h6 class="card-title fw-bold text-primary"><i class="fas fa-magic me-2"></i>옵션 일괄 생성기</h6>
+                                    <p class="small text-muted mb-3">사이즈 범위를 설정하고 색상을 입력하면 자동으로 옵션 목록을 생성합니다.</p>
+                                    
+                                    <div class="row">
+                                        <!-- 1. 사이즈 범위 설정 -->
+                                        <div class="col-md-7 border-end">
+                                            <label class="form-label fw-bold small">1. 사이즈 범위 설정</label>
+                                            <div class="mb-2">
+                                                <button type="button" class="btn btn-outline-secondary btn-sm size-preset-btn mb-1" data-sizes="SS,S,M,L,XL,2XL,3XL,4XL">SS~4XL</button>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm size-preset-btn mb-1" data-sizes="S,M,L,XL,2XL,3XL">S~3XL</button>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm size-preset-btn mb-1" data-sizes="S,M,L,XL,2XL">S~2XL</button>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm size-preset-btn mb-1" data-sizes="Free">Free</button>
+                                            </div>
+                                            <div class="input-group mb-2 input-group-sm" style="max-width: 300px;">
+                                                <input type="text" id="new-size-input" class="form-control" placeholder="직접 입력 (예: 5XL)">
+                                                <button class="btn btn-secondary" type="button" id="add-size-btn">추가</button>
+                                            </div>
+                                            <div id="selected-sizes-container" class="d-flex flex-wrap gap-2 p-2 border rounded bg-white min-h-50 align-items-center">
+                                                <span class="text-muted small fst-italic p-1">사이즈를 추가하거나 프리셋을 선택하세요.</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- 2. 색상 입력 및 생성 -->
+                                        <div class="col-md-5">
+                                            <label class="form-label fw-bold small">2. 색상 입력 및 생성</label>
+                                            <div class="mb-3">
+                                                <input type="text" id="batch-color-input" class="form-control" placeholder="색상 이름 (예: 화이트)">
+                                            </div>
+                                            <button class="btn btn-primary w-100" type="button" id="batch-create-btn">
+                                                <i class="fas fa-plus-circle me-1"></i> 옵션 일괄 추가
+                                            </button>
+                                            <div class="form-text small text-end mt-1">
+                                                * 선택된 모든 사이즈에 대해 옵션이 생성됩니다.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-end mb-2">
                                 <button type="button" class="btn btn-success btn-sm" id="add-option-btn">
-                                    <i class="fas fa-plus"></i> 옵션 추가
+                                    <i class="fas fa-plus"></i> 빈 옵션 행 추가
                                 </button>
                             </div>
                             <div class="table-responsive">
@@ -304,6 +349,144 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     console.log('✅ 이벤트 리스너 등록 완료');
+
+    // === 옵션 일괄 생성기 로직 시작 ===
+    let currentSizes = [];
+    const sizeContainer = document.getElementById('selected-sizes-container');
+    const newSizeInput = document.getElementById('new-size-input');
+    const batchColorInput = document.getElementById('batch-color-input');
+
+    // 사이즈 태그 렌더링
+    function renderSizeTags() {
+        sizeContainer.innerHTML = '';
+        if (currentSizes.length === 0) {
+            sizeContainer.innerHTML = '<span class="text-muted small fst-italic p-1">사이즈를 추가하거나 프리셋을 선택하세요.</span>';
+            return;
+        }
+        
+        currentSizes.forEach((size, index) => {
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-info text-dark d-flex align-items-center p-2';
+            badge.style.fontSize = '0.9em';
+            badge.innerHTML = `
+                ${size}
+                <i class="fas fa-times ms-2 cursor-pointer text-secondary" onclick="removeSize(${index})" style="cursor: pointer;"></i>
+            `;
+            sizeContainer.appendChild(badge);
+        });
+    }
+
+    // 전역 스코프에서 호출 가능하도록 window 객체에 할당
+    window.removeSize = function(index) {
+        currentSizes.splice(index, 1);
+        renderSizeTags();
+    };
+
+    // 사이즈 추가 함수
+    function addSize(size) {
+        const trimmedSize = size.trim();
+        if (trimmedSize && !currentSizes.includes(trimmedSize)) {
+            currentSizes.push(trimmedSize);
+            renderSizeTags();
+        }
+    }
+
+    // 프리셋 버튼 클릭
+    document.querySelectorAll('.size-preset-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const sizes = this.dataset.sizes.split(',');
+            currentSizes = [...sizes]; // 덮어쓰기
+            renderSizeTags();
+        });
+    });
+
+    // 직접 입력 추가 버튼
+    document.getElementById('add-size-btn').addEventListener('click', function() {
+        addSize(newSizeInput.value);
+        newSizeInput.value = '';
+        newSizeInput.focus();
+    });
+
+    // 직접 입력 엔터키 처리
+    newSizeInput.addEventListener('keyup', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addSize(this.value);
+            this.value = '';
+        }
+    });
+
+    // 일괄 생성 버튼 클릭
+    document.getElementById('batch-create-btn').addEventListener('click', function() {
+        const color = batchColorInput.value.trim();
+        
+        if (currentSizes.length === 0) {
+            alert('사이즈 범위를 설정해주세요.');
+            return;
+        }
+        
+        if (!color) {
+            alert('색상을 입력해주세요.');
+            batchColorInput.focus();
+            return;
+        }
+
+        let createdCount = 0;
+
+        // 각 사이즈별로 옵션 생성
+        currentSizes.forEach(size => {
+            const optionName = `${color} / ${size}`;
+            
+            // 1. 빈 행 찾기 (삭제 체크 안되어있고, 내용이 비어있는 행)
+            let targetRow = null;
+            const rows = document.querySelectorAll('tr.option-row');
+            
+            for (let row of rows) {
+                const detailInput = row.querySelector('input[name$="-option_detail"]');
+                const deleteInput = row.querySelector('input[name$="-DELETE"]');
+                
+                // 삭제 체크 안되어있고
+                if (!deleteInput.checked) {
+                    // 값이 비어있거나, 기본값인 경우
+                    if (!detailInput.value) {
+                        targetRow = row;
+                        break;
+                    }
+                }
+            }
+            
+            // 2. 빈 행이 없으면 새로 추가
+            if (!targetRow) {
+                addOptionRow();
+                // 방금 추가된 행 가져오기 (마지막 행)
+                const newRows = document.querySelectorAll('tr.option-row');
+                targetRow = newRows[newRows.length - 1];
+            }
+            
+            // 3. 값 채우기
+            if (targetRow) {
+                const detailInput = targetRow.querySelector('input[name$="-option_detail"]');
+                detailInput.value = optionName;
+                
+                // 애니메이션 효과 (하이라이트)
+                targetRow.style.transition = 'background-color 0.5s';
+                targetRow.style.backgroundColor = '#e8f0fe';
+                setTimeout(() => {
+                    targetRow.style.backgroundColor = '';
+                }, 1000);
+                
+                createdCount++;
+            }
+        });
+
+        // 완료 후 색상 입력 초기화 (연속 입력을 위해 사이즈는 유지)
+        batchColorInput.value = '';
+        batchColorInput.focus();
+        
+        // 토스트나 알림 표시 대신 간단히 로그
+        console.log(`${createdCount}개의 옵션이 생성되었습니다.`);
+    });
+    // === 옵션 일괄 생성기 로직 끝 ===
     
     // 삭제 체크박스 변경 시 행 숨김 처리
     if (tbody) {

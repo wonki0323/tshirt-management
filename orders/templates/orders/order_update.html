@@ -3,6 +3,14 @@
 
 {% block title %}주문 정보 수정 - {{ order.smartstore_order_id }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .readonly-field {
+        background-color: #e9ecef;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -21,15 +29,19 @@
         {% endfor %}
     {% endif %}
 
-    <div class="card">
-        <div class="card-header">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
             <h5 class="mb-0">주문번호: {{ order.smartstore_order_id }}</h5>
         </div>
         <div class="card-body">
-            <form method="post">
+            <form method="post" enctype="multipart/form-data" id="orderUpdateForm">
                 {% csrf_token %}
                 
-                <div class="row">
+                <!-- 고객 정보 -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h6 class="text-primary border-bottom pb-2">고객 및 배송 정보</h6>
+                    </div>
                     <div class="col-md-6 mb-3">
                         <label for="{{ form.customer_name.id_for_label }}" class="form-label">
                             {{ form.customer_name.label }} <span class="text-danger">*</span>
@@ -65,6 +77,78 @@
                         </label>
                         {{ form.customer_memo }}
                     </div>
+                </div>
+
+                <!-- 주문 항목 (계층형 선택) -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h6 class="text-primary border-bottom pb-2">주문 항목 수정</h6>
+                    </div>
+                    
+                    <!-- 1. 제품 및 옵션 선택 영역 -->
+                    <div class="col-12 mb-3">
+                        <div class="card bg-light border-0">
+                            <div class="card-body">
+                                <div class="row g-2">
+                                    <!-- 제품 선택 -->
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-bold">1. 제품 선택</label>
+                                        <select class="form-select" id="productSelect">
+                                            <option value="">제품을 선택하세요</option>
+                                            {% for product_group in products_with_options %}
+                                            <option value="{{ product_group.product.id }}">{{ product_group.product.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <!-- 색상 선택 -->
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-bold">2. 색상 선택</label>
+                                        <select class="form-select" id="colorSelect" disabled>
+                                            <option value="">색상을 선택하세요</option>
+                                        </select>
+                                    </div>
+                                    <!-- 사이즈 선택 -->
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-bold">3. 사이즈 선택</label>
+                                        <select class="form-select" id="sizeSelect" disabled>
+                                            <option value="">사이즈를 선택하세요</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. 선택된 옵션 목록 -->
+                    <div class="col-12 mb-3">
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="selectedOptionsTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 40%;">제품 옵션 정보</th>
+                                        <th style="width: 20%;" class="text-center">수량</th>
+                                        <th style="width: 25%;" class="text-end">금액</th>
+                                        <th style="width: 15%;" class="text-center">삭제</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="selectedOptionsList">
+                                    <tr id="emptyRow">
+                                        <td colspan="4" class="text-center py-4 text-muted">
+                                            <i class="fas fa-basket-shopping mb-2" style="font-size: 2rem;"></i><br>
+                                            위에서 옵션을 선택하면 목록에 추가됩니다.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 결제 및 배송 정보 -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h6 class="text-primary border-bottom pb-2">결제 및 배송 정보</h6>
+                    </div>
                     
                     <div class="col-md-6 mb-3">
                         <label for="{{ form.print_method.id_for_label }}" class="form-label">
@@ -92,6 +176,7 @@
                             {{ form.total_order_amount.label }}
                         </label>
                         {{ form.total_order_amount }}
+                        <div class="form-text small">자동 계산됩니다. (수정 가능)</div>
                     </div>
                     
                     <div class="col-md-4 mb-3">
@@ -109,6 +194,20 @@
                     </div>
                 </div>
 
+                <!-- 시안 및 이미지 업로드 -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h6 class="text-primary border-bottom pb-2">시안 및 이미지 추가 업로드</h6>
+                    </div>
+                    <div class="col-12">
+                        <div class="mb-3">
+                            <label for="thumbnail_images" class="form-label">시안 이미지 (썸네일)</label>
+                            <input type="file" class="form-control" id="thumbnail_images" name="thumbnail_images" multiple accept="image/*">
+                            <div class="form-text">여러 장 업로드 가능합니다.</div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="d-flex justify-content-end gap-2 mt-4">
                     <a href="{% url 'order_detail' order.pk %}" class="btn btn-secondary">
                         취소
@@ -122,6 +221,32 @@
     </div>
 </div>
 
+<!-- 데이터 전달을 위한 Hidden Script -->
+<script id="products-data" type="application/json">
+    {
+        {% for product_group in products_with_options %}
+        "{{ product_group.product.id }}": {
+            "name": "{{ product_group.product.name }}",
+            "options": [
+                {% for option in product_group.options %}
+                {
+                    "id": "{{ option.id }}",
+                    "detail": "{{ option.option_detail }}",
+                    "price": {{ option.total_price|floatformat:0 }},
+                    "base_price": {{ option.product_base_price|floatformat:0 }},
+                    "option_price": {{ option.base_price|floatformat:0 }}
+                }{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ]
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    }
+</script>
+
+<script id="existing-items-data" type="application/json">
+    {{ existing_items_json|safe }}
+</script>
+
 <!-- Daum 주소 검색 API -->
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
@@ -130,33 +255,260 @@ document.addEventListener('DOMContentLoaded', function() {
     const addressSearchBtn = document.getElementById('addressSearchBtn');
     const addressInput = document.getElementById('{{ form.shipping_address.id_for_label }}');
     
+    // 주소 검색
     if (addressSearchBtn) {
         addressSearchBtn.addEventListener('click', function() {
             new daum.Postcode({
                 oncomplete: function(data) {
-                    // 도로명 주소 또는 지번 주소
                     let fullAddress = data.address;
                     let extraAddress = '';
                     
-                    // 도로명 주소인 경우
                     if (data.addressType === 'R') {
-                        if (data.bname !== '') {
-                            extraAddress += data.bname;
-                        }
-                        if (data.buildingName !== '') {
-                            extraAddress += (extraAddress !== '' ? ', ' + data.buildingName : data.buildingName);
-                        }
+                        if (data.bname !== '') extraAddress += data.bname;
+                        if (data.buildingName !== '') extraAddress += (extraAddress !== '' ? ', ' + data.buildingName : data.buildingName);
                         fullAddress += (extraAddress !== '' ? ' (' + extraAddress + ')' : '');
                     }
                     
-                    // 주소 입력란에 값 설정
-                    addressInput.value = `[${data.zonecode}] ${fullAddress}\n`;
+                    addressInput.value = `[${data.zonecode}] ${fullAddress}`;
                     addressInput.focus();
                 }
             }).open();
         });
     }
+    
+    // === 스마트스토어 방식 옵션 선택 로직 ===
+    const productsData = JSON.parse(document.getElementById('products-data').textContent);
+    const existingItemsData = JSON.parse(document.getElementById('existing-items-data').textContent);
+    
+    const productSelect = document.getElementById('productSelect');
+    const colorSelect = document.getElementById('colorSelect');
+    const sizeSelect = document.getElementById('sizeSelect');
+    const selectedOptionsList = document.getElementById('selectedOptionsList');
+    const emptyRow = document.getElementById('emptyRow');
+    const shippingCostInput = document.getElementById('{{ form.shipping_cost.id_for_label }}');
+    const totalAmountInput = document.getElementById('{{ form.total_order_amount.id_for_label }}');
+
+    let currentOptions = []; 
+
+    // 천 단위 콤마
+    function formatNumberWithCommas(num) {
+        return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    // 총액 계산
+    function calculateTotal() {
+        let itemsTotal = 0;
+        const currentInputs = document.querySelectorAll('.product-quantity');
+        
+        currentInputs.forEach(input => {
+            const quantity = parseInt(input.value) || 0;
+            if (quantity > 0) {
+                const price = parseFloat(input.dataset.price) || 0;
+                itemsTotal += price * quantity;
+            }
+        });
+        
+        const shippingCost = parseFloat(shippingCostInput.value) || 0;
+        const total = itemsTotal + shippingCost;
+        
+        totalAmountInput.value = Math.round(total);
+    }
+
+    // 1. 제품 선택
+    productSelect.addEventListener('change', function() {
+        const productId = this.value;
+        colorSelect.innerHTML = '<option value="">색상을 선택하세요</option>';
+        colorSelect.disabled = true;
+        sizeSelect.innerHTML = '<option value="">사이즈를 선택하세요</option>';
+        sizeSelect.disabled = true;
+        
+        if (!productId) return;
+
+        currentOptions = productsData[productId].options;
+        const colors = new Set();
+        
+        currentOptions.forEach(opt => {
+            let color = opt.detail;
+            if (opt.detail.includes('/')) {
+                color = opt.detail.split('/')[0].trim();
+            }
+            colors.add(color);
+        });
+
+        colors.forEach(color => {
+            const option = document.createElement('option');
+            option.value = color;
+            option.textContent = color;
+            colorSelect.appendChild(option);
+        });
+        
+        colorSelect.disabled = false;
+    });
+
+    // 2. 색상 선택
+    colorSelect.addEventListener('change', function() {
+        const selectedColor = this.value;
+        sizeSelect.innerHTML = '<option value="">사이즈를 선택하세요</option>';
+        sizeSelect.disabled = true;
+        
+        if (!selectedColor) return;
+
+        const sizes = [];
+        currentOptions.forEach(opt => {
+            let color = opt.detail;
+            let size = 'Free';
+            
+            if (opt.detail.includes('/')) {
+                const parts = opt.detail.split('/');
+                color = parts[0].trim();
+                size = parts[1].trim();
+            }
+            
+            if (color === selectedColor) {
+                sizes.push({
+                    id: opt.id,
+                    name: size,
+                    price: opt.price,
+                    detail: opt.detail
+                });
+            }
+        });
+
+        sizes.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = `${item.name} (${formatNumberWithCommas(item.price)}원)`;
+            option.dataset.price = item.price;
+            option.dataset.detail = item.detail;
+            sizeSelect.appendChild(option);
+        });
+        
+        sizeSelect.disabled = false;
+    });
+
+    // 3. 사이즈 선택 (추가)
+    sizeSelect.addEventListener('change', function() {
+        const optionId = this.value;
+        if (!optionId) return;
+
+        const selectedOption = sizeSelect.options[sizeSelect.selectedIndex];
+        const price = parseFloat(selectedOption.dataset.price);
+        const detail = selectedOption.dataset.detail;
+        const productName = productSelect.options[productSelect.selectedIndex].text;
+        const fullOptionName = `${productName} - ${detail}`;
+
+        addOptionRow(optionId, fullOptionName, price, 1);
+        
+        sizeSelect.value = '';
+        calculateTotal();
+    });
+
+    // 옵션 행 추가 함수
+    function addOptionRow(optionId, fullOptionName, price, quantity) {
+        // 이미 있는지 확인
+        const existingRow = document.querySelector(`tr[data-option-id="${optionId}"]`);
+        if (existingRow) {
+            const quantityInput = existingRow.querySelector('.product-quantity');
+            quantityInput.value = parseInt(quantityInput.value) + 1;
+            updateRowPrice(existingRow);
+            return;
+        }
+
+        if (emptyRow) emptyRow.style.display = 'none';
+
+        const tr = document.createElement('tr');
+        tr.dataset.optionId = optionId;
+        tr.className = 'align-middle';
+        tr.innerHTML = `
+            <td>
+                <div class="fw-bold text-dark">${fullOptionName}</div>
+                <div class="small text-muted">단가: ${formatNumberWithCommas(price)}원</div>
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <button type="button" class="btn btn-outline-secondary btn-minus" tabindex="-1"><i class="fas fa-minus"></i></button>
+                    <input type="number" class="form-control text-center product-quantity" 
+                           name="product_option_${optionId}" value="${quantity}" min="1" 
+                           data-price="${price}" data-option-id="${optionId}">
+                    <button type="button" class="btn btn-outline-secondary btn-plus" tabindex="-1"><i class="fas fa-plus"></i></button>
+                </div>
+            </td>
+            <td class="text-end fw-bold option-total-price">
+                ${formatNumberWithCommas(price * quantity)}원
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-outline-danger btn-sm btn-remove" tabindex="-1">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        `;
+        
+        selectedOptionsList.appendChild(tr);
+    }
+
+    // 행 가격 업데이트
+    function updateRowPrice(row) {
+        const quantityInput = row.querySelector('.product-quantity');
+        const price = parseFloat(quantityInput.dataset.price);
+        const quantity = parseInt(quantityInput.value) || 0;
+        const total = price * quantity;
+        row.querySelector('.option-total-price').textContent = formatNumberWithCommas(total) + '원';
+    }
+
+    // 목록 이벤트 위임
+    selectedOptionsList.addEventListener('click', function(e) {
+        const target = e.target;
+        const row = target.closest('tr');
+        if (!row) return;
+        
+        const quantityInput = row.querySelector('.product-quantity');
+        
+        if (target.closest('.btn-remove')) {
+            row.remove();
+            if (selectedOptionsList.children.length === 0 || (selectedOptionsList.children.length === 1 && selectedOptionsList.children[0].id === 'emptyRow')) {
+                if (emptyRow) emptyRow.style.display = '';
+            }
+            calculateTotal();
+            return;
+        }
+        
+        if (target.closest('.btn-plus')) {
+            quantityInput.value = parseInt(quantityInput.value) + 1;
+            updateRowPrice(row);
+            calculateTotal();
+            return;
+        }
+        
+        if (target.closest('.btn-minus')) {
+            const currentVal = parseInt(quantityInput.value);
+            if (currentVal > 1) {
+                quantityInput.value = currentVal - 1;
+                updateRowPrice(row);
+                calculateTotal();
+            }
+            return;
+        }
+    });
+
+    selectedOptionsList.addEventListener('input', function(e) {
+        if (e.target.classList.contains('product-quantity')) {
+            updateRowPrice(e.target.closest('tr'));
+            calculateTotal();
+        }
+    });
+    
+    shippingCostInput.addEventListener('input', calculateTotal);
+
+    // === 초기 데이터 로딩 ===
+    if (existingItemsData && existingItemsData.length > 0) {
+        existingItemsData.forEach(item => {
+            addOptionRow(item.option_id, item.detail, item.price, item.quantity);
+        });
+        // 초기 총액 계산 (기존 값이 있으면 그것을 사용하고, 아니면 계산)
+        // 여기서는 자동 계산 로직을 따르되, 사용자가 이미 저장한 금액이 다를 수 있으므로 
+        // 로딩 직후에는 계산하지 않거나, 사용자가 건드리면 계산하도록 함.
+        // 하지만 요구사항에 맞춰 자동 계산이 되도록 합니다.
+    }
 });
 </script>
 {% endblock %}
-
