@@ -761,6 +761,7 @@ def get_completion_info(request, pk):
         })
     
     data = {
+        'order_id': order.id,
         'tracking_number': order.tracking_number,
         'completion_photos': completion_photos
     }
@@ -826,6 +827,72 @@ def settlement_list(request):
         'order_count': orders.count(),
         'page_title': '종료 (정산 대기)',
         'is_archived': False
+    })
+
+
+@login_required
+def sales_status(request):
+    """매출 현황 - 제작중 이상 상태의 주문 매출 집계 (월별)"""
+    from django.db.models import Sum, Q
+    from dateutil.relativedelta import relativedelta
+    
+    # 월 파라미터 받기 (기본값: 현재 월)
+    month_param = request.GET.get('month')
+    if month_param:
+        try:
+            year, month = map(int, month_param.split('-'))
+        except:
+            now = timezone.now()
+            year, month = now.year, now.month
+    else:
+        now = timezone.now()
+        year, month = now.year, now.month
+    
+    # 선택한 월의 1일부터 말일까지의 주문 조회
+    # 상태: PRODUCING(제작중) 이상 (입금 완료된 주문)
+    orders = Order.objects.filter(
+        Q(status=Status.PRODUCING) | 
+        Q(status=Status.PRODUCED) | 
+        Q(status=Status.COMPLETED) | 
+        Q(status=Status.SETTLED) | 
+        Q(status=Status.ARCHIVED),
+        payment_date__year=year,
+        payment_date__month=month
+    ).prefetch_related('items__product_option__product').order_by('-payment_date')
+    
+    # 통계 계산
+    total_revenue = orders.aggregate(Sum('total_order_amount'))['total_order_amount__sum'] or 0
+    total_cost = sum(order.total_cost for order in orders)
+    total_profit = total_revenue - total_cost
+    
+    # 상태별 주문 수
+    status_counts = {}
+    for status_value, status_label in Status.choices:
+        if status_value in ['PRODUCING', 'PRODUCED', 'COMPLETED', 'SETTLED', 'ARCHIVED']:
+            count = orders.filter(status=status_value).count()
+            status_counts[status_label] = count
+    
+    # 월 목록 생성 (최근 12개월)
+    months = []
+    current_date = timezone.now().date()
+    for i in range(12):
+        date = current_date - relativedelta(months=i)
+        months.append({
+            'value': date.strftime('%Y-%m'),
+            'label': date.strftime('%Y년 %m월')
+        })
+    
+    return render(request, 'orders/sales_status.html', {
+        'orders': orders,
+        'selected_month': f'{year}-{month:02d}',
+        'months': months,
+        'year': year,
+        'month': month,
+        'total_revenue': total_revenue,
+        'total_cost': total_cost,
+        'total_profit': total_profit,
+        'order_count': orders.count(),
+        'status_counts': status_counts,
     })
 
 

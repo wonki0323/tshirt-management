@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}매출 현황{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+    
+    .stat-item {
+        background: rgba(255, 255, 255, 0.15);
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        backdrop-filter: blur(10px);
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .month-selector {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+    }
+    
+    .order-table {
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-chart-line me-2"></i>매출 현황</h1>
+    </div>
+
+    <!-- 월 선택 -->
+    <div class="month-selector">
+        <form method="get" class="row align-items-center">
+            <div class="col-auto">
+                <label for="month-select" class="col-form-label fw-bold">
+                    <i class="fas fa-calendar-alt me-2"></i>조회 월:
+                </label>
+            </div>
+            <div class="col-auto">
+                <select name="month" id="month-select" class="form-select" onchange="this.form.submit()">
+                    {% for month in months %}
+                        <option value="{{ month.value }}" {% if month.value == selected_month %}selected{% endif %}>
+                            {{ month.label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search me-1"></i> 조회
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 통계 카드 -->
+    <div class="stats-card">
+        <h3 class="mb-0">{{ year }}년 {{ month }}월 매출 현황</h3>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-value">{{ total_revenue|floatformat:0|intcomma }}</div>
+                <div class="stat-label">총 매출 (원)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ total_cost|floatformat:0|intcomma }}</div>
+                <div class="stat-label">총 원가 (원)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ total_profit|floatformat:0|intcomma }}</div>
+                <div class="stat-label">총 이익 (원)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ order_count }}</div>
+                <div class="stat-label">주문 건수</div>
+            </div>
+        </div>
+        
+        <!-- 상태별 주문 수 -->
+        <div class="mt-4 pt-4" style="border-top: 1px solid rgba(255,255,255,0.2);">
+            <h5 class="mb-3">상태별 주문 현황</h5>
+            <div class="row">
+                {% for status_label, count in status_counts.items %}
+                <div class="col-auto mb-2">
+                    <span class="badge bg-light text-dark fs-6">
+                        {{ status_label }}: <strong>{{ count }}</strong>건
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 주문 목록 -->
+    <div class="order-table">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>주문번호</th>
+                        <th>고객명</th>
+                        <th>결제일</th>
+                        <th>상태</th>
+                        <th class="text-end">매출</th>
+                        <th class="text-end">원가</th>
+                        <th class="text-end">이익</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'order_detail' order.pk %}" class="text-decoration-none fw-bold">
+                                {{ order.smartstore_order_id }}
+                            </a>
+                        </td>
+                        <td>{{ order.customer_name }}</td>
+                        <td>{{ order.payment_date|date:"Y-m-d" }}</td>
+                        <td>
+                            <span class="status-badge
+                                {% if order.status == 'PRODUCING' %}bg-primary text-white
+                                {% elif order.status == 'PRODUCED' %}bg-success text-white
+                                {% elif order.status == 'COMPLETED' %}bg-secondary text-white
+                                {% elif order.status == 'SETTLED' %}bg-dark text-white
+                                {% elif order.status == 'ARCHIVED' %}bg-secondary text-white
+                                {% endif %}">
+                                {{ order.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="text-end fw-bold text-primary">
+                            {{ order.total_order_amount|floatformat:0|intcomma }}원
+                        </td>
+                        <td class="text-end text-danger">
+                            {{ order.total_cost|floatformat:0|intcomma }}원
+                        </td>
+                        <td class="text-end fw-bold {% if order.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ order.profit|floatformat:0|intcomma }}원
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            해당 월에 매출 데이터가 없습니다.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if orders %}
+                <tfoot class="table-light">
+                    <tr class="fw-bold">
+                        <td colspan="4" class="text-end">합계:</td>
+                        <td class="text-end text-primary">{{ total_revenue|floatformat:0|intcomma }}원</td>
+                        <td class="text-end text-danger">{{ total_cost|floatformat:0|intcomma }}원</td>
+                        <td class="text-end {% if total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ total_profit|floatformat:0|intcomma }}원
+                        </td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

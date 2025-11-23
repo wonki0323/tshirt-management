@@ -17,4 +17,5 @@ urlpatterns = [
     path('settlement/', views.settlement_list, name='settlement_list'),
     path('archived/', views.archived_list, name='archived_list'),
     path('<int:pk>/archive/', views.archive_order, name='archive_order'),
+    path('sales-status/', views.sales_status, name='sales_status'),
 ]

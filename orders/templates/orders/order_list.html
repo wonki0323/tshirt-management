@@ -977,8 +977,14 @@ function displayViewCompletionModal(data, customerName) {
                             ${trackingHTML}
                         </div>
                     </div>
-                    <div class="modal-footer">
+                    <div class="modal-footer d-flex justify-content-between">
                         <button type="button" class="btn btn-secondary" onclick="closeViewCompletionModal()">닫기</button>
+                        <form action="/orders/${data.order_id}/archive/" method="post" onsubmit="return confirm('이 주문을 종료 목록으로 넘기시겠습니까?');">
+                            <input type="hidden" name="csrfmiddlewaretoken" value="${getCookie('csrftoken')}">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-arrow-right me-1"></i> 넘기기
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>

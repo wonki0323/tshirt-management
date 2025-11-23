@@ -238,7 +238,7 @@
             <h2 class="mb-0">💰 재무 현황 <span class="fs-6 fw-light">({{ current_month_str }})</span></h2>
         </div>
         <div class="finance-stats">
-            <a href="{% url 'settlement_list' %}" class="finance-stat-item" style="text-decoration: none; color: inherit;">
+            <a href="{% url 'sales_status' %}" class="finance-stat-item" style="text-decoration: none; color: inherit;">
                 <div class="finance-stat-number positive">{{ total_revenue|floatformat:0|intcomma }}원</div>
                 <div class="finance-stat-label">매출</div>
             </a>
