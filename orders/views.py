@@ -562,6 +562,7 @@ def order_update(request, pk):
     """주문 정보 수정"""
     from .forms import OrderUpdateForm
     from products.models import Product, ProductOption
+    from .models import OrderItem, OrderThumbnail
     from decimal import Decimal
     import json
     
