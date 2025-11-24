@@ -681,10 +681,28 @@ def order_update(request, pk):
     existing_items = []
     for item in order.items.all():
         if item.product_option:
+            try:
+                # product_option이 있고, product도 존재하는 경우
+                existing_items.append({
+                    'option_id': item.product_option.id,
+                    'quantity': item.quantity,
+                    'detail': f"{item.product_option.product.name} - {item.product_option.option_detail}",
+                    'price': float(item.unit_price)
+                })
+            except (AttributeError, Exception):
+                # product_option이 삭제된 경우, 저장된 이름 사용
+                existing_items.append({
+                    'option_id': None,
+                    'quantity': item.quantity,
+                    'detail': f"{item.smartstore_product_name} ({item.smartstore_option_text})",
+                    'price': float(item.unit_price)
+                })
+        else:
+            # product_option이 없는 경우 (수동 입력 또는 제품 삭제됨)
             existing_items.append({
-                'option_id': item.product_option.id,
+                'option_id': None,
                 'quantity': item.quantity,
-                'detail': f"{item.product_option.product.name} - {item.product_option.option_detail}",
+                'detail': f"{item.smartstore_product_name} ({item.smartstore_option_text})",
                 'price': float(item.unit_price)
             })
     
