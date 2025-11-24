@@ -576,53 +576,68 @@ def order_update(request, pk):
             # 수동 주문 등록과 동일하게 product_option_{id} 필드를 확인하여 처리
             # 기존 주문 항목 삭제 후 재생성 전략 사용 (가장 확실함)
             
-            has_product_options = False
-            new_items_data = []
+            # POST 데이터에서 product_option_ 필드 확인
+            product_option_fields = [key for key in request.POST.keys() if key.startswith('product_option_')]
             
-            # POST 데이터에서 수량 파싱
-            for key, value in request.POST.items():
-                if key.startswith('product_option_'):
+            # product_option_ 필드가 있으면 주문 항목을 업데이트 (있다 = 사용자가 제품 선택 UI를 사용함)
+            if product_option_fields:
+                new_items_data = []
+                
+                # POST 데이터에서 수량 파싱
+                for key in product_option_fields:
                     try:
+                        value = request.POST.get(key, '')
                         quantity = int(value) if value else 0
+                        
+                        # 수량이 0보다 큰 항목만 추가
                         if quantity > 0:
                             option_id = int(key.replace('product_option_', ''))
                             new_items_data.append({
                                 'option_id': option_id,
                                 'quantity': quantity
                             })
-                            has_product_options = True
                     except (ValueError, TypeError):
                         continue
-            
-            # 제품 옵션이 하나라도 있으면 기존 항목 삭제하고 재생성
-            if has_product_options:
-                # 기존 항목 삭제
+                
+                # 기존 항목 모두 삭제
                 order.items.all().delete()
                 
-                # 새 항목 생성
+                # 새 항목 생성 (수량이 0보다 큰 항목만)
+                created_count = 0
                 for item_data in new_items_data:
                     try:
-                        product_option = ProductOption.objects.get(id=item_data['option_id'])
+                        product_option = ProductOption.objects.select_related('product').get(id=item_data['option_id'])
                         
-                        # 제품과 옵션이 모두 존재하는지 확인
-                        if product_option.product:
-                            unit_price = product_option.product.base_price + product_option.base_price
-                            
-                            OrderItem.objects.create(
-                                order=updated_order,
-                                product_option=product_option,
-                                smartstore_product_name=product_option.product.name,
-                                smartstore_option_text=product_option.option_detail,
-                                quantity=item_data['quantity'],
-                                unit_price=unit_price,
-                                unit_cost=product_option.base_cost if product_option.track_inventory else 0
-                            )
-                    except (ProductOption.DoesNotExist, AttributeError, Exception) as e:
-                        # 제품이나 옵션이 삭제된 경우 건너뛰기
+                        # 제품이 존재하는지 확인
+                        if not product_option.product:
+                            messages.warning(request, f'제품 옵션 ID {item_data["option_id"]}의 제품이 삭제되어 주문에 추가할 수 없습니다.')
+                            continue
+                        
+                        unit_price = product_option.product.base_price + product_option.base_price
+                        
+                        OrderItem.objects.create(
+                            order=updated_order,
+                            product_option=product_option,
+                            smartstore_product_name=product_option.product.name,
+                            smartstore_option_text=product_option.option_detail,
+                            quantity=item_data['quantity'],
+                            unit_price=unit_price,
+                            unit_cost=product_option.base_cost if product_option.track_inventory else 0
+                        )
+                        created_count += 1
+                        
+                    except ProductOption.DoesNotExist:
+                        messages.warning(request, f'제품 옵션 ID {item_data["option_id"]}를 찾을 수 없습니다.')
                         continue
+                    except Exception as e:
+                        messages.error(request, f'주문 항목 생성 중 오류: {str(e)}')
+                        continue
+                
+                if created_count == 0 and len(new_items_data) > 0:
+                    messages.warning(request, '선택한 제품을 주문에 추가할 수 없습니다. 제품이 삭제되었거나 비활성화되었을 수 있습니다.')
             
-            # 제품 옵션 데이터가 없으면 기존 항목 유지
-            # (다른 정보만 수정하는 경우)
+            # product_option_ 필드가 없으면 기존 항목 유지
+            # (다른 정보만 수정하는 경우 - 고객 정보, 주소 등)
             
             
             # === 2. 시안 파일 업로드 처리 ===
