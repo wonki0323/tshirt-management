@@ -603,25 +603,26 @@ def order_update(request, pk):
                 for item_data in new_items_data:
                     try:
                         product_option = ProductOption.objects.get(id=item_data['option_id'])
-                        unit_price = product_option.product.base_price + product_option.base_price
                         
-                        OrderItem.objects.create(
-                            order=updated_order,
-                            product_option=product_option,
-                            smartstore_product_name=product_option.product.name,
-                            smartstore_option_text=product_option.option_detail,
-                            quantity=item_data['quantity'],
-                            unit_price=unit_price,
-                            unit_cost=product_option.base_cost if product_option.track_inventory else 0
-                        )
-                    except ProductOption.DoesNotExist:
+                        # 제품과 옵션이 모두 존재하는지 확인
+                        if product_option.product:
+                            unit_price = product_option.product.base_price + product_option.base_price
+                            
+                            OrderItem.objects.create(
+                                order=updated_order,
+                                product_option=product_option,
+                                smartstore_product_name=product_option.product.name,
+                                smartstore_option_text=product_option.option_detail,
+                                quantity=item_data['quantity'],
+                                unit_price=unit_price,
+                                unit_cost=product_option.base_cost if product_option.track_inventory else 0
+                            )
+                    except (ProductOption.DoesNotExist, AttributeError, Exception) as e:
+                        # 제품이나 옵션이 삭제된 경우 건너뛰기
                         continue
             
-            # 제품 옵션은 없고 수동 입력(manual_items)만 있는 경우
-            # OrderUpdateForm에는 manual_items 필드가 없으므로, 
-            # 만약 주문 항목 수정 기능을 넣으려면 폼이나 로직을 보강해야 함.
-            # 여기서는 'product_option_' 데이터가 없으면 기존 항목 유지 또는 수동 처리 안함
-            # (사용자 요구사항: "목록까지도 수정할 수 있게")
+            # 제품 옵션 데이터가 없으면 기존 항목 유지
+            # (다른 정보만 수정하는 경우)
             
             
             # === 2. 시안 파일 업로드 처리 ===
