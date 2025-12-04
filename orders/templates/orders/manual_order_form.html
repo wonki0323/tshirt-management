@@ -815,6 +815,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // 검색 결과 모달 표시
 function showOrderSearchModal(orders) {
+    console.log('showOrderSearchModal 호출됨, orders:', orders);
+    
+    // orders 유효성 검사
+    if (!orders || !Array.isArray(orders) || orders.length === 0) {
+        console.error('orders가 유효하지 않음:', orders);
+        alert('검색 결과가 없거나 올바르지 않습니다.');
+        return;
+    }
+    
     // 기존 모달 제거
     const existingModal = document.getElementById('searchResultModal');
     if (existingModal) {
