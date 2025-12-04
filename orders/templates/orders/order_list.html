@@ -121,14 +121,112 @@
     td {
         position: relative;
     }
+    
+    /* 캘린더 스타일 */
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 1px;
+        background-color: #dee2e6;
+        border: 1px solid #dee2e6;
+    }
+    
+    .calendar-day {
+        background-color: white;
+        min-height: 120px;
+        padding: 8px;
+        position: relative;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .calendar-day:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .calendar-day-header {
+        font-weight: bold;
+        font-size: 14px;
+        margin-bottom: 5px;
+        color: #495057;
+    }
+    
+    .calendar-day.other-month {
+        background-color: #f8f9fa;
+        opacity: 0.5;
+    }
+    
+    .calendar-day.today {
+        background-color: #e7f3ff;
+    }
+    
+    .calendar-header {
+        background-color: #f8f9fa;
+        padding: 10px;
+        text-align: center;
+        font-weight: bold;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .calendar-header.sunday {
+        color: #dc3545;
+    }
+    
+    .calendar-header.saturday {
+        color: #0d6efd;
+    }
+    
+    .calendar-order-item {
+        font-size: 11px;
+        padding: 3px 6px;
+        margin-bottom: 2px;
+        border-radius: 3px;
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transition: transform 0.2s;
+    }
+    
+    .calendar-order-item:hover {
+        transform: scale(1.05);
+        z-index: 10;
+        position: relative;
+    }
+    
+    .calendar-order-item.pending {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .calendar-order-item.shipped {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .btn-group .btn.active {
+        background-color: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container-fluid mt-4" id="orderManagementContainer">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>주문 관리</h1>
         <div class="d-flex gap-2">
+            <!-- 뷰 전환 버튼 -->
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-primary" id="listViewBtn">
+                    <i class="fas fa-list"></i> 리스트
+                </button>
+                <button type="button" class="btn btn-outline-primary active" id="calendarViewBtn">
+                    <i class="fas fa-calendar-alt"></i> 캘린더
+                </button>
+            </div>
+            
             {% if status_filter == 'NEW' %}
             <a href="{% url 'manual_order_create' %}" class="btn btn-primary">
                 <i class="fas fa-plus"></i> 수동 등록
@@ -150,14 +248,6 @@
         <span class="badge bg-light text-dark ms-2"><i class="fas fa-palette"></i> 굿즈</span> = 맞춤 제작 주문 (상담 → 시안 → 제작 단계 진행)
     </div>
 
-    <!-- 상태 필터 -->
-    <div class="mb-3">
-        <a href="{% url 'order_list' %}" class="btn {% if not status_filter %}btn-primary{% else %}btn-outline-primary{% endif %}">전체</a>
-        {% for status_value, status_label in status_choices %}
-            <a href="{% url 'order_list' %}?status={{ status_value }}" class="btn {% if status_filter == status_value %}btn-primary{% else %}btn-outline-primary{% endif %}">{{ status_label }}</a>
-        {% endfor %}
-    </div>
-
     <!-- 메시지 표시 -->
     {% if messages %}
         {% for message in messages %}
@@ -168,7 +258,50 @@
         {% endfor %}
     {% endif %}
 
-    {% if orders %}
+    <!-- 캘린더 뷰 -->
+    <div id="calendarView" style="display: none;">
+        <!-- 월 네비게이션 -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <button type="button" class="btn btn-outline-secondary" id="prevMonthBtn">
+                        <i class="fas fa-chevron-left"></i> 이전 달
+                    </button>
+                    <h3 class="mb-0" id="calendarTitle"></h3>
+                    <button type="button" class="btn btn-outline-secondary" id="nextMonthBtn">
+                        다음 달 <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 캘린더 그리드 -->
+        <div class="card">
+            <div class="card-body p-0">
+                <div id="calendar" class="calendar-grid"></div>
+            </div>
+        </div>
+        
+        <!-- 범례 -->
+        <div class="mt-3">
+            <div class="d-flex gap-3 justify-content-center">
+                <div><span class="badge" style="background-color: #28a745;">녹색</span> = 발송 전 (진행 중)</div>
+                <div><span class="badge" style="background-color: #6c757d;">회색</span> = 발송 완료</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 리스트 뷰 -->
+    <div id="listView">
+        <!-- 상태 필터 -->
+        <div class="mb-3">
+            <a href="{% url 'order_list' %}" class="btn {% if not status_filter %}btn-primary{% else %}btn-outline-primary{% endif %}">전체</a>
+            {% for status_value, status_label in status_choices %}
+                <a href="{% url 'order_list' %}?status={{ status_value }}" class="btn {% if status_filter == status_value %}btn-primary{% else %}btn-outline-primary{% endif %}">{{ status_label }}</a>
+            {% endfor %}
+        </div>
+
+        {% if orders %}
     <form method="post" action="{% url 'export_shipping_excel' %}" id="orderListForm">
         {% csrf_token %}
         <div class="table-responsive" style="overflow: visible;">
@@ -339,12 +472,14 @@
     </nav>
     {% endif %}
 
-    {% else %}
-    <div class="text-center py-5">
-        <h3>해당하는 주문이 없습니다</h3>
-        <p class="text-muted">다른 상태를 선택해보세요.</p>
+        {% else %}
+        <div class="text-center py-5">
+            <h3>해당하는 주문이 없습니다</h3>
+            <p class="text-muted">다른 상태를 선택해보세요.</p>
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
+    <!-- 리스트 뷰 끝 -->
 </div>
 
 <script>
@@ -1159,5 +1294,154 @@ function handleArchiveSubmit(event) {
     event.preventDefault();
     return false;
 }
+
+// ==================== 캘린더 기능 ====================
+let currentYear = {{ current_year }};
+let currentMonth = {{ current_month }};
+let calendarOrders = {{ calendar_orders_json|safe }};
+
+// 뷰 전환
+document.getElementById('listViewBtn').addEventListener('click', function() {
+    document.getElementById('calendarView').style.display = 'none';
+    document.getElementById('listView').style.display = 'block';
+    this.classList.add('active');
+    document.getElementById('calendarViewBtn').classList.remove('active');
+});
+
+document.getElementById('calendarViewBtn').addEventListener('click', function() {
+    document.getElementById('listView').style.display = 'none';
+    document.getElementById('calendarView').style.display = 'block';
+    this.classList.add('active');
+    document.getElementById('listViewBtn').classList.remove('active');
+    renderCalendar();
+});
+
+// 월 네비게이션
+document.getElementById('prevMonthBtn').addEventListener('click', function() {
+    currentMonth--;
+    if (currentMonth < 1) {
+        currentMonth = 12;
+        currentYear--;
+    }
+    loadCalendarData();
+});
+
+document.getElementById('nextMonthBtn').addEventListener('click', function() {
+    currentMonth++;
+    if (currentMonth > 12) {
+        currentMonth = 1;
+        currentYear++;
+    }
+    loadCalendarData();
+});
+
+// 캘린더 데이터 로드 (AJAX)
+function loadCalendarData() {
+    fetch(`/orders/?year=${currentYear}&month=${currentMonth}`)
+        .then(response => response.text())
+        .then(html => {
+            // 간단하게 페이지 리로드 (더 나은 방법은 JSON API)
+            window.location.href = `/orders/?year=${currentYear}&month=${currentMonth}`;
+        });
+}
+
+// 캘린더 렌더링
+function renderCalendar() {
+    const calendar = document.getElementById('calendar');
+    const title = document.getElementById('calendarTitle');
+    
+    title.textContent = `${currentYear}년 ${currentMonth}월`;
+    
+    // 캘린더 초기화
+    calendar.innerHTML = '';
+    
+    // 요일 헤더
+    const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+    weekDays.forEach((day, index) => {
+        const header = document.createElement('div');
+        header.className = 'calendar-header';
+        if (index === 0) header.classList.add('sunday');
+        if (index === 6) header.classList.add('saturday');
+        header.textContent = day;
+        calendar.appendChild(header);
+    });
+    
+    // 해당 월의 첫날과 마지막 날
+    const firstDay = new Date(currentYear, currentMonth - 1, 1);
+    const lastDay = new Date(currentYear, currentMonth, 0);
+    const daysInMonth = lastDay.getDate();
+    const firstDayOfWeek = firstDay.getDay();
+    
+    // 이전 달 날짜들
+    const prevMonthLastDay = new Date(currentYear, currentMonth - 1, 0).getDate();
+    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+        const day = prevMonthLastDay - i;
+        const dayEl = createDayElement(day, true, null);
+        calendar.appendChild(dayEl);
+    }
+    
+    // 현재 달 날짜들
+    const today = new Date();
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(currentYear, currentMonth - 1, day);
+        const dateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        
+        // 해당 날짜의 주문들 찾기
+        const dayOrders = calendarOrders.filter(order => order.due_date === dateStr);
+        
+        const isToday = date.getFullYear() === today.getFullYear() && 
+                        date.getMonth() === today.getMonth() && 
+                        date.getDate() === today.getDate();
+        
+        const dayEl = createDayElement(day, false, dayOrders, isToday);
+        calendar.appendChild(dayEl);
+    }
+    
+    // 다음 달 날짜들 (6주 채우기)
+    const totalCells = calendar.children.length - 7; // 헤더 제외
+    const remainingCells = (Math.ceil(totalCells / 7) * 7) - totalCells;
+    for (let day = 1; day <= remainingCells; day++) {
+        const dayEl = createDayElement(day, true, null);
+        calendar.appendChild(dayEl);
+    }
+}
+
+// 날짜 요소 생성
+function createDayElement(day, isOtherMonth, orders, isToday = false) {
+    const dayEl = document.createElement('div');
+    dayEl.className = 'calendar-day';
+    if (isOtherMonth) dayEl.classList.add('other-month');
+    if (isToday) dayEl.classList.add('today');
+    
+    // 날짜 헤더
+    const header = document.createElement('div');
+    header.className = 'calendar-day-header';
+    header.textContent = day;
+    dayEl.appendChild(header);
+    
+    // 주문 목록
+    if (orders && orders.length > 0) {
+        orders.forEach(order => {
+            const orderEl = document.createElement('div');
+            orderEl.className = `calendar-order-item ${order.is_shipped ? 'shipped' : 'pending'}`;
+            orderEl.textContent = `${order.customer_name} (${order.items_count}개)`;
+            orderEl.title = `${order.order_id} - ${order.status_display}`;
+            orderEl.onclick = () => window.location.href = `/orders/${order.id}/`;
+            dayEl.appendChild(orderEl);
+        });
+    }
+    
+    return dayEl;
+}
+
+// 페이지 로드 시 캘린더 뷰로 시작
+document.addEventListener('DOMContentLoaded', function() {
+    // 기본값: 캘린더 뷰
+    document.getElementById('listView').style.display = 'none';
+    document.getElementById('calendarView').style.display = 'block';
+    document.getElementById('calendarViewBtn').classList.add('active');
+    document.getElementById('listViewBtn').classList.remove('active');
+    renderCalendar();
+});
 </script>
 {% endblock %}

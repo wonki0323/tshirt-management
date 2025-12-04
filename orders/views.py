@@ -48,6 +48,53 @@ class OrderListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['status_filter'] = self.request.GET.get('status', '')
         context['status_choices'] = Status.choices
+        
+        # 캘린더 뷰용 데이터
+        import json
+        from datetime import datetime, timedelta
+        
+        # 현재 월의 모든 주문 (due_date 기준)
+        now = timezone.now()
+        year = int(self.request.GET.get('year', now.year))
+        month = int(self.request.GET.get('month', now.month))
+        
+        # 해당 월의 1일부터 말일까지
+        from calendar import monthrange
+        last_day = monthrange(year, month)[1]
+        start_date = datetime(year, month, 1).date()
+        end_date = datetime(year, month, last_day).date()
+        
+        # due_date가 해당 월에 있는 주문들
+        calendar_orders = Order.objects.filter(
+            due_date__gte=start_date,
+            due_date__lte=end_date
+        ).exclude(
+            status__in=[Status.CANCELED, Status.SETTLED, Status.ARCHIVED]
+        ).select_related().prefetch_related('items')
+        
+        # JSON 변환용 데이터
+        orders_data = []
+        for order in calendar_orders:
+            # 발송 완료 여부: shipping_date가 있거나 COMPLETED 이상
+            is_shipped = bool(order.shipping_date) or order.status in [Status.COMPLETED, Status.SETTLED, Status.ARCHIVED]
+            
+            orders_data.append({
+                'id': order.id,
+                'order_id': order.smartstore_order_id,
+                'customer_name': order.customer_name,
+                'due_date': order.due_date.isoformat() if order.due_date else None,
+                'shipping_date': order.shipping_date.isoformat() if order.shipping_date else None,
+                'status': order.status,
+                'status_display': order.get_status_display(),
+                'is_shipped': is_shipped,
+                'total_amount': float(order.total_order_amount),
+                'items_count': order.items.count()
+            })
+        
+        context['calendar_orders_json'] = json.dumps(orders_data)
+        context['current_year'] = year
+        context['current_month'] = month
+        
         return context
 
 
