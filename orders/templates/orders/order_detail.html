@@ -405,6 +405,10 @@
                             </tr>
                             {% endif %}
                             <tr>
+                                <th>실물 제품 수량</th>
+                                <td class="fw-bold text-info">{{ physical_items_count }}개</td>
+                            </tr>
+                            <tr>
                                 <th>총 주문 금액</th>
                                 <td class="fw-bold fs-5 text-primary">{{ order.total_order_amount|floatformat:0|intcomma }}원</td>
                             </tr>

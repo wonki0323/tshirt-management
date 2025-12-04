@@ -124,6 +124,13 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
         # 주문 항목들 가져오기
         context['order_items'] = order.items.all()
         
+        # 실물 제품 총 개수 계산
+        physical_items_count = 0
+        for item in order.items.all():
+            if item.product_option and item.product_option.product.is_physical:
+                physical_items_count += item.quantity
+        context['physical_items_count'] = physical_items_count
+        
         # 주문 타입 판별
         context['is_general_order'] = order.is_general_order
         
