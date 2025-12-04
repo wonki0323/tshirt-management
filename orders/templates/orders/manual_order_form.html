@@ -145,17 +145,6 @@
                                     {% endif %}
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="id_payment_date" class="form-label">
-                                        {{ form.payment_date.label }}
-                                    </label>
-                                    {{ form.payment_date }}
-                                    {% if form.payment_date.errors %}
-                                        <div class="text-danger small">{{ form.payment_date.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
                             <div class="col-12">
                                 <div class="mb-3">
                                     <div class="form-check mb-2">
@@ -364,7 +353,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const shippingCostInput = document.getElementById('id_shipping_cost');
     const manualTotalInput = document.getElementById('id_manual_total_input');
     const totalAmountInput = document.getElementById('id_total_order_amount');
-    const paymentDateInput = document.getElementById('id_payment_date');
     
     // === 2. 스마트스토어 방식 옵션 선택 로직 시작 ===
     const productsData = JSON.parse(document.getElementById('products-data').textContent);
@@ -587,17 +575,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // === 스마트스토어 방식 로직 끝 ===
-    
-    // 결제일시 기본값 설정 (현재 시각)
-    if (!paymentDateInput.value) {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        paymentDateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
-    }
     
     // 주소 검색 버튼 클릭
     addressSearchBtn.addEventListener('click', function() {
