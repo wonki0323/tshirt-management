@@ -73,6 +73,11 @@ def dashboard(request):
         'produced': Order.objects.filter(status=Status.PRODUCED).count(),
     }
     
+    # 전체 진행중 주문 (CANCELED, COMPLETED, SETTLED, ARCHIVED 제외)
+    total_orders = Order.objects.exclude(
+        status__in=[Status.CANCELED, Status.COMPLETED, Status.SETTLED, Status.ARCHIVED]
+    ).count()
+    
     # PRODUCTS: 제품 개수
     total_products = Product.objects.count()
     
@@ -85,6 +90,7 @@ def dashboard(request):
         'vat_amount': vat_amount,
         'vat_exclusive_profit': vat_exclusive_profit,
         'order_stats': order_stats,
+        'total_orders': total_orders,
         'total_products': total_products,
         'current_month_str': f"{now.year}년 {now.month}월",
     }

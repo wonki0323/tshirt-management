@@ -212,22 +212,11 @@
         <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
             <h2 class="mb-0">📦 주문 관리</h2>
         </div>
-        <div class="orders-stats">
-            <a href="{% url 'order_list' %}?status=NEW" class="order-stat-item">
-                <div class="order-stat-number" style="color: #f39c12;">{{ order_stats.new }}</div>
-                <div class="order-stat-label">신규주문</div>
-            </a>
-            <a href="{% url 'order_list' %}?status=CONSULTING" class="order-stat-item">
-                <div class="order-stat-number" style="color: #3498db;">{{ order_stats.consulting }}</div>
-                <div class="order-stat-label">상담</div>
-            </a>
-            <a href="{% url 'order_list' %}?status=PRODUCING" class="order-stat-item">
-                <div class="order-stat-number" style="color: #9b59b6;">{{ order_stats.producing }}</div>
-                <div class="order-stat-label">제작중</div>
-            </a>
-            <a href="{% url 'order_list' %}?status=PRODUCED" class="order-stat-item">
-                <div class="order-stat-number" style="color: #27ae60;">{{ order_stats.produced }}</div>
-                <div class="order-stat-label">발송</div>
+        <div class="products-section">
+            <div class="products-count" style="color: #667eea;">{{ total_orders }}</div>
+            <div class="products-label">전체 진행중 주문</div>
+            <a href="{% url 'order_list' %}" class="add-product-btn">
+                <i class="fas fa-clipboard-list me-2"></i>주문 관리
             </a>
         </div>
     </div>

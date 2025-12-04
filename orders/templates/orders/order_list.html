@@ -242,14 +242,6 @@
 
     <!-- 📋 리스트 뷰 (상단) -->
     <div id="listView">
-        <!-- 상태 필터 -->
-        <div class="mb-3">
-            <a href="{% url 'order_list' %}" class="btn {% if not status_filter %}btn-primary{% else %}btn-outline-primary{% endif %}">전체</a>
-            {% for status_value, status_label in status_choices %}
-                <a href="{% url 'order_list' %}?status={{ status_value }}" class="btn {% if status_filter == status_value %}btn-primary{% else %}btn-outline-primary{% endif %}">{{ status_label }}</a>
-            {% endfor %}
-        </div>
-
         {% if orders %}
     <form method="post" action="{% url 'export_shipping_excel' %}" id="orderListForm">
         {% csrf_token %}
