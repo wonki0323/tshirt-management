@@ -99,6 +99,8 @@ class ManualOrderForm(forms.Form):
     total_order_amount = forms.DecimalField(
         max_digits=12,
         decimal_places=2,
+        required=False,
+        initial=0,
         label="총 결제 금액 (택배비 포함)",
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
@@ -275,7 +277,7 @@ class ManualOrderForm(forms.Form):
                 smartstore_option_text="",
                 manual_text=manual_items,
                 quantity=1,
-                unit_price=self.cleaned_data['total_order_amount'] - self.cleaned_data.get('shipping_cost', Decimal('3500')),
+                unit_price=self.cleaned_data.get('total_order_amount', Decimal('0')) - self.cleaned_data.get('shipping_cost', Decimal('3500')),
                 unit_cost=0  # 수동 등록시 원가는 0으로 설정
             )
         
@@ -324,9 +326,9 @@ class OrderUpdateForm(forms.ModelForm):
             'total_order_amount': forms.NumberInput(attrs={
                 'class': 'form-control'
             }),
-            'payment_date': forms.DateTimeInput(attrs={
+            'due_date': forms.DateInput(attrs={
                 'class': 'form-control',
-                'type': 'datetime-local'
+                'type': 'date'
             }),
             'status': forms.Select(attrs={
                 'class': 'form-control'

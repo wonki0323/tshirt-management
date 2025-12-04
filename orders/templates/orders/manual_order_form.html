@@ -111,6 +111,18 @@
                                     {% endif %}
                                 </div>
                             </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_due_date" class="form-label">
+                                        {{ form.due_date.label }}
+                                    </label>
+                                    {{ form.due_date }}
+                                    {% if form.due_date.errors %}
+                                        <div class="text-danger small">{{ form.due_date.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="form-text">발송 마감 예정일을 선택하세요 (선택사항)</div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- 주문 정보 -->
@@ -758,29 +770,47 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // 고객명 검색 기능
-    document.getElementById('searchCustomerBtn').addEventListener('click', function() {
-        const customerName = document.getElementById('id_customer_name').value.trim();
-        
-        if (!customerName) {
-            alert('고객명을 입력해주세요.');
-            return;
-        }
-        
-        // AJAX로 검색
-        fetch(`/orders/search-customer-orders/?customer_name=${encodeURIComponent(customerName)}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.orders && data.orders.length > 0) {
-                    showOrderSearchModal(data.orders);
-                } else {
-                    alert('해당 고객의 주문 내역이 없습니다.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('검색 중 오류가 발생했습니다.');
-            });
-    });
+    const searchBtn = document.getElementById('searchCustomerBtn');
+    console.log('검색 버튼:', searchBtn);
+    
+    if (searchBtn) {
+        searchBtn.addEventListener('click', function(e) {
+            console.log('검색 버튼 클릭됨');
+            e.preventDefault(); // 폼 제출 방지
+            
+            const customerName = document.getElementById('id_customer_name').value.trim();
+            console.log('고객명:', customerName);
+            
+            if (!customerName) {
+                alert('고객명을 입력해주세요.');
+                return;
+            }
+            
+            const url = `/orders/search-customer-orders/?customer_name=${encodeURIComponent(customerName)}`;
+            console.log('요청 URL:', url);
+            
+            // AJAX로 검색
+            fetch(url)
+                .then(response => {
+                    console.log('응답 상태:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('응답 데이터:', data);
+                    if (data.orders && data.orders.length > 0) {
+                        showOrderSearchModal(data.orders);
+                    } else {
+                        alert('해당 고객의 주문 내역이 없습니다.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('검색 중 오류가 발생했습니다: ' + error.message);
+                });
+        });
+    } else {
+        console.error('검색 버튼을 찾을 수 없습니다!');
+    }
 });
 
 // 검색 결과 모달 표시
@@ -794,9 +824,14 @@ function showOrderSearchModal(orders) {
     // 모달 HTML 생성
     let ordersHTML = '';
     orders.forEach((order, index) => {
-        let itemsHTML = order.items.map(item => 
-            `<li>${item.product_name} (${item.option_text}) x${item.quantity}</li>`
-        ).join('');
+        let itemsHTML = '';
+        if (order.items && order.items.length > 0) {
+            itemsHTML = order.items.map(item => 
+                `<li>${item.product_name || '제품명 없음'} (${item.option_text || '옵션 없음'}) x${item.quantity || 0}</li>`
+            ).join('');
+        } else {
+            itemsHTML = '<li>주문 제품 정보 없음</li>';
+        }
         
         ordersHTML += `
             <div class="card mb-3">
