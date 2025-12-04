@@ -353,6 +353,7 @@
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
 <script>
+{% verbatim %}
 document.addEventListener('DOMContentLoaded', function() {
     const customerNameInput = document.getElementById('id_customer_name');
     const customerPhoneInput = document.getElementById('id_customer_phone');
@@ -812,7 +813,9 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('검색 버튼을 찾을 수 없습니다!');
     }
 });
+{% endverbatim %}
 
+{% verbatim %}
 // 검색 결과 모달 표시
 function showOrderSearchModal(orders) {
     console.log('showOrderSearchModal 호출됨, orders:', orders);
@@ -929,5 +932,6 @@ function loadOrderData(orderIndex) {
         alert('주문 정보를 불러왔습니다. 제품과 금액은 직접 입력해주세요.');
     }
 }
+{% endverbatim %}
 </script>
 {% endblock %}
