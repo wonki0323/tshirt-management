@@ -64,10 +64,13 @@ class OrderListView(LoginRequiredMixin, ListView):
         start_date = datetime(year, month, 1).date()
         end_date = datetime(year, month, last_day).date()
         
-        # due_date가 해당 월에 있는 주문들 (NEW만 제외, 나머지 모든 상태 포함)
+        # 해당 월의 주문들 (NEW만 제외, 나머지 모든 상태 포함)
+        # due_date가 있으면 due_date 기준, 없으면 payment_date 기준
+        from django.db.models import Q
+        
         calendar_orders = Order.objects.filter(
-            due_date__gte=start_date,
-            due_date__lte=end_date
+            Q(due_date__gte=start_date, due_date__lte=end_date) |
+            Q(due_date__isnull=True, payment_date__gte=start_date, payment_date__lte=end_date)
         ).exclude(
             status=Status.NEW
         ).select_related().prefetch_related('items')
@@ -78,11 +81,14 @@ class OrderListView(LoginRequiredMixin, ListView):
             # 발송 완료 여부: shipping_date가 있거나 COMPLETED 이상
             is_shipped = bool(order.shipping_date) or order.status in [Status.COMPLETED, Status.SETTLED, Status.ARCHIVED]
             
+            # 캘린더 표시용 날짜: due_date가 있으면 due_date, 없으면 payment_date
+            display_date = order.due_date if order.due_date else order.payment_date.date() if order.payment_date else None
+            
             orders_data.append({
                 'id': order.id,
                 'order_id': order.smartstore_order_id,
                 'customer_name': order.customer_name,
-                'due_date': order.due_date.isoformat() if order.due_date else None,
+                'due_date': display_date.isoformat() if display_date else None,
                 'shipping_date': order.shipping_date.isoformat() if order.shipping_date else None,
                 'status': order.status,
                 'status_display': order.get_status_display(),

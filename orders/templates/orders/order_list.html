@@ -242,9 +242,6 @@
 
     <!-- 📋 리스트 뷰 (상단) -->
     <div id="listView">
-        <h2 class="mb-3">
-            <i class="fas fa-list"></i> 주문 목록
-        </h2>
         <!-- 상태 필터 -->
         <div class="mb-3">
             <a href="{% url 'order_list' %}" class="btn {% if not status_filter %}btn-primary{% else %}btn-outline-primary{% endif %}">전체</a>
