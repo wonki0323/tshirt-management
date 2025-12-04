@@ -1389,7 +1389,15 @@ function createDayElement(day, isOtherMonth, orders, isToday = false) {
     // 날짜 헤더
     const header = document.createElement('div');
     header.className = 'calendar-day-header';
-    header.textContent = day;
+    
+    // 해당 날짜의 총 개수 계산
+    if (orders && orders.length > 0) {
+        const totalCount = orders.reduce((sum, order) => sum + order.items_count, 0);
+        header.textContent = `${day} - (${totalCount})`;
+    } else {
+        header.textContent = day;
+    }
+    
     dayEl.appendChild(header);
     
     // 주문 목록
