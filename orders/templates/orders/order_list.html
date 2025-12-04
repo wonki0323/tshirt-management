@@ -462,9 +462,10 @@
         
         <!-- 범례 -->
         <div class="mt-3 mb-4">
-            <div class="d-flex gap-3 justify-content-center">
+            <div class="d-flex gap-3 justify-content-center flex-wrap">
                 <div><span class="badge" style="background-color: #28a745;">녹색</span> = 발송 전 (진행 중)</div>
                 <div><span class="badge" style="background-color: #6c757d;">회색</span> = 발송 완료</div>
+                <div class="ms-3"><strong>날짜 표시:</strong> (총 개수 / 진행중 / 완료)</div>
             </div>
         </div>
     </div>
@@ -1390,10 +1391,17 @@ function createDayElement(day, isOtherMonth, orders, isToday = false) {
     const header = document.createElement('div');
     header.className = 'calendar-day-header';
     
-    // 해당 날짜의 총 개수 계산
+    // 해당 날짜의 총 개수 및 진행 상태별 계산
     if (orders && orders.length > 0) {
         const totalCount = orders.reduce((sum, order) => sum + order.items_count, 0);
-        header.textContent = `${day} - (${totalCount})`;
+        const pendingCount = orders
+            .filter(order => !order.is_shipped)
+            .reduce((sum, order) => sum + order.items_count, 0);
+        const shippedCount = orders
+            .filter(order => order.is_shipped)
+            .reduce((sum, order) => sum + order.items_count, 0);
+        
+        header.innerHTML = `${day} <span style="color: #666; font-size: 0.85em;">(${totalCount} / ${pendingCount} / ${shippedCount})</span>`;
     } else {
         header.textContent = day;
     }
