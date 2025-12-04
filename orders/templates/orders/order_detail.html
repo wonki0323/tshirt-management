@@ -539,10 +539,9 @@
                     {% if order_items %}
                     <tfoot class="table-light">
                         <tr>
-                            <th colspan="3" class="text-start">
-                                <span class="badge bg-info fs-6">실물 수량: {{ physical_items_count }}개</span>
-                            </th>
-                            <th colspan="3" class="text-end">합계</th>
+                            <th colspan="3" class="text-center">총계</th>
+                            <th class="text-center">{{ physical_items_count }}개</th>
+                            <th colspan="2" class="text-end">합계</th>
                             <th class="text-end">{{ order.total_order_amount|floatformat:0|intcomma }}원</th>
                         </tr>
                     </tfoot>
