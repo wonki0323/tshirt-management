@@ -230,14 +230,6 @@
         </div>
     </div>
 
-    <!-- 주문 타입 안내 -->
-    <div class="alert alert-info mb-3" role="alert">
-        <i class="fas fa-info-circle"></i> 
-        <strong>주문 타입:</strong>
-        <span class="badge bg-light text-dark ms-2"><i class="fas fa-tshirt"></i> 일반</span> = 기성품 주문 (즉시 발송 준비)
-        <span class="badge bg-light text-dark ms-2"><i class="fas fa-palette"></i> 굿즈</span> = 맞춤 제작 주문 (상담 → 시안 → 제작 단계 진행)
-    </div>
-
     <!-- 메시지 표시 -->
     {% if messages %}
         {% for message in messages %}
@@ -248,46 +240,7 @@
         {% endfor %}
     {% endif %}
 
-    <!-- 📅 캘린더 뷰 (상단) -->
-    <div id="calendarView" class="mb-5">
-        <h2 class="mb-3">
-            <i class="fas fa-calendar-alt"></i> 주문 스케줄 캘린더
-        </h2>
-        
-        <!-- 월 네비게이션 -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <button type="button" class="btn btn-outline-secondary" id="prevMonthBtn">
-                        <i class="fas fa-chevron-left"></i> 이전 달
-                    </button>
-                    <h3 class="mb-0" id="calendarTitle"></h3>
-                    <button type="button" class="btn btn-outline-secondary" id="nextMonthBtn">
-                        다음 달 <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 캘린더 그리드 -->
-        <div class="card">
-            <div class="card-body p-0">
-                <div id="calendar" class="calendar-grid"></div>
-            </div>
-        </div>
-        
-        <!-- 범례 -->
-        <div class="mt-3 mb-4">
-            <div class="d-flex gap-3 justify-content-center">
-                <div><span class="badge" style="background-color: #28a745;">녹색</span> = 발송 전 (진행 중)</div>
-                <div><span class="badge" style="background-color: #6c757d;">회색</span> = 발송 완료</div>
-            </div>
-        </div>
-        
-        <hr class="my-5">
-    </div>
-
-    <!-- 📋 리스트 뷰 (하단) -->
+    <!-- 📋 리스트 뷰 (상단) -->
     <div id="listView">
         <h2 class="mb-3">
             <i class="fas fa-list"></i> 주문 목록
@@ -479,6 +432,46 @@
         {% endif %}
     </div>
     <!-- 리스트 뷰 끝 -->
+    
+    <hr class="my-5">
+    
+    <!-- 📅 캘린더 뷰 (하단) -->
+    <div id="calendarView" class="mb-5">
+        <h2 class="mb-3">
+            <i class="fas fa-calendar-alt"></i> 주문 스케줄 캘린더
+        </h2>
+        
+        <!-- 월 네비게이션 -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <button type="button" class="btn btn-outline-secondary" id="prevMonthBtn">
+                        <i class="fas fa-chevron-left"></i> 이전 달
+                    </button>
+                    <h3 class="mb-0" id="calendarTitle"></h3>
+                    <button type="button" class="btn btn-outline-secondary" id="nextMonthBtn">
+                        다음 달 <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 캘린더 그리드 -->
+        <div class="card">
+            <div class="card-body p-0">
+                <div id="calendar" class="calendar-grid"></div>
+            </div>
+        </div>
+        
+        <!-- 범례 -->
+        <div class="mt-3 mb-4">
+            <div class="d-flex gap-3 justify-content-center">
+                <div><span class="badge" style="background-color: #28a745;">녹색</span> = 발송 전 (진행 중)</div>
+                <div><span class="badge" style="background-color: #6c757d;">회색</span> = 발송 완료</div>
+            </div>
+        </div>
+    </div>
+    <!-- 캘린더 뷰 끝 -->
 </div>
 
 <script>
