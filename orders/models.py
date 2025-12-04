@@ -47,6 +47,8 @@ class Order(models.Model):
     )
     customer_phone = models.CharField(
         max_length=20,
+        blank=True,
+        default='',
         verbose_name="연락처"
     )
     shipping_address = models.TextField(
@@ -90,6 +92,12 @@ class Order(models.Model):
         blank=True,
         verbose_name="발송 마감 예정일",
         help_text="컨펌일로부터 +3 영업일"
+    )
+    shipping_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="실제 발송일",
+        help_text="실제로 발송한 날짜 (캘린더에서 선택)"
     )
     google_drive_folder_url = models.URLField(
         null=True,

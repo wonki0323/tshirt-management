@@ -552,6 +552,51 @@ def check_customer_exists(request):
 
 
 @login_required
+def search_customer_orders(request):
+    """고객명으로 기존 주문 검색 (AJAX)"""
+    from django.http import JsonResponse
+    
+    if request.method == 'GET':
+        customer_name = request.GET.get('customer_name', '').strip()
+        
+        if not customer_name:
+            return JsonResponse({'orders': []})
+        
+        # 고객명으로 주문 검색 (부분 일치)
+        orders = Order.objects.filter(
+            customer_name__icontains=customer_name
+        ).order_by('-payment_date')[:10]  # 최근 10개만
+        
+        orders_data = []
+        for order in orders:
+            orders_data.append({
+                'id': order.id,
+                'order_id': order.smartstore_order_id,
+                'customer_name': order.customer_name,
+                'customer_phone': order.customer_phone,
+                'shipping_address': order.shipping_address,
+                'customer_memo': order.customer_memo,
+                'print_method': order.print_method,
+                'total_amount': float(order.total_order_amount),
+                'payment_date': order.payment_date.strftime('%Y-%m-%d %H:%M'),
+                'status': order.get_status_display(),
+                'items': [
+                    {
+                        'product_name': item.smartstore_product_name,
+                        'option_text': item.smartstore_option_text,
+                        'quantity': item.quantity,
+                        'unit_price': float(item.unit_price)
+                    }
+                    for item in order.items.all()
+                ]
+            })
+        
+        return JsonResponse({'orders': orders_data})
+    
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+@login_required
 def debug_upload(request):
     """시안 업로드 디버깅 페이지"""
     return render(request, 'orders/debug_upload.html')

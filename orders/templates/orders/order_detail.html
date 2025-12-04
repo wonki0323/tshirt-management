@@ -272,6 +272,18 @@
     </div>
     {% endif %}
 
+    <!-- 고객 메모 섹션 (시안 아래 독립적으로 표시) -->
+    {% if order.customer_memo %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning border-warning" style="background-color: #fff3cd; border-left: 4px solid #ffc107; font-size: 1.1rem; padding: 1.5rem;">
+                <i class="fas fa-comment-dots text-warning me-2"></i>
+                <div style="white-space: pre-wrap; line-height: 1.6;">{{ order.customer_memo }}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- 완료사진 캐러셀 (정산 상태일 때) -->
     {% if order.status == 'SETTLED' and order.completion_photos.exists %}
     <div class="row mb-4">
@@ -432,19 +444,6 @@
                             <tr>
                                 <th>배송지</th>
                                 <td>{{ order.shipping_address|linebreaks|default:"-" }}</td>
-                            </tr>
-                            <tr>
-                                <th>고객 메모</th>
-                                <td>
-                                    {% if order.customer_memo %}
-                                        <div class="alert alert-warning mb-0 py-2" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
-                                            <i class="fas fa-sticky-note text-warning"></i> 
-                                            <strong>메모:</strong> {{ order.customer_memo|linebreaks }}
-                                        </div>
-                                    {% else %}
-                                        <span class="text-muted">메모 없음</span>
-                                    {% endif %}
-                                </td>
                             </tr>
                             {% if order.print_method %}
                             <tr>

@@ -108,14 +108,15 @@ class ManualOrderForm(forms.Form):
         })
     )
     
-    payment_date = forms.DateTimeField(
-        initial=timezone.now,
-        label="결제일시",
-        widget=forms.DateTimeInput(attrs={
+    due_date = forms.DateField(
+        required=False,
+        label="발송 마감일",
+        widget=forms.DateInput(attrs={
             'class': 'form-control',
-            'type': 'datetime-local',
-            'id': 'id_payment_date'
-        })
+            'type': 'date',
+            'id': 'id_due_date'
+        }),
+        help_text="발송 마감 예정일을 선택하세요"
     )
     
     # 제품 옵션 선택 (수량 입력 방식으로 변경되어 사용하지 않음, 하지만 템플릿 에러 방지를 위해 유지)
@@ -228,7 +229,8 @@ class ManualOrderForm(forms.Form):
             print_method=self.cleaned_data.get('print_method') or None,
             shipping_cost=self.cleaned_data.get('shipping_cost', Decimal('3500')),
             total_order_amount=self.cleaned_data.get('total_order_amount', Decimal('0')),
-            payment_date=self.cleaned_data['payment_date']
+            payment_date=timezone.now(),  # 자동으로 현재 시각 설정
+            due_date=self.cleaned_data.get('due_date')
         )
         
         # 제품 옵션 선택 처리 (수량 포함)
@@ -288,8 +290,7 @@ class OrderUpdateForm(forms.ModelForm):
         fields = [
             'customer_name', 'customer_phone', 'shipping_address',
             'customer_memo', 'print_method', 'tracking_number',
-            'shipping_cost', 'total_order_amount', 'payment_date',
-            'status'
+            'shipping_cost', 'total_order_amount', 'due_date', 'status'
         ]
         widgets = {
             'customer_name': forms.TextInput(attrs={

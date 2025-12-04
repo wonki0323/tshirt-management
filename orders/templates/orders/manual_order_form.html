@@ -50,10 +50,16 @@
                                     <label for="id_customer_name" class="form-label">
                                         {{ form.customer_name.label }}
                                     </label>
-                                    {{ form.customer_name }}
+                                    <div class="input-group">
+                                        {{ form.customer_name }}
+                                        <button type="button" class="btn btn-outline-info" id="searchCustomerBtn">
+                                            <i class="fas fa-search"></i> 기존 주문 검색
+                                        </button>
+                                    </div>
                                     {% if form.customer_name.errors %}
                                         <div class="text-danger small">{{ form.customer_name.errors.0 }}</div>
                                     {% endif %}
+                                    <div class="form-text">고객명을 입력하고 검색 버튼을 클릭하면 재주문 정보를 불러올 수 있습니다</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -750,6 +756,134 @@ document.addEventListener('DOMContentLoaded', function() {
         
         return confirm('주문을 등록하시겠습니까?');
     });
+    
+    // 고객명 검색 기능
+    document.getElementById('searchCustomerBtn').addEventListener('click', function() {
+        const customerName = document.getElementById('id_customer_name').value.trim();
+        
+        if (!customerName) {
+            alert('고객명을 입력해주세요.');
+            return;
+        }
+        
+        // AJAX로 검색
+        fetch(`/orders/search-customer-orders/?customer_name=${encodeURIComponent(customerName)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.orders && data.orders.length > 0) {
+                    showOrderSearchModal(data.orders);
+                } else {
+                    alert('해당 고객의 주문 내역이 없습니다.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('검색 중 오류가 발생했습니다.');
+            });
+    });
 });
+
+// 검색 결과 모달 표시
+function showOrderSearchModal(orders) {
+    // 기존 모달 제거
+    const existingModal = document.getElementById('searchResultModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // 모달 HTML 생성
+    let ordersHTML = '';
+    orders.forEach((order, index) => {
+        let itemsHTML = order.items.map(item => 
+            `<li>${item.product_name} (${item.option_text}) x${item.quantity}</li>`
+        ).join('');
+        
+        ordersHTML += `
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${order.order_id}</strong> - ${order.customer_name}
+                            <span class="badge bg-info ms-2">${order.status}</span>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="loadOrderData(${index})">
+                            <i class="fas fa-download"></i> 불러오기
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>연락처:</strong> ${order.customer_phone || '없음'}</p>
+                            <p class="mb-1"><strong>결제일:</strong> ${order.payment_date}</p>
+                            <p class="mb-1"><strong>금액:</strong> ${order.total_amount.toLocaleString()}원</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>주문 제품:</strong></p>
+                            <ul class="small mb-0">${itemsHTML}</ul>
+                        </div>
+                    </div>
+                    ${order.customer_memo ? `<div class="alert alert-warning mt-2 mb-0 py-2"><strong>메모:</strong> ${order.customer_memo}</div>` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    const modalHTML = `
+        <div class="modal fade show" id="searchResultModal" tabindex="-1" style="display: block; background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title"><i class="fas fa-search"></i> 기존 주문 검색 결과 (${orders.length}건)</h5>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeSearchModal()"></button>
+                    </div>
+                    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                        ${ordersHTML}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeSearchModal()">닫기</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    document.body.classList.add('modal-open');
+    
+    // 검색 데이터를 전역 변수에 저장
+    window.searchedOrders = orders;
+}
+
+// 모달 닫기
+function closeSearchModal() {
+    const modal = document.getElementById('searchResultModal');
+    if (modal) {
+        modal.remove();
+    }
+    document.body.classList.remove('modal-open');
+}
+
+// 주문 데이터 불러오기
+function loadOrderData(orderIndex) {
+    const order = window.searchedOrders[orderIndex];
+    
+    if (confirm(`${order.order_id} 주문 정보를 불러오시겠습니까?`)) {
+        // 폼 필드에 데이터 설정
+        document.getElementById('id_customer_name').value = order.customer_name;
+        document.getElementById('id_customer_phone').value = order.customer_phone || '';
+        document.getElementById('id_shipping_address').value = order.shipping_address || '';
+        document.getElementById('id_customer_memo').value = order.customer_memo || '';
+        
+        if (order.print_method) {
+            document.getElementById('id_print_method').value = order.print_method;
+        }
+        
+        // 모달 닫기
+        closeSearchModal();
+        
+        alert('주문 정보를 불러왔습니다. 제품과 금액은 직접 입력해주세요.');
+    }
+}
 </script>
 {% endblock %}
