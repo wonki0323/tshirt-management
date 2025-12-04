@@ -22,7 +22,7 @@ class ProductForm(forms.ModelForm):
     
     class Meta:
         model = Product
-        fields = ['name', 'category', 'base_price', 'is_active']
+        fields = ['name', 'category', 'base_price', 'is_active', 'is_physical']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -32,6 +32,9 @@ class ProductForm(forms.ModelForm):
                 'class': 'form-select'
             }),
             'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'is_physical': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             })
         }

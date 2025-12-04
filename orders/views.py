@@ -84,6 +84,13 @@ class OrderListView(LoginRequiredMixin, ListView):
             # 캘린더 표시용 날짜: due_date가 있으면 due_date, 없으면 payment_date
             display_date = order.due_date if order.due_date else order.payment_date.date() if order.payment_date else None
             
+            # 실물 제품 개수만 합산
+            physical_items_count = 0
+            for item in order.items.all():
+                # product_option이 있고, 해당 product가 실물인 경우만 카운트
+                if item.product_option and item.product_option.product.is_physical:
+                    physical_items_count += item.quantity
+            
             orders_data.append({
                 'id': order.id,
                 'order_id': order.smartstore_order_id,
@@ -94,7 +101,7 @@ class OrderListView(LoginRequiredMixin, ListView):
                 'status_display': order.get_status_display(),
                 'is_shipped': is_shipped,
                 'total_amount': float(order.total_order_amount),
-                'items_count': order.items.count()
+                'items_count': physical_items_count
             })
         
         context['calendar_orders_json'] = json.dumps(orders_data)

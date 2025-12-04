@@ -48,7 +48,7 @@
                                     {% endif %}
                                     <div class="form-text small">옵션 없을 때 판매가</div>
                                 </div>
-                                <div class="col-md-3 d-flex align-items-center">
+                                <div class="col-md-3">
                                     <div class="form-check mt-4">
                                         {{ form.is_active }}
                                         <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
@@ -58,6 +58,16 @@
                                     {% if form.is_active.errors %}
                                         <div class="text-danger">{{ form.is_active.errors }}</div>
                                     {% endif %}
+                                    <div class="form-check mt-2">
+                                        {{ form.is_physical }}
+                                        <label class="form-check-label" for="{{ form.is_physical.id_for_label }}">
+                                            실물
+                                        </label>
+                                    </div>
+                                    {% if form.is_physical.errors %}
+                                        <div class="text-danger">{{ form.is_physical.errors }}</div>
+                                    {% endif %}
+                                    <div class="form-text small">캘린더 개수 집계</div>
                                 </div>
                             </div>
                         </div>
