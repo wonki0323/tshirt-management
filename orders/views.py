@@ -64,12 +64,12 @@ class OrderListView(LoginRequiredMixin, ListView):
         start_date = datetime(year, month, 1).date()
         end_date = datetime(year, month, last_day).date()
         
-        # due_date가 해당 월에 있는 주문들
+        # due_date가 해당 월에 있는 주문들 (취소 제외, 모든 처리 상태 포함)
         calendar_orders = Order.objects.filter(
             due_date__gte=start_date,
             due_date__lte=end_date
         ).exclude(
-            status__in=[Status.CANCELED, Status.SETTLED, Status.ARCHIVED]
+            status=Status.CANCELED
         ).select_related().prefetch_related('items')
         
         # JSON 변환용 데이터
