@@ -405,10 +405,6 @@
                             </tr>
                             {% endif %}
                             <tr>
-                                <th>실물 제품 수량</th>
-                                <td class="fw-bold text-info">{{ physical_items_count }}개</td>
-                            </tr>
-                            <tr>
                                 <th>총 주문 금액</th>
                                 <td class="fw-bold fs-5 text-primary">{{ order.total_order_amount|floatformat:0|intcomma }}원</td>
                             </tr>
@@ -543,7 +539,10 @@
                     {% if order_items %}
                     <tfoot class="table-light">
                         <tr>
-                            <th colspan="6" class="text-end">합계</th>
+                            <th colspan="3" class="text-start">
+                                <span class="badge bg-info fs-6">실물 수량: {{ physical_items_count }}개</span>
+                            </th>
+                            <th colspan="3" class="text-end">합계</th>
                             <th class="text-end">{{ order.total_order_amount|floatformat:0|intcomma }}원</th>
                         </tr>
                     </tfoot>
