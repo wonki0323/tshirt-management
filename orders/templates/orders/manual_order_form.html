@@ -726,24 +726,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        if (!customerName || !customerPhone) {
+        // 필수 항목: 고객명만
+        if (!customerName) {
             e.preventDefault();
-            alert('고객명과 연락처를 입력해주세요.');
+            alert('고객명을 입력해주세요.');
             return false;
         }
         
-        if (!hasProductOptions && !manualItems) {
-            e.preventDefault();
-            alert('제품 옵션을 선택하거나 주문 항목을 입력해주세요.');
-            return false;
-        }
-        
-        if (totalAmount <= 0) {
-            e.preventDefault();
-            alert('총 결제금액을 입력해주세요.');
-            return false;
-        }
-        
+        // 나머지는 모두 선택사항 (전화번호, 제품, 금액 등)
         return confirm('주문을 등록하시겠습니까?');
     });
     
