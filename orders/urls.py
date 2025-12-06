@@ -19,4 +19,5 @@ urlpatterns = [
     path('archived/', views.archived_list, name='archived_list'),
     path('<int:pk>/archive/', views.archive_order, name='archive_order'),
     path('sales-status/', views.sales_status, name='sales_status'),
+    path('<int:pk>/update-due-date/', views.update_order_due_date, name='update_order_due_date'),
 ]

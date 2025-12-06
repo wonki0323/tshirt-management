@@ -144,6 +144,16 @@
         background-color: #f8f9fa;
     }
     
+    .calendar-day.drag-over {
+        background-color: #d1e7dd;
+        border: 2px dashed #28a745;
+    }
+    
+    .calendar-order-item.dragging {
+        opacity: 0.5;
+        cursor: move;
+    }
+    
     .calendar-day-header {
         font-weight: bold;
         font-size: 14px;
@@ -1419,6 +1429,15 @@ function createDayElement(day, isOtherMonth, orders, isToday = false) {
     if (isOtherMonth) dayEl.classList.add('other-month');
     if (isToday) dayEl.classList.add('today');
     
+    // 드롭 영역으로 설정
+    dayEl.dataset.day = day;
+    dayEl.dataset.isOtherMonth = isOtherMonth;
+    
+    // 드래그 오버 이벤트
+    dayEl.addEventListener('dragover', handleDragOver);
+    dayEl.addEventListener('dragleave', handleDragLeave);
+    dayEl.addEventListener('drop', handleDrop);
+    
     // 날짜 헤더
     const header = document.createElement('div');
     header.className = 'calendar-day-header';
@@ -1448,13 +1467,123 @@ function createDayElement(day, isOtherMonth, orders, isToday = false) {
             const statusClass = `status-${order.status}`;
             orderEl.className = `calendar-order-item ${statusClass}`;
             orderEl.textContent = `${order.customer_name} (${order.items_count}개)`;
-            orderEl.title = `${order.order_id} - ${order.status_display}`;
-            orderEl.onclick = () => window.location.href = `/orders/${order.id}/`;
+            orderEl.title = `${order.order_id} - ${order.status_display}\n드래그하여 마감일 변경 가능`;
+            
+            // 드래그 가능하게 설정
+            orderEl.draggable = true;
+            orderEl.dataset.orderId = order.id;
+            orderEl.dataset.currentDate = order.due_date;
+            
+            // 드래그 이벤트
+            orderEl.addEventListener('dragstart', handleDragStart);
+            orderEl.addEventListener('dragend', handleDragEnd);
+            
+            // 클릭 이벤트 (드래그가 아닐 때만)
+            orderEl.addEventListener('click', (e) => {
+                if (!e.defaultPrevented) {
+                    window.location.href = `/orders/${order.id}/`;
+                }
+            });
+            
             dayEl.appendChild(orderEl);
         });
     }
     
     return dayEl;
+}
+
+// ==================== 드래그 앤 드롭 기능 ====================
+let draggedOrder = null;
+
+function handleDragStart(e) {
+    draggedOrder = {
+        id: this.dataset.orderId,
+        currentDate: this.dataset.currentDate
+    };
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.innerHTML);
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    this.classList.add('drag-over');
+    return false;
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    e.preventDefault();
+    
+    this.classList.remove('drag-over');
+    
+    if (!draggedOrder) return false;
+    
+    // 다른 달의 날짜는 무시
+    if (this.dataset.isOtherMonth === 'true') {
+        alert('다른 달로는 이동할 수 없습니다.');
+        return false;
+    }
+    
+    const day = this.dataset.day;
+    const newDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    
+    // 같은 날짜면 무시
+    if (draggedOrder.currentDate === newDate) {
+        return false;
+    }
+    
+    // 확인 메시지
+    if (!confirm(`${draggedOrder.currentDate}에서 ${newDate}로 마감일을 변경하시겠습니까?`)) {
+        return false;
+    }
+    
+    // AJAX로 서버에 업데이트 요청
+    updateOrderDueDate(draggedOrder.id, newDate);
+    
+    return false;
+}
+
+function updateOrderDueDate(orderId, newDate) {
+    const csrftoken = getCookie('csrftoken');
+    
+    fetch(`/orders/${orderId}/update-due-date/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({
+            due_date: newDate
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('마감일이 변경되었습니다.');
+            // 페이지 새로고침하여 캘린더 업데이트
+            location.reload();
+        } else {
+            alert('마감일 변경에 실패했습니다: ' + (data.error || '알 수 없는 오류'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('마감일 변경 중 오류가 발생했습니다.');
+    });
 }
 
 // 페이지 로드 시 캘린더 렌더링

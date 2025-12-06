@@ -1114,3 +1114,41 @@ def cancel_order(request, pk):
     
     messages.success(request, f'주문 {order.smartstore_order_id}이(가) 취소되었습니다.')
     return redirect('order_detail', pk=pk)
+
+
+@login_required
+@require_POST
+def update_order_due_date(request, pk):
+    """주문 마감일 업데이트 (AJAX)"""
+    import json
+    from django.http import JsonResponse
+    from datetime import datetime
+    
+    try:
+        order = get_object_or_404(Order, pk=pk)
+        
+        # JSON 데이터 파싱
+        data = json.loads(request.body)
+        new_due_date = data.get('due_date')
+        
+        if not new_due_date:
+            return JsonResponse({'success': False, 'error': '마감일이 제공되지 않았습니다.'})
+        
+        # 날짜 형식 검증
+        try:
+            due_date_obj = datetime.strptime(new_due_date, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({'success': False, 'error': '잘못된 날짜 형식입니다.'})
+        
+        # 마감일 업데이트
+        order.due_date = due_date_obj
+        order.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': '마감일이 성공적으로 변경되었습니다.',
+            'new_due_date': new_due_date
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
