@@ -100,6 +100,11 @@ DATABASES = {
     'default': env.db('DATABASE_URL', default=f'sqlite:///{BASE_DIR}/db.sqlite3')
 }
 
+# SQLite 성능 최적화 설정
+if 'sqlite' in DATABASES['default']['ENGINE']:
+    # SQLite 연결 타임아웃 증가
+    DATABASES['default']['timeout'] = 20
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators

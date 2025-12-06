@@ -39,8 +39,10 @@ class OrderListView(LoginRequiredMixin, ListView):
             # 기본적으로 완료된 주문은 제외
             queryset = queryset.exclude(status=Status.COMPLETED)
         
-        # 주문 항목들을 미리 로드하여 N+1 쿼리 방지
-        queryset = queryset.prefetch_related('items')
+        # 주문 항목들과 관련 데이터를 미리 로드하여 N+1 쿼리 방지
+        queryset = queryset.prefetch_related(
+            'items__product_option__product'
+        )
         
         return queryset
     
@@ -73,7 +75,7 @@ class OrderListView(LoginRequiredMixin, ListView):
             Q(due_date__isnull=True, payment_date__gte=start_date, payment_date__lte=end_date)
         ).exclude(
             status=Status.NEW
-        ).select_related().prefetch_related('items')
+        ).prefetch_related('items__product_option__product')
         
         # JSON 변환용 데이터
         orders_data = []
@@ -84,7 +86,7 @@ class OrderListView(LoginRequiredMixin, ListView):
             # 캘린더 표시용 날짜: due_date가 있으면 due_date, 없으면 payment_date
             display_date = order.due_date if order.due_date else order.payment_date.date() if order.payment_date else None
             
-            # 실물 제품 개수만 합산
+            # 실물 제품 개수만 합산 (미리 로드된 데이터 사용)
             physical_items_count = 0
             for item in order.items.all():
                 # product_option이 있고, 해당 product가 실물인 경우만 카운트
@@ -117,18 +119,27 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
     template_name = 'orders/order_detail.html'
     context_object_name = 'order'
     
+    def get_queryset(self):
+        # 관련 데이터를 미리 로드
+        return super().get_queryset().prefetch_related(
+            'items__product_option__product',
+            'thumbnails',
+            'completion_photos'
+        )
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         order = self.get_object()
         
-        # 주문 항목들 가져오기
-        context['order_items'] = order.items.all()
+        # 주문 항목들 가져오기 (이미 prefetch됨)
+        order_items = order.items.all()
+        context['order_items'] = order_items
         
         # 실물 제품 총 개수 계산
-        physical_items_count = 0
-        for item in order.items.all():
-            if item.product_option and item.product_option.product.is_physical:
-                physical_items_count += item.quantity
+        physical_items_count = sum(
+            item.quantity for item in order_items
+            if item.product_option and item.product_option.product.is_physical
+        )
         context['physical_items_count'] = physical_items_count
         
         # 주문 타입 판별
@@ -223,7 +234,11 @@ def export_shipping_excel(request):
         messages.error(request, '선택된 주문이 없습니다.')
         return redirect(request.META.get('HTTP_REFERER', '/orders/'))
     
-    orders = Order.objects.filter(id__in=order_ids, status=Status.PRODUCED)
+    # 관련 항목들을 미리 로드
+    orders = Order.objects.filter(
+        id__in=order_ids, 
+        status=Status.PRODUCED
+    ).prefetch_related('items')
     
     if not orders.exists():
         messages.error(request, '발송 준비 상태인 주문이 없습니다.')
@@ -232,10 +247,11 @@ def export_shipping_excel(request):
     # 엑셀 데이터 생성
     data = []
     for order in orders:
-        # 주문 제품 요약
-        products_summary = []
-        for item in order.items.all():
-            products_summary.append(f"{item.smartstore_product_name} ({item.smartstore_option_text}) x{item.quantity}")
+        # 주문 제품 요약 (이미 prefetch된 데이터 사용)
+        products_summary = [
+            f"{item.smartstore_product_name} ({item.smartstore_option_text}) x{item.quantity}"
+            for item in order.items.all()
+        ]
         
         data.append({
             '주문번호': order.smartstore_order_id,
@@ -629,13 +645,24 @@ def search_customer_orders(request):
         if not customer_name:
             return JsonResponse({'orders': []})
         
-        # 고객명으로 주문 검색 (부분 일치)
+        # 고객명으로 주문 검색 (부분 일치) - 관련 항목 미리 로드
         orders = Order.objects.filter(
             customer_name__icontains=customer_name
-        ).order_by('-payment_date')[:10]  # 최근 10개만
+        ).prefetch_related('items').order_by('-payment_date')[:10]  # 최근 10개만
         
         orders_data = []
         for order in orders:
+            # items는 이미 prefetch되어 있음
+            items_list = [
+                {
+                    'product_name': item.smartstore_product_name,
+                    'option_text': item.smartstore_option_text,
+                    'quantity': item.quantity,
+                    'unit_price': float(item.unit_price)
+                }
+                for item in order.items.all()
+            ]
+            
             orders_data.append({
                 'id': order.id,
                 'order_id': order.smartstore_order_id,
@@ -647,15 +674,7 @@ def search_customer_orders(request):
                 'total_amount': float(order.total_order_amount),
                 'payment_date': order.payment_date.strftime('%Y-%m-%d %H:%M'),
                 'status': order.get_status_display(),
-                'items': [
-                    {
-                        'product_name': item.smartstore_product_name,
-                        'option_text': item.smartstore_option_text,
-                        'quantity': item.quantity,
-                        'unit_price': float(item.unit_price)
-                    }
-                    for item in order.items.all()
-                ]
+                'items': items_list
             })
         
         return JsonResponse({'orders': orders_data})
@@ -785,10 +804,10 @@ def order_update(request, pk):
     else:
         form = OrderUpdateForm(instance=order)
     
-    # 제품 데이터 준비 (계층형 선택용)
-    products_with_options = []
+    # 제품 데이터 준비 (계층형 선택용) - 미리 로드
     products = Product.objects.filter(is_active=True).prefetch_related('options')
     
+    products_with_options = []
     for product in products:
         options = product.options.filter(is_active=True)
         if options.exists():
@@ -806,9 +825,11 @@ def order_update(request, pk):
                 ]
             })
             
-    # 기존 주문 항목 데이터 (JSON 변환용)
+    # 기존 주문 항목 데이터 (JSON 변환용) - 이미 prefetch된 데이터 사용
     existing_items = []
-    for item in order.items.all():
+    # order.items는 get_object()에서 prefetch되지 않았으므로 여기서 다시 조회
+    order_items = order.items.select_related('product_option__product').all()
+    for item in order_items:
         if item.product_option:
             try:
                 # product_option이 있고, product도 존재하는 경우
@@ -939,15 +960,16 @@ def settlement_list(request):
         now = timezone.now()
         year, month = now.year, now.month
     
-    # 정산 목록 (SETTLED 상태만)
+    # 정산 목록 (SETTLED 상태만) - 관련 데이터 미리 로드
     orders = Order.objects.filter(
         status=Status.SETTLED,
         payment_date__year=year,
         payment_date__month=month
-    ).order_by('-payment_date')
+    ).prefetch_related('items__product_option__product').order_by('-payment_date')
     
     # 통계 계산
     total_revenue = orders.aggregate(Sum('total_order_amount'))['total_order_amount__sum'] or 0
+    # total_cost 계산 시 이미 prefetch된 데이터 사용
     total_cost = sum(order.total_cost for order in orders)
     total_profit = total_revenue - total_cost
     
@@ -997,6 +1019,7 @@ def sales_status(request):
     
     # 선택한 월의 1일부터 말일까지의 주문 조회
     # 상태: PRODUCING(제작중) 이상 (입금 완료된 주문)
+    # 관련 데이터 미리 로드하여 N+1 쿼리 방지
     orders = Order.objects.filter(
         Q(status=Status.PRODUCING) | 
         Q(status=Status.PRODUCED) | 
@@ -1007,7 +1030,7 @@ def sales_status(request):
         payment_date__month=month
     ).prefetch_related('items__product_option__product').order_by('-payment_date')
     
-    # 통계 계산
+    # 통계 계산 (이미 prefetch된 데이터 사용)
     total_revenue = orders.aggregate(Sum('total_order_amount'))['total_order_amount__sum'] or 0
     total_cost = sum(order.total_cost for order in orders)
     total_profit = total_revenue - total_cost
@@ -1053,12 +1076,13 @@ def archived_list(request):
     thirty_days_ago = timezone.now() - timedelta(days=30)
     
     # ARCHIVED 상태이면서 최근 30일 내에 수정된(보관된) 주문
+    # 관련 데이터 미리 로드
     orders = Order.objects.filter(
         status=Status.ARCHIVED,
         updated_at__gte=thirty_days_ago
-    ).order_by('-updated_at')
+    ).prefetch_related('items__product_option__product').order_by('-updated_at')
     
-    # 통계 계산
+    # 통계 계산 (이미 prefetch된 데이터 사용)
     total_revenue = orders.aggregate(Sum('total_order_amount'))['total_order_amount__sum'] or 0
     total_cost = sum(order.total_cost for order in orders)
     total_profit = total_revenue - total_cost
