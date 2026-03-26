@@ -71,7 +71,7 @@ python manage.py runserver
 ### 로그인 페이지
 - URL: http://127.0.0.1:8000/
 - 사용자명: `admin`
-- 비밀번호: `admin123`
+- 비밀번호: `admin1234` (create_admin 명령으로 생성 시)
 
 ### 대시보드
 - URL: http://127.0.0.1:8000/dashboard/
@@ -80,7 +80,7 @@ python manage.py runserver
 ### 관리자 페이지
 - URL: http://127.0.0.1:8000/admin/
 - 사용자명: `admin`
-- 비밀번호: `admin123`
+- 비밀번호: `admin1234`
 
 ## 주요 기능
 

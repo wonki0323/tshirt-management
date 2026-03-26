@@ -8,18 +8,18 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1><i class="fas fa-calculator"></i> {{ page_title }}</h1>
         <div class="btn-group">
-            {% if not is_archived %}
-                <a href="{% url 'archived_list' %}" class="btn btn-outline-secondary">
-                    <i class="fas fa-archive"></i> 종료 목록 (최근 30일)
-                </a>
-            {% else %}
-                <a href="{% url 'settlement_list' %}" class="btn btn-outline-primary">
-                    <i class="fas fa-list"></i> 종료 (정산 대기)
-                </a>
-            {% endif %}
             <a href="{% url 'order_list' %}" class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> 주문 목록
             </a>
+            {% if page_title == '결과통보 목록' %}
+            <a href="{% url 'accounting_list' %}" class="btn btn-dark">
+                <i class="fas fa-list-check"></i> 정산 목록 보기
+            </a>
+            {% elif page_title == '정산 목록' %}
+            <a href="{% url 'settlement_list' %}" class="btn btn-outline-light border-secondary">
+                <i class="fas fa-clipboard-check"></i> 결과통보 목록
+            </a>
+            {% endif %}
         </div>
     </div>
 
@@ -32,14 +32,12 @@
         {% endfor %}
     {% endif %}
 
-    <!-- 월 선택 (정산 대기 목록일 때만 표시) -->
-    {% if not is_archived %}
     <div class="card mb-4">
         <div class="card-body">
-            <form method="get" class="row align-items-end">
+            <form method="get" class="row align-items-end g-2">
                 <div class="col-md-4">
-                    <label for="month" class="form-label">정산 월 선택</label>
-                    <select name="month" id="month" class="form-select" onchange="this.form.submit()">
+                    <label for="month" class="form-label">{{ page_title }} 월 선택</label>
+                    <select name="month" id="month" class="form-select">
                         {% for m in months %}
                             <option value="{{ m.value }}" {% if m.value == selected_month %}selected{% endif %}>
                                 {{ m.label }}
@@ -47,10 +45,20 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="col-md-4">
+                    <label for="customer_name" class="form-label">고객명 검색</label>
+                    <input type="text" name="customer_name" id="customer_name" class="form-control"
+                           placeholder="고객명을 입력하세요" value="{{ customer_name|default:'' }}">
+                </div>
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> 검색
+                    </button>
+                    <a href="?month={{ selected_month }}" class="btn btn-outline-secondary">초기화</a>
+                </div>
             </form>
         </div>
     </div>
-    {% endif %}
 
     <!-- 통계 카드 -->
     <div class="row mb-4">
@@ -94,11 +102,7 @@
     <div class="card">
         <div class="card-header">
             <h5 class="mb-0">
-                {% if is_archived %}
-                    최근 30일 종료된 주문
-                {% else %}
-                    {{ year }}년 {{ month }}월 종료 (정산 대기) 주문
-                {% endif %}
+                {{ year }}년 {{ month }}월 {{ page_title }} 주문
             </h5>
         </div>
         <div class="card-body">
@@ -112,9 +116,7 @@
                                 <th>결제일</th>
                                 <th>매출/원가/이익</th>
                                 <th>상태</th>
-                                {% if not is_archived %}
                                 <th class="text-center">관리</th>
-                                {% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -135,23 +137,20 @@
                                     </div>
                                 </td>
                                 <td>
-                                    {% if order.status == 'SETTLED' %}
-                                        <span class="badge bg-info">정산 대기</span>
-                                    {% elif order.status == 'ARCHIVED' %}
-                                        <span class="badge bg-secondary">보관됨</span>
+                                    {% if page_title == '정산 목록' %}
+                                        <span class="badge bg-dark">정산 목록</span>
+                                    {% else %}
+                                        <span class="badge bg-info">결과통보</span>
                                     {% endif %}
                                 </td>
-                                {% if not is_archived %}
                                 <td class="text-center">
                                     <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
                                         보기
                                     </button>
                                 </td>
-                                {% endif %}
                             </tr>
 
-                            <!-- 보기 모달 (정산 대기 목록에서만 생성) -->
-                            {% if not is_archived %}
+                            <!-- 보기 모달 (결과통보 목록에서만 생성) -->
                             <div class="modal fade" id="orderModal{{ order.id }}" tabindex="-1" aria-hidden="true">
                                 <div class="modal-dialog modal-lg">
                                     <div class="modal-content">
@@ -218,18 +217,17 @@
                                             </table>
                                         </div>
                                         <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-                                            <form action="{% url 'archive_order' order.id %}" method="post" class="d-inline" onsubmit="return confirm('이 주문을 종료 목록으로 넘기시겠습니까?');">
+                                            {% if page_title == '결과통보 목록' %}
+                                            <form method="post" action="{% url 'move_to_accounting' order.id %}" class="me-auto">
                                                 {% csrf_token %}
-                                                <button type="submit" class="btn btn-success">
-                                                    <i class="fas fa-arrow-right me-1"></i> 넘기기
-                                                </button>
+                                                <button type="submit" class="btn btn-dark">넘기기</button>
                                             </form>
+                                            {% endif %}
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            {% endif %}
                             {% endfor %}
                         </tbody>
                     </table>

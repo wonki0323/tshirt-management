@@ -10,13 +10,27 @@
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
     
     <style>
+        :root {
+            --bg: #07090d;
+            --bg-elev: #0b0f14;
+            --bg-elev-2: #101621;
+            --border: #202833;
+            --text: #e8eaed;
+            --muted: #95a2b4;
+            --text-min-50: #c2cad6;
+            --white: #ffffff;
+            --black: #101113;
+        }
+
         body {
-            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 0.85rem;
-            background-color: #f8f9fa;
+            font-weight: 300;
+            background-color: var(--bg);
+            color: var(--text);
         }
         
         .navbar-brand {
@@ -28,16 +42,16 @@
             font-weight: 500;
             margin: 0 5px;
             padding: 8px 16px !important;
-            border-radius: 6px;
+            border-radius: 0;
             transition: all 0.2s ease;
         }
         
         .navbar-nav .nav-link:hover {
-            background-color: rgba(255, 255, 255, 0.1);
+            background-color: rgba(255, 255, 255, 0.08);
         }
         
         .navbar-nav .nav-link.active {
-            background-color: rgba(255, 255, 255, 0.2);
+            background-color: rgba(255, 255, 255, 0.16);
         }
         
         .main-content {
@@ -46,66 +60,142 @@
         }
         
         .card {
-            border: none;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border);
+            border-radius: 0;
+            box-shadow: none;
+            background-color: var(--bg-elev);
             margin-bottom: 20px;
         }
         
         .card-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 12px 12px 0 0 !important;
+            background: var(--bg-elev-2);
+            color: var(--text);
+            border-radius: 0 !important;
+            border-bottom: 1px solid var(--border);
             padding: 15px 20px;
         }
         
         .btn {
-            border-radius: 8px;
-            font-weight: 500;
+            border-radius: 0;
+            font-weight: 400;
             padding: 8px 16px;
+            box-shadow: none !important;
+        }
+
+        .btn-primary, .btn-success, .btn-info, .btn-warning, .btn-secondary, .btn-dark {
+            background-color: var(--white);
+            border-color: var(--white);
+            color: var(--black);
+        }
+
+        .btn-outline-primary, .btn-outline-secondary, .btn-outline-success, .btn-outline-danger {
+            background-color: transparent;
+            border-color: #6b7280;
+            color: #f5f5f5;
         }
         
         .table {
-            border-radius: 8px;
+            border-radius: 0;
             overflow: hidden;
+            color: var(--text);
+            --bs-table-bg: var(--bg-elev);
+            --bs-table-striped-bg: #0f141b;
+            --bs-table-hover-bg: #131a24;
+            --bs-table-border-color: var(--border);
         }
         
         .table thead th {
-            background-color: #f8f9fa;
-            border-bottom: 2px solid #dee2e6;
-            font-weight: 600;
-            color: #495057;
+            background-color: #121a25;
+            border-bottom: 1px solid var(--border);
+            font-weight: 500;
+            color: #d7dbe2;
         }
         
         .badge {
             font-size: 0.75rem;
             padding: 6px 10px;
+            border-radius: 0;
+            font-weight: 400;
         }
         
         .alert {
-            border: none;
-            border-radius: 8px;
+            border-radius: 0;
         }
         
         .pagination .page-link {
-            border-radius: 6px;
+            border-radius: 0;
             margin: 0 2px;
-            border: 1px solid #dee2e6;
+            border: 1px solid var(--border);
+            background-color: var(--bg-elev);
+            color: var(--text);
         }
         
         .pagination .page-item.active .page-link {
-            background-color: #667eea;
-            border-color: #667eea;
+            background-color: var(--white);
+            border-color: var(--white);
+            color: var(--black);
         }
         
         .form-control, .form-select {
-            border-radius: 6px;
-            border: 1px solid #ced4da;
+            border-radius: 0;
+            border: 1px solid #2b3542;
+            background-color: #0f141b;
+            color: #f3f4f6;
         }
         
         .form-control:focus, .form-select:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            border-color: #495367;
+            box-shadow: none;
+            background-color: #0f141b;
+            color: #f3f4f6;
+        }
+
+        .form-control::placeholder {
+            color: #8a94a6;
+        }
+
+        .text-muted {
+            color: var(--muted) !important;
+        }
+
+        /* 폼/본문 글자 가독성 하한 (너무 어두운 회색 방지) */
+        .main-content,
+        .main-content p,
+        .main-content label,
+        .main-content small,
+        .main-content span,
+        .main-content li,
+        .main-content th,
+        .main-content td,
+        .main-content .form-label,
+        .main-content .form-text,
+        .main-content .text-dark,
+        .main-content .text-body,
+        .main-content .text-secondary {
+            color: var(--text-min-50);
+        }
+
+        .main-content h1,
+        .main-content h2,
+        .main-content h3,
+        .main-content h4,
+        .main-content h5,
+        .main-content h6,
+        .main-content strong,
+        .main-content b {
+            color: var(--text);
+        }
+
+        .modal-content {
+            background-color: var(--bg-elev);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 0;
+        }
+
+        .modal-header,
+        .modal-footer {
+            border-color: var(--border);
         }
     </style>
     
@@ -113,7 +203,7 @@
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 50px;">
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: #090c11; border-bottom: 1px solid #202833; min-height: 50px;">
         <div class="container">
             <a class="navbar-brand" href="{% url 'dashboard' %}" style="font-size: 1rem;">
                 <i class="fas fa-home me-2"></i>홈
@@ -124,7 +214,7 @@
                     <i class="fas fa-list me-1"></i>주문
                 </a>
                 <a class="nav-link" href="{% url 'settlement_list' %}" style="font-size: 0.9rem;">
-                    <i class="fas fa-check-circle me-1"></i>종료
+                    <i class="fas fa-check-circle me-1"></i>결과통보
                 </a>
                 <a class="nav-link" href="{% url 'financial_summary' %}" style="font-size: 0.9rem;">
                     <i class="fas fa-chart-line me-1"></i>재무

@@ -7,18 +7,28 @@ from django.db.models import Q
 from django.contrib import messages
 from django.http import HttpResponse
 from django.utils import timezone
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 from io import BytesIO
 import os
 from .models import Order, OrderThumbnail, Status
 from .forms import ManualOrderForm
-from utils import calculate_business_days
 from utils.google_drive import get_drive_service, upload_design_files
 from utils.google_drive_oauth import get_oauth_service, upload_design_files_oauth
 from utils.customer_utils import generate_customer_id, is_existing_customer
 from django.conf import settings
 from settings_app.models import APISettings
+
+
+def _get_due_date_after_business_days(base_date, business_days):
+    """기준일의 다음 날부터 평일 기준 N일 후 날짜를 반환합니다."""
+    due_date = base_date
+    added_days = 0
+    while added_days < business_days:
+        due_date += timedelta(days=1)
+        if due_date.weekday() < 5:  # 월(0)~금(4)
+            added_days += 1
+    return due_date
 
 
 class OrderListView(LoginRequiredMixin, ListView):
@@ -31,13 +41,11 @@ class OrderListView(LoginRequiredMixin, ListView):
     
     def get_queryset(self):
         queryset = super().get_queryset()
-        status = self.request.GET.get('status')
-        
-        if status:
-            queryset = queryset.filter(status=status)
-        else:
-            # 기본적으로 완료된 주문은 제외
-            queryset = queryset.exclude(status=Status.COMPLETED)
+        status = self.request.GET.get('status') or Status.NEW
+        customer_name = (self.request.GET.get('customer_name') or '').strip()
+        queryset = queryset.filter(status=status)
+        if customer_name:
+            queryset = queryset.filter(customer_name__icontains=customer_name)
         
         # 주문 항목들과 관련 데이터를 미리 로드하여 N+1 쿼리 방지
         queryset = queryset.prefetch_related(
@@ -48,7 +56,8 @@ class OrderListView(LoginRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['status_filter'] = self.request.GET.get('status', '')
+        context['status_filter'] = self.request.GET.get('status') or Status.NEW
+        context['customer_name_filter'] = (self.request.GET.get('customer_name') or '').strip()
         context['status_choices'] = Status.choices
         
         # 캘린더 뷰용 데이터
@@ -81,7 +90,11 @@ class OrderListView(LoginRequiredMixin, ListView):
         orders_data = []
         for order in calendar_orders:
             # 발송 완료 여부: shipping_date가 있거나 COMPLETED 이상
-            is_shipped = bool(order.shipping_date) or order.status in [Status.COMPLETED, Status.SETTLED, Status.ARCHIVED]
+            is_shipped = bool(order.shipping_date) or order.status in [
+                Status.COMPLETED,
+                Status.SETTLED,
+                Status.ARCHIVED,
+            ]
             
             # 캘린더 표시용 날짜: due_date가 있으면 due_date, 없으면 payment_date
             display_date = order.due_date if order.due_date else order.payment_date.date() if order.payment_date else None
@@ -169,27 +182,45 @@ def change_order_status(request):
         return redirect(request.META.get('HTTP_REFERER', '/orders/'))
     
     order = get_object_or_404(Order, id=order_id)
+    # 레거시 프론트가 PRODUCING을 보내는 경우 제작중(PRODUCED)으로 정규화
+    if next_status == 'PRODUCING':
+        next_status = Status.PRODUCED
+
+    # 레거시 데이터에 PRODUCING이 남아있다면 제작중(PRODUCED)으로 정규화
+    if order.status == 'PRODUCING':
+        order.status = Status.PRODUCED
+        order.save(update_fields=['status', 'updated_at'])
+
+    valid_status_values = {value for value, _ in Status.choices}
+    if next_status not in valid_status_values:
+        messages.error(request, '유효하지 않은 상태값입니다.')
+        return redirect(request.META.get('HTTP_REFERER', '/orders/'))
+
+    allowed_transitions = {
+        Status.NEW: {Status.CONSULTING},
+        Status.CONSULTING: {Status.PRODUCED},
+        Status.PRODUCED: {Status.COMPLETED},
+    }
+    if next_status not in allowed_transitions.get(order.status, set()):
+        messages.error(request, '현재 상태에서 해당 단계로 변경할 수 없습니다.')
+        return redirect(request.META.get('HTTP_REFERER', '/orders/'))
     
     # 상태 변경 로직
     if order.status == Status.NEW:
         if next_status == Status.CONSULTING:
-            # 굿즈 주문의 경우 상담 시작 -> 재고 차감
-            # 재고 차감 시도
-            stock_errors = []
-            for item in order.items.all():
-                if item.product_option:
-                    success = item.product_option.decrease_stock(item.quantity)
-                    if not success:
-                        stock_errors.append(f"{item.product_option.product.name} - {item.product_option.option_detail}")
-            
-            if stock_errors:
-                messages.error(request, f'재고가 부족한 상품이 있습니다: {", ".join(stock_errors)}')
-                return redirect(request.META.get('HTTP_REFERER', '/orders/'))
-            
+            # 등록 -> 결제
             order.status = Status.CONSULTING
-            messages.success(request, f'주문 {order.smartstore_order_id}의 상담을 시작했습니다. (재고 차감 완료)')
-        elif next_status == Status.PRODUCED:
-            # 일반 주문의 경우 바로 발송 준비 -> 재고 차감
+            # 결제 버튼 클릭 시점 기준, 평일 5일 후를 마감일로 설정 (당일 제외)
+            order.due_date = _get_due_date_after_business_days(timezone.localdate(), 5)
+            messages.success(
+                request,
+                f'주문 {order.smartstore_order_id}를 결제 단계로 변경했습니다. '
+                f'(마감일: {order.due_date.strftime("%Y-%m-%d")})'
+            )
+
+    elif order.status == Status.CONSULTING:
+        if next_status == Status.PRODUCED:
+            # 결제 -> 제작중 (옷주문 단계 생략)
             # 재고 차감 시도
             stock_errors = []
             for item in order.items.all():
@@ -203,22 +234,16 @@ def change_order_status(request):
                 return redirect(request.META.get('HTTP_REFERER', '/orders/'))
             
             order.status = Status.PRODUCED
-            messages.success(request, f'주문 {order.smartstore_order_id}를 발송 준비 상태로 변경했습니다. (재고 차감 완료)')
-    
-    elif order.status == Status.CONSULTING:
-        if next_status == Status.PRODUCING:
-            # 상담 완료, 제작 시작
-            order.status = Status.PRODUCING
             order.confirmed_date = timezone.now()
-            # 마감일 계산 (3 영업일 후)
-            order.due_date = calculate_business_days(timezone.now(), 3)
-            messages.success(request, f'주문 {order.smartstore_order_id}의 제작을 시작했습니다. 마감일: {order.due_date.strftime("%Y-%m-%d")}')
+            # 마감일은 결제 단계에서만 설정한다. 재고확보 단계에서는 변경하지 않는다.
+            due_date_text = order.due_date.strftime("%Y-%m-%d") if order.due_date else '미설정'
+            messages.success(request, f'주문 {order.smartstore_order_id}를 제작중 단계로 변경했습니다. (재고 차감 완료, 마감일: {due_date_text})')
     
-    elif order.status == Status.PRODUCING:
-        if next_status == Status.PRODUCED:
-            # 제작 완료
-            order.status = Status.PRODUCED
-            messages.success(request, f'주문 {order.smartstore_order_id}의 제작을 완료했습니다.')
+    elif order.status == Status.PRODUCED:
+        if next_status == Status.COMPLETED:
+            # 제작중 -> 발송
+            order.status = Status.COMPLETED
+            messages.success(request, f'주문 {order.smartstore_order_id}를 발송 단계로 변경했습니다.')
     
     order.save()
     return redirect(request.META.get('HTTP_REFERER', '/orders/'))
@@ -314,9 +339,9 @@ def upload_design_and_confirm(request):
         messages.error(request, '주문 ID가 없습니다.')
         return redirect(request.META.get('HTTP_REFERER', '/orders/'))
     
-    if not design_files:
+    if not design_files and not thumbnail_images:
         logger.error("업로드할 파일이 없습니다.")
-        messages.error(request, '업로드할 파일을 선택해주세요.')
+        messages.error(request, '시안 파일 또는 썸네일 이미지를 1개 이상 선택해주세요.')
         return redirect(request.META.get('HTTP_REFERER', '/orders/'))
     
     try:
@@ -325,11 +350,6 @@ def upload_design_and_confirm(request):
     except Exception as e:
         logger.error(f"주문 조회 실패: {e}")
         messages.error(request, f'주문을 찾을 수 없습니다: {str(e)}')
-        return redirect(request.META.get('HTTP_REFERER', '/orders/'))
-    
-    if order.status != Status.CONSULTING:
-        logger.error(f"잘못된 주문 상태: {order.status}")
-        messages.error(request, '상담 중인 주문만 시안을 업로드할 수 있습니다.')
         return redirect(request.META.get('HTTP_REFERER', '/orders/'))
     
     try:
@@ -362,10 +382,7 @@ def upload_design_and_confirm(request):
                         order_number=idx
                     )
             
-            # 주문 상태를 PRODUCING으로 변경 (Google Drive 없이)
-            order.status = Status.PRODUCING
-            order.confirmed_date = timezone.now()
-            order.due_date = calculate_business_days(timezone.now(), 3).date()
+            # 상태는 유지하고 파일만 저장
             order.google_drive_folder_url = f"로컬_저장_{order.smartstore_order_id}"
             order.save()
             
@@ -374,9 +391,8 @@ def upload_design_and_confirm(request):
             messages.warning(
                 request, 
                 f'⚠️ Google Drive API 설정이 없어 로컬 처리되었습니다.<br>'
-                f'시안 파일 {len(design_files)}개 업로드 완료<br>'
-                f'주문이 제작 중 상태로 변경되었습니다.<br>'
-                f'마감일: {order.due_date.strftime("%Y-%m-%d")}<br>'
+                f'시안 파일 {len(design_files)}개 / 썸네일 {len(thumbnail_images)}장 업로드 완료<br>'
+                f'주문 상태는 변경하지 않았습니다.<br>'
                 f'<strong>설정 페이지에서 Google Drive API를 설정해주세요.</strong>'
             )
             return redirect(request.META.get('HTTP_REFERER', '/orders/'))
@@ -509,10 +525,7 @@ def upload_design_and_confirm(request):
                         order_number=idx
                     )
             
-            # 주문 상태를 PRODUCING으로 변경
-            order.status = Status.PRODUCING
-            order.confirmed_date = timezone.now()
-            order.due_date = calculate_business_days(timezone.now(), 3).date()
+            # 상태는 유지하고 파일 링크만 저장
             order.google_drive_folder_url = upload_result['folder']['webViewLink']
             order.save()
             
@@ -523,8 +536,8 @@ def upload_design_and_confirm(request):
                 messages.success(
                     request, 
                     f'✅ Google Drive에 시안 파일 {file_count}개가 업로드되었습니다!<br>'
-                    f'주문이 <strong>제작 중</strong> 상태로 변경되었습니다.<br>'
-                    f'마감일: <strong>{order.due_date.strftime("%Y-%m-%d")}</strong><br>'
+                    f'썸네일 {len(thumbnail_images)}장 업로드 완료<br>'
+                    f'주문 상태는 변경하지 않았습니다.<br>'
                     f'<a href="{upload_result["folder"]["webViewLink"]}" target="_blank" class="btn btn-sm btn-primary">Google Drive 폴더 열기</a>'
                 )
             else:
@@ -533,8 +546,8 @@ def upload_design_and_confirm(request):
                     f'⚠️ Google Drive 폴더가 생성되었지만 파일 업로드에 실패했습니다.<br>'
                     f'파일은 로컬에 저장되었습니다: {len(saved_files)}개<br>'
                     f'저장 위치: <code>{local_upload_dir}</code><br>'
-                    f'주문은 <strong>제작 중</strong> 상태로 변경되었습니다.<br>'
-                    f'마감일: <strong>{order.due_date.strftime("%Y-%m-%d")}</strong><br>'
+                    f'썸네일 {len(thumbnail_images)}장 업로드 완료<br>'
+                    f'주문 상태는 변경하지 않았습니다.<br>'
                     f'<a href="{upload_result["folder"]["webViewLink"]}" target="_blank" class="btn btn-sm btn-primary">Google Drive 폴더 열기</a><br>'
                     f'<small class="text-muted">파일을 수동으로 Google Drive에 업로드해주세요.</small>'
                 )
@@ -874,7 +887,7 @@ def order_completion(request, pk):
     order = get_object_or_404(Order, pk=pk)
     
     if order.status != Status.COMPLETED:
-        messages.error(request, '완료 상태인 주문만 결과 입력이 가능합니다.')
+        messages.error(request, '발송 상태인 주문만 결과 입력이 가능합니다.')
         return redirect('order_detail', pk=order.pk)
     
     # 송장번호 입력
@@ -898,13 +911,13 @@ def order_completion(request, pk):
             )
         logger.info(f"완료사진 {len(completion_photos)}장 업로드 완료")
     
-    # 정산 목록으로 상태 변경
+    # 결과통보로 상태 변경
     order.status = Status.SETTLED
     order.save()
     
     messages.success(
         request,
-        f'✅ 결과 입력이 완료되어 정산 목록으로 이동되었습니다.<br>'
+        f'✅ 결과 입력이 완료되어 결과통보 목록으로 이동되었습니다.<br>'
         f'송장번호: {order.tracking_number or "미입력"}<br>'
         f'완료사진: {len(completion_photos)}장 업로드'
     )
@@ -930,6 +943,7 @@ def get_completion_info(request, pk):
     
     data = {
         'order_id': order.id,
+        'status': order.status,
         'tracking_number': order.tracking_number,
         'completion_photos': completion_photos
     }
@@ -939,14 +953,15 @@ def get_completion_info(request, pk):
 
 @login_required
 def settlement_list(request):
-    """정산 목록 (종료 대기)"""
+    """결과통보 목록"""
     from django.db.models import Sum
     from datetime import datetime
     
-    # 월 필터는 유지하되, 기본적으로 SETTLED 상태만 보여줌
+    # 월 필터는 유지하되, 결과통보(SETTLED) 상태만 표시
     
     # 월 필터 파라미터 (YYYY-MM 형식)
     month_param = request.GET.get('month')
+    customer_name = (request.GET.get('customer_name') or '').strip()
     
     # 기본값: 현재 월
     if not month_param:
@@ -960,12 +975,14 @@ def settlement_list(request):
         now = timezone.now()
         year, month = now.year, now.month
     
-    # 정산 목록 (SETTLED 상태만) - 관련 데이터 미리 로드
+    # 결과통보 목록 (SETTLED 상태만) - 관련 데이터 미리 로드
     orders = Order.objects.filter(
         status=Status.SETTLED,
         payment_date__year=year,
         payment_date__month=month
     ).prefetch_related('items__product_option__product').order_by('-payment_date')
+    if customer_name:
+        orders = orders.filter(customer_name__icontains=customer_name)
     
     # 통계 계산
     total_revenue = orders.aggregate(Sum('total_order_amount'))['total_order_amount__sum'] or 0
@@ -994,9 +1011,79 @@ def settlement_list(request):
         'total_cost': total_cost,
         'total_profit': total_profit,
         'order_count': orders.count(),
-        'page_title': '종료 (정산 대기)',
-        'is_archived': False
+        'page_title': '결과통보 목록',
+        'customer_name': customer_name,
     })
+
+
+@login_required
+def accounting_list(request):
+    """정산 목록"""
+    from django.db.models import Sum
+
+    month_param = request.GET.get('month')
+    customer_name = (request.GET.get('customer_name') or '').strip()
+    if not month_param:
+        now = timezone.now()
+        month_param = now.strftime('%Y-%m')
+
+    try:
+        year, month = map(int, month_param.split('-'))
+    except Exception:
+        now = timezone.now()
+        year, month = now.year, now.month
+
+    orders = Order.objects.filter(
+        status=Status.ARCHIVED,
+        payment_date__year=year,
+        payment_date__month=month
+    ).prefetch_related('items__product_option__product', 'completion_photos').order_by('-payment_date')
+    if customer_name:
+        orders = orders.filter(customer_name__icontains=customer_name)
+
+    total_revenue = orders.aggregate(Sum('total_order_amount'))['total_order_amount__sum'] or 0
+    total_cost = sum(order.total_cost for order in orders)
+    total_profit = total_revenue - total_cost
+
+    from dateutil.relativedelta import relativedelta
+    months = []
+    current_date = timezone.now().date()
+    for i in range(12):
+        date = current_date - relativedelta(months=i)
+        months.append({
+            'value': date.strftime('%Y-%m'),
+            'label': date.strftime('%Y년 %m월')
+        })
+
+    return render(request, 'orders/settlement_list.html', {
+        'orders': orders,
+        'selected_month': month_param,
+        'months': months,
+        'year': year,
+        'month': month,
+        'total_revenue': total_revenue,
+        'total_cost': total_cost,
+        'total_profit': total_profit,
+        'order_count': orders.count(),
+        'page_title': '정산 목록',
+        'customer_name': customer_name,
+    })
+
+
+@login_required
+@require_POST
+def move_to_accounting(request, pk):
+    """결과통보 주문을 정산 목록으로 이동"""
+    order = get_object_or_404(Order, pk=pk)
+
+    if order.status != Status.SETTLED:
+        messages.error(request, '결과통보 상태의 주문만 정산 목록으로 이동할 수 있습니다.')
+        return redirect(request.META.get('HTTP_REFERER', '/orders/settlement/'))
+
+    order.status = Status.ARCHIVED
+    order.save(update_fields=['status', 'updated_at'])
+    messages.success(request, f'주문 {order.smartstore_order_id}이(가) 정산 목록으로 이동되었습니다.')
+    return redirect(request.META.get('HTTP_REFERER', '/orders/settlement/'))
 
 
 @login_required
@@ -1018,13 +1105,12 @@ def sales_status(request):
         year, month = now.year, now.month
     
     # 선택한 월의 1일부터 말일까지의 주문 조회
-    # 상태: PRODUCING(제작중) 이상 (입금 완료된 주문)
+    # 상태: 제작중 이상 (입금 완료된 주문)
     # 관련 데이터 미리 로드하여 N+1 쿼리 방지
     orders = Order.objects.filter(
-        Q(status=Status.PRODUCING) | 
         Q(status=Status.PRODUCED) | 
         Q(status=Status.COMPLETED) | 
-        Q(status=Status.SETTLED) | 
+        Q(status=Status.SETTLED) |
         Q(status=Status.ARCHIVED),
         payment_date__year=year,
         payment_date__month=month
@@ -1038,7 +1124,7 @@ def sales_status(request):
     # 상태별 주문 수
     status_counts = {}
     for status_value, status_label in Status.choices:
-        if status_value in ['PRODUCING', 'PRODUCED', 'COMPLETED', 'SETTLED', 'ARCHIVED']:
+        if status_value in ['PRODUCED', 'COMPLETED', 'SETTLED', 'ARCHIVED']:
             count = orders.filter(status=status_value).count()
             status_counts[status_label] = count
     
@@ -1067,64 +1153,14 @@ def sales_status(request):
 
 
 @login_required
-def archived_list(request):
-    """종료 목록 (보관된 주문, 최근 30일)"""
-    from django.db.models import Sum
-    from datetime import timedelta
-    
-    # 최근 30일 기준
-    thirty_days_ago = timezone.now() - timedelta(days=30)
-    
-    # ARCHIVED 상태이면서 최근 30일 내에 수정된(보관된) 주문
-    # 관련 데이터 미리 로드
-    orders = Order.objects.filter(
-        status=Status.ARCHIVED,
-        updated_at__gte=thirty_days_ago
-    ).prefetch_related('items__product_option__product').order_by('-updated_at')
-    
-    # 통계 계산 (이미 prefetch된 데이터 사용)
-    total_revenue = orders.aggregate(Sum('total_order_amount'))['total_order_amount__sum'] or 0
-    total_cost = sum(order.total_cost for order in orders)
-    total_profit = total_revenue - total_cost
-    
-    return render(request, 'orders/settlement_list.html', {
-        'orders': orders,
-        'total_revenue': total_revenue,
-        'total_cost': total_cost,
-        'total_profit': total_profit,
-        'order_count': orders.count(),
-        'page_title': '종료 목록 (최근 30일)',
-        'is_archived': True
-    })
-
-
-@login_required
-@require_POST
-def archive_order(request, pk):
-    """주문을 종료 목록으로 넘기기 (보관 처리)"""
-    order = get_object_or_404(Order, pk=pk)
-    
-    if order.status != Status.SETTLED:
-        messages.error(request, '정산 대기 상태인 주문만 종료 처리할 수 있습니다.')
-        return redirect('settlement_list')
-    
-    order.status = Status.ARCHIVED
-    order.save()
-    
-    messages.success(request, f'주문 {order.smartstore_order_id}이(가) 종료 목록으로 이동되었습니다.')
-    return redirect('settlement_list')
-
-
-
-@login_required
 @require_POST
 def cancel_order(request, pk):
     """주문 취소"""
     order = get_object_or_404(Order, pk=pk)
     
-    # 이미 완료된 주문은 취소 불가
-    if order.status == Status.COMPLETED or order.status == Status.SETTLED:
-        messages.error(request, '완료/정산된 주문은 취소할 수 없습니다.')
+    # 결과통보 주문은 취소 불가
+    if order.status in [Status.SETTLED, Status.ARCHIVED]:
+        messages.error(request, '결과통보/정산 목록 주문은 취소할 수 없습니다.')
         return redirect('order_detail', pk=pk)
     
     # 이미 취소된 주문

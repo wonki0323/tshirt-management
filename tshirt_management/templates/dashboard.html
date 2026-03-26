@@ -6,16 +6,18 @@
 {% block extra_css %}
 <style>
     .dashboard-card {
-        border: none;
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        border: 1px solid #202833;
+        border-radius: 0;
+        box-shadow: none;
         margin-bottom: 30px;
         overflow: hidden;
+        background: #0b0f14;
     }
     
     .dashboard-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: #0b0f14;
+        color: #f3f4f6;
+        border: 1px solid #202833;
         padding: 25px;
         text-align: center;
     }
@@ -40,14 +42,15 @@
     }
     
     .stat-card {
-        background: white;
-        border-radius: 12px;
+        background: #0f141b;
+        border-radius: 0;
+        border: 1px solid #202833;
         padding: 25px;
         text-align: center;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        box-shadow: none;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
         text-decoration: none;
-        color: inherit;
+        color: #e8eaed;
     }
     
     .stat-card:hover {
@@ -67,12 +70,12 @@
         font-size: 2.5rem;
         font-weight: 700;
         margin-bottom: 5px;
-        color: #2c3e50;
+        color: #f3f4f6;
     }
     
     .stat-label {
         font-size: 1rem;
-        color: #7f8c8d;
+        color: #95a2b4;
         font-weight: 500;
     }
     
@@ -84,8 +87,9 @@
     }
     
     .order-stat-item {
-        background: white;
-        border-radius: 10px;
+        background: #0f141b;
+        border: 1px solid #202833;
+        border-radius: 0;
         padding: 20px;
         text-align: center;
         transition: all 0.2s ease;
@@ -108,7 +112,7 @@
     
     .order-stat-label {
         font-size: 0.9rem;
-        color: #7f8c8d;
+        color: #95a2b4;
         font-weight: 500;
     }
     
@@ -132,20 +136,20 @@
     
     .finance-stat-label {
         font-size: 0.9rem;
-        color: #7f8c8d;
+        color: #95a2b4;
         font-weight: 500;
     }
     
     .positive {
-        color: #27ae60;
+        color: #f3f4f6;
     }
     
     .negative {
-        color: #e74c3c;
+        color: #d1d5db;
     }
     
     .neutral {
-        color: #3498db;
+        color: #e5e7eb;
     }
     
     .products-section {
@@ -156,21 +160,22 @@
     .products-count {
         font-size: 3rem;
         font-weight: 700;
-        color: #667eea;
+        color: #f3f4f6;
         margin-bottom: 10px;
     }
     
     .products-label {
         font-size: 1.1rem;
-        color: #7f8c8d;
+        color: #95a2b4;
         margin-bottom: 20px;
     }
     
     .add-product-btn {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
+        background: #ffffff;
+        color: #111111;
         padding: 12px 24px;
-        border-radius: 25px;
+        border-radius: 0;
+        border: 1px solid #ffffff;
         text-decoration: none;
         font-weight: 500;
         transition: all 0.3s ease;
@@ -179,8 +184,8 @@
     
     .add-product-btn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-        color: white;
+        box-shadow: none;
+        color: #111111;
         text-decoration: none;
     }
     
@@ -209,11 +214,11 @@
 
     <!-- 1. ORDERS -->
     <div class="dashboard-card">
-        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <div class="card-header" style="background: #101621; color: #f3f4f6;">
             <h2 class="mb-0">📦 주문 관리</h2>
         </div>
         <div class="products-section">
-            <div class="products-count" style="color: #667eea;">{{ total_orders }}</div>
+            <div class="products-count">{{ total_orders }}</div>
             <div class="products-label">전체 진행중 주문</div>
             <a href="{% url 'order_list' %}" class="add-product-btn">
                 <i class="fas fa-clipboard-list me-2"></i>주문 관리
@@ -223,7 +228,7 @@
 
     <!-- 2. FINANCE -->
     <div class="dashboard-card">
-        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <div class="card-header" style="background: #101621; color: #f3f4f6;">
             <h2 class="mb-0">💰 재무 현황 <span class="fs-6 fw-light">({{ current_month_str }})</span></h2>
         </div>
         <div class="finance-stats">
@@ -250,7 +255,7 @@
 
     <!-- 3. PRODUCTS -->
     <div class="dashboard-card">
-        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <div class="card-header" style="background: #101621; color: #f3f4f6;">
             <h2 class="mb-0">👕 제품 관리</h2>
         </div>
         <div class="products-section">
@@ -264,7 +269,7 @@
 
     <!-- 4. MANAGEMENT -->
     <div class="dashboard-card">
-        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <div class="card-header" style="background: #101621; color: #f3f4f6;">
             <h2 class="mb-0">⚙️ 관리 기능</h2>
         </div>
         <div class="card-body">

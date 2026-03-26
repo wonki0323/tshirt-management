@@ -5,6 +5,51 @@
 
 {% block extra_css %}
 <style>
+    /* 주문 상세: 컬러 포인트 제거(무채색) */
+    .card-header.bg-primary,
+    .card-header.bg-success,
+    .card-header.bg-info,
+    .card-header.bg-warning,
+    .card-header.bg-dark {
+        background-color: #141a22 !important;
+        color: #eef2f7 !important;
+        border-bottom: 1px solid #283241;
+    }
+
+    .text-primary,
+    .text-success,
+    .text-danger,
+    .text-info,
+    .text-warning {
+        color: #d7dee8 !important;
+    }
+
+    .badge.bg-warning,
+    .badge.bg-info,
+    .badge.bg-success,
+    .badge.bg-primary,
+    .badge.bg-secondary,
+    .badge.bg-danger,
+    .badge.bg-light {
+        background-color: #1c2430 !important;
+        color: #e6ebf2 !important;
+        border: 1px solid #334155;
+    }
+
+    .badge.bg-light.text-dark {
+        color: #e6ebf2 !important;
+    }
+
+    /* 메모: 어두운 빨간 박스 */
+    .customer-memo-darkred {
+        background-color: #2a1114;
+        border: 1px solid #5a2227;
+        border-left: 4px solid #7a2d34;
+        color: #f0d8da;
+        font-size: 1.05rem;
+        padding: 1.5rem;
+    }
+
     /* 제작중 상태 뱃지 호버 효과 */
     a.badge.bg-primary:hover {
         background-color: #0b5ed7 !important;
@@ -206,7 +251,7 @@
                 <i class="fas fa-list"></i> 목록
             </a>
             <a href="{% url 'settlement_list' %}" class="btn btn-outline-success">
-                <i class="fas fa-calculator"></i> 정산목록
+                <i class="fas fa-calculator"></i> 결과통보 목록
             </a>
             {% if next_order %}
             <a href="{% url 'order_detail' next_order.pk %}" class="btn btn-outline-secondary">
@@ -276,7 +321,7 @@
     {% if order.customer_memo %}
     <div class="row mb-4">
         <div class="col-12">
-            <div class="alert alert-warning border-warning" style="background-color: #fff3cd; border-left: 4px solid #ffc107; font-size: 1.1rem; padding: 1.5rem;">
+            <div class="customer-memo-darkred">
                 <i class="fas fa-comment-dots text-warning me-2"></i>
                 <div style="white-space: pre-wrap; line-height: 1.6;">{{ order.customer_memo }}</div>
             </div>
@@ -284,7 +329,7 @@
     </div>
     {% endif %}
 
-    <!-- 완료사진 캐러셀 (정산 상태일 때) -->
+    <!-- 완료사진 캐러셀 (결과통보 상태일 때) -->
     {% if order.status == 'SETTLED' and order.completion_photos.exists %}
     <div class="row mb-4">
         <div class="col-12">
@@ -360,7 +405,7 @@
                             <tr>
                                 <th>주문 상태</th>
                                 <td>
-                                    {% if order.status == 'PRODUCING' and order.google_drive_folder_url and 'http' in order.google_drive_folder_url %}
+                                    {% if order.status == 'PRODUCED' and order.google_drive_folder_url and 'http' in order.google_drive_folder_url %}
                                         <a href="{{ order.google_drive_folder_url }}" target="_blank" class="badge bg-primary text-decoration-none fs-6" title="클릭하여 시안 폴더 열기">
                                             <i class="fas fa-folder-open"></i> {{ order.get_status_display }}
                                         </a>
@@ -368,10 +413,10 @@
                                         <span class="badge 
                                             {% if order.status == 'NEW' %}bg-warning
                                             {% elif order.status == 'CONSULTING' %}bg-info
-                                            {% elif order.status == 'PRODUCING' %}bg-primary
                                             {% elif order.status == 'PRODUCED' %}bg-success
-                                            {% elif order.status == 'COMPLETED' %}bg-secondary
+                                            {% elif order.status == 'COMPLETED' %}bg-primary
                                             {% elif order.status == 'SETTLED' %}bg-dark
+                                            {% elif order.status == 'ARCHIVED' %}bg-secondary
                                             {% elif order.status == 'CANCELED' %}bg-danger
                                             {% endif %}">
                                             {{ order.get_status_display }}
@@ -564,45 +609,40 @@
             {% else %}
                 <div class="d-flex gap-2 justify-content-center flex-wrap">
                     {% if order.status == 'NEW' %}
-                        {% if is_general_order %}
-                            <button type="button" class="btn btn-success btn-lg status-change-btn" 
-                                    data-order-id="{{ order.id }}" 
-                                    data-next-status="PRODUCED">
-                                <i class="fas fa-forward"></i> 제작 완료 처리
-                            </button>
-                        {% else %}
-                            <button type="button" class="btn btn-info btn-lg status-change-btn" 
-                                    data-order-id="{{ order.id }}" 
-                                    data-next-status="CONSULTING">
-                                <i class="fas fa-comments"></i> 상담 시작
-                            </button>
-                        {% endif %}
+                        <button type="button" class="btn btn-primary btn-lg status-change-btn" 
+                                data-order-id="{{ order.id }}" 
+                                data-next-status="CONSULTING">
+                            <i class="fas fa-won-sign"></i> 결제
+                        </button>
                     {% elif order.status == 'CONSULTING' %}
+                        <button type="button" class="btn btn-info btn-lg status-change-btn" 
+                                data-order-id="{{ order.id }}" 
+                                data-next-status="PRODUCED">
+                            <i class="fas fa-boxes"></i> 재고확보
+                        </button>
+                    {% elif order.status == 'PRODUCED' %}
+                        <button type="button" class="btn btn-secondary btn-lg status-change-btn" 
+                                data-order-id="{{ order.id }}" 
+                                data-next-status="COMPLETED">
+                            <i class="fas fa-truck"></i> 발송
+                        </button>
+                    {% elif order.status == 'COMPLETED' %}
+                        <button type="button" class="btn btn-success btn-lg completion-input-btn" 
+                                data-order-id="{{ order.id }}" 
+                                data-customer-name="{{ order.customer_name }}">
+                            <i class="fas fa-clipboard-check"></i> 발송정보/결과 등록
+                        </button>
+                    {% endif %}
+                    {% if order.status != 'CANCELED' %}
                         <button type="button" class="btn btn-warning btn-lg upload-design-btn" 
                                 data-order-id="{{ order.id }}" 
                                 data-customer-name="{{ order.customer_name }}">
                             <i class="fas fa-upload"></i> 시안 업로드
                         </button>
-                    {% elif order.status == 'PRODUCING' %}
-                        <button type="button" class="btn btn-success btn-lg status-change-btn" 
-                                data-order-id="{{ order.id }}" 
-                                data-next-status="PRODUCED">
-                            <i class="fas fa-check"></i> 제작 완료
-                        </button>
-                    {% elif order.status == 'PRODUCED' %}
-                        <div class="alert alert-success mb-0 w-100 text-center">
-                            <i class="fas fa-check-circle"></i> 발송 대기 중입니다. 엑셀 출력 후 완료 처리하세요.
-                        </div>
-                    {% elif order.status == 'COMPLETED' %}
-                        <button type="button" class="btn btn-success btn-lg completion-input-btn" 
-                                data-order-id="{{ order.id }}" 
-                                data-customer-name="{{ order.customer_name }}">
-                            <i class="fas fa-clipboard-check"></i> 결과 입력
-                        </button>
                     {% endif %}
                     
-                    <!-- 취소 버튼 (완료/정산 상태와 이미 취소된 주문 제외) -->
-                    {% if order.status != 'COMPLETED' and order.status != 'SETTLED' %}
+                    <!-- 취소 버튼 (결과통보 상태와 이미 취소된 주문 제외) -->
+                    {% if order.status != 'SETTLED' and order.status != 'ARCHIVED' %}
                         <button type="button" class="btn btn-danger btn-lg" id="cancelOrderBtn">
                             <i class="fas fa-times-circle"></i> 주문 취소
                         </button>
@@ -962,7 +1002,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" onclick="closeUploadModal()" id="cancelBtn">취소</button>
                                 <button type="submit" class="btn btn-primary" id="uploadBtn">
-                                    <i class="fas fa-upload me-2"></i>업로드 및 컨펌 완료
+                                    <i class="fas fa-upload me-2"></i>업로드
                                 </button>
                             </div>
                         </form>
@@ -1108,7 +1148,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 
                                 <div class="alert alert-info small mb-0">
                                     <i class="fas fa-info-circle"></i> 
-                                    결과 입력이 완료되면 상태가 <strong>정산 목록</strong>으로 변경됩니다.
+                                    결과 입력이 완료되면 상태가 <strong>결과통보</strong>로 변경됩니다.
                                 </div>
                                 
                                 <!-- 업로드 진행 중 표시 영역 -->

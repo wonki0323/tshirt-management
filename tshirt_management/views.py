@@ -22,8 +22,7 @@ def dashboard(request):
     active_orders = Order.objects.exclude(status=Status.CANCELED)
     
     # FINANCE: 이번 달 매출-매입=순이익 계산
-    # 매출: 완료/정산/종료된 주문 중 '이번 달' 결제건
-    # Status.COMPLETED, Status.SETTLED, Status.ARCHIVED 포함
+    # 매출: 발송/결과통보 주문 중 '이번 달' 결제건
     completed_orders = Order.objects.filter(
         status__in=[Status.COMPLETED, Status.SETTLED, Status.ARCHIVED],
         payment_date__year=now.year,
@@ -69,13 +68,17 @@ def dashboard(request):
     order_stats = {
         'new': Order.objects.filter(status=Status.NEW).count(),
         'consulting': Order.objects.filter(status=Status.CONSULTING).count(),
-        'producing': Order.objects.filter(status=Status.PRODUCING).count(),
         'produced': Order.objects.filter(status=Status.PRODUCED).count(),
     }
     
-    # 전체 진행중 주문 (CANCELED, COMPLETED, SETTLED, ARCHIVED 제외)
+    # 전체 진행중 주문 (취소·발송 완료·결과통보·정산 목록 제외)
     total_orders = Order.objects.exclude(
-        status__in=[Status.CANCELED, Status.COMPLETED, Status.SETTLED, Status.ARCHIVED]
+        status__in=[
+            Status.CANCELED,
+            Status.COMPLETED,
+            Status.SETTLED,
+            Status.ARCHIVED,
+        ]
     ).count()
     
     # PRODUCTS: 제품 개수

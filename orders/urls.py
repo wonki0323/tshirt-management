@@ -16,8 +16,8 @@ urlpatterns = [
     path('search-customer-orders/', views.search_customer_orders, name='search_customer_orders'),
     path('debug-upload/', views.debug_upload, name='debug_upload'),
     path('settlement/', views.settlement_list, name='settlement_list'),
-    path('archived/', views.archived_list, name='archived_list'),
-    path('<int:pk>/archive/', views.archive_order, name='archive_order'),
+    path('accounting/', views.accounting_list, name='accounting_list'),
+    path('<int:pk>/move-to-accounting/', views.move_to_accounting, name='move_to_accounting'),
     path('sales-status/', views.sales_status, name='sales_status'),
     path('<int:pk>/update-due-date/', views.update_order_due_date, name='update_order_due_date'),
 ]

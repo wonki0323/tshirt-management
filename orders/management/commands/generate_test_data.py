@@ -59,13 +59,12 @@ class Command(BaseCommand):
             Status.CONSULTING,
             Status.CONSULTING,
             Status.CONSULTING,
-            Status.PRODUCING,
-            Status.PRODUCING,
-            Status.PRODUCING,
             Status.PRODUCED,
             Status.PRODUCED,
             Status.COMPLETED,
             Status.COMPLETED,
+            Status.SETTLED,
+            Status.ARCHIVED,
         ]
         
         self.stdout.write(self.style.WARNING(f'🔄 {count}개의 테스트 주문 생성 중...'))
@@ -100,10 +99,18 @@ class Command(BaseCommand):
             )
             
             # 상태에 따라 추가 필드 설정
-            if status in [Status.PRODUCING, Status.PRODUCED, Status.COMPLETED]:
+            if status in [
+                Status.PRODUCED,
+                Status.COMPLETED,
+                Status.SETTLED,
+                Status.ARCHIVED,
+            ]:
                 order.confirmed_date = payment_date + timedelta(days=random.randint(1, 3))
                 order.due_date = (order.confirmed_date + timedelta(days=3)).date()
                 order.google_drive_folder_url = f'https://drive.google.com/drive/folders/dummy_{order.id}'
+            if status in [Status.COMPLETED, Status.SETTLED, Status.ARCHIVED]:
+                order.shipping_date = (payment_date + timedelta(days=random.randint(4, 10))).date()
+                order.tracking_number = f'{random.randint(100000000000, 999999999999)}'
             
             order.save()
             

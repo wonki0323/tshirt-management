@@ -7,13 +7,12 @@ import os
 
 class Status(models.TextChoices):
     """주문 처리 워크플로우 상태"""
-    NEW = 'NEW', '신규 주문'
-    CONSULTING = 'CONSULTING', '상담/시안 제작 중'
-    PRODUCING = 'PRODUCING', '제작 중'
-    PRODUCED = 'PRODUCED', '제작 완료 (발송 대기)'
-    COMPLETED = 'COMPLETED', '완료'
-    SETTLED = 'SETTLED', '정산 목록'
-    ARCHIVED = 'ARCHIVED', '종료 목록 (보관)'
+    NEW = 'NEW', '등록'
+    CONSULTING = 'CONSULTING', '결제'
+    PRODUCED = 'PRODUCED', '제작중'
+    COMPLETED = 'COMPLETED', '발송'
+    SETTLED = 'SETTLED', '결과통보'
+    ARCHIVED = 'ARCHIVED', '정산 목록'
     CANCELED = 'CANCELED', '주문 취소'
 
 

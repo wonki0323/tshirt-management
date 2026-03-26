@@ -159,9 +159,8 @@
                         <td>{{ order.payment_date|date:"Y-m-d" }}</td>
                         <td>
                             <span class="status-badge
-                                {% if order.status == 'PRODUCING' %}bg-primary text-white
-                                {% elif order.status == 'PRODUCED' %}bg-success text-white
-                                {% elif order.status == 'COMPLETED' %}bg-secondary text-white
+                                {% if order.status == 'PRODUCED' %}bg-success text-white
+                                {% elif order.status == 'COMPLETED' %}bg-primary text-white
                                 {% elif order.status == 'SETTLED' %}bg-dark text-white
                                 {% elif order.status == 'ARCHIVED' %}bg-secondary text-white
                                 {% endif %}">
