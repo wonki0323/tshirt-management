@@ -29,6 +29,15 @@
         color: #4d4d4d !important;
         opacity: 1;
     }
+
+    #selectedOptionsTable .text-muted {
+        color: #9fb0c2 !important;
+    }
+
+    #selectedOptionsTable td,
+    #selectedOptionsTable th {
+        color: #d7e2f0;
+    }
 </style>
 {% endblock %}
 
@@ -151,13 +160,7 @@
                                             {% endfor %}
                                         </select>
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-bold option-step-label">후가공 색상</label>
-                                        <select class="form-select option-select-box" id="postProcessColorSelect" disabled>
-                                            <option value="">색상을 선택하세요</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-6">
                                         <label class="form-label small fw-bold option-step-label">후가공 옵션</label>
                                         <select class="form-select option-select-box" id="postProcessOptionSelect" disabled>
                                             <option value="">후가공 옵션을 선택하세요</option>
@@ -218,7 +221,7 @@
                             {{ form.total_order_amount.label }}
                         </label>
                         {{ form.total_order_amount }}
-                        <div class="form-text small">자동 계산됩니다. (수정 가능)</div>
+                        <div class="form-text small">자동 계산됩니다. (수정 불가)</div>
                     </div>
                     
                     <div class="col-md-4 mb-3">
@@ -350,7 +353,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const colorSelect = document.getElementById('colorSelect');
     const sizeSelect = document.getElementById('sizeSelect');
     const postProcessSelect = document.getElementById('postProcessSelect');
-    const postProcessColorSelect = document.getElementById('postProcessColorSelect');
     const postProcessOptionSelect = document.getElementById('postProcessOptionSelect');
     const selectedOptionsList = document.getElementById('selectedOptionsList');
     const emptyRow = document.getElementById('emptyRow');
@@ -373,7 +375,6 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSelectTextColor(colorSelect);
     updateSelectTextColor(sizeSelect);
     updateSelectTextColor(postProcessSelect);
-    updateSelectTextColor(postProcessColorSelect);
     updateSelectTextColor(postProcessOptionSelect);
 
     const allProducts = Object.entries(productsData).map(([id, value]) => ({ id, ...value }));
@@ -550,38 +551,12 @@ document.addEventListener('DOMContentLoaded', function() {
     postProcessSelect.addEventListener('change', function() {
         const postProcessId = this.value;
         updateSelectTextColor(postProcessSelect);
-        postProcessColorSelect.innerHTML = '<option value="">색상을 선택하세요</option>';
-        postProcessColorSelect.disabled = true;
         postProcessOptionSelect.innerHTML = '<option value="">후가공 옵션을 선택하세요</option>';
         postProcessOptionSelect.disabled = true;
-        updateSelectTextColor(postProcessColorSelect);
         updateSelectTextColor(postProcessOptionSelect);
         if (!postProcessId) return;
 
         const options = postProcessingData[postProcessId]?.options || [];
-        const colors = [...new Set(options.map(item => item.color || '기본'))];
-        colors.forEach(color => {
-            const option = document.createElement('option');
-            option.value = color;
-            option.textContent = color;
-            postProcessColorSelect.appendChild(option);
-        });
-        postProcessColorSelect.disabled = false;
-        updateSelectTextColor(postProcessColorSelect);
-    });
-
-    postProcessColorSelect.addEventListener('change', function() {
-        const postProcessId = postProcessSelect.value;
-        const selectedColor = this.value;
-        updateSelectTextColor(postProcessColorSelect);
-        postProcessOptionSelect.innerHTML = '<option value="">후가공 옵션을 선택하세요</option>';
-        postProcessOptionSelect.disabled = true;
-        updateSelectTextColor(postProcessOptionSelect);
-        if (!postProcessId || !selectedColor) return;
-
-        const options = (postProcessingData[postProcessId]?.options || []).filter(
-            item => (item.color || '기본') === selectedColor
-        );
         options.forEach(item => {
             const option = document.createElement('option');
             option.value = item.id;
@@ -712,11 +687,8 @@ document.addEventListener('DOMContentLoaded', function() {
         existingItemsData.forEach(item => {
             addOptionRow(item.option_id, item.detail, item.price, item.quantity);
         });
-        // 초기 총액 계산 (기존 값이 있으면 그것을 사용하고, 아니면 계산)
-        // 여기서는 자동 계산 로직을 따르되, 사용자가 이미 저장한 금액이 다를 수 있으므로 
-        // 로딩 직후에는 계산하지 않거나, 사용자가 건드리면 계산하도록 함.
-        // 하지만 요구사항에 맞춰 자동 계산이 되도록 합니다.
     }
+    calculateTotal();
 });
 </script>
 {% endblock %}

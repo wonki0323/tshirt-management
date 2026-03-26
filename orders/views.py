@@ -5,7 +5,7 @@ from django.views.generic import ListView, DetailView
 from django.views.decorators.http import require_POST
 from django.db.models import Q
 from django.db.models.functions import TruncMonth
-from django.db.models import Count
+from django.db.models import Count, Max
 from django.contrib import messages
 from django.http import HttpResponse
 from django.utils import timezone
@@ -40,12 +40,27 @@ class OrderListView(LoginRequiredMixin, ListView):
     context_object_name = 'orders'
     paginate_by = 20
     ordering = ['-payment_date']
+    STATUS_ALL = 'ALL'
     
     def get_queryset(self):
         queryset = super().get_queryset()
-        status = self.request.GET.get('status') or Status.NEW
+        requested_status = (self.request.GET.get('status') or '').strip()
         customer_name = (self.request.GET.get('customer_name') or '').strip()
-        queryset = queryset.filter(status=status)
+        valid_status_values = {value for value, _ in Status.choices}
+
+        if requested_status == self.STATUS_ALL:
+            status = self.STATUS_ALL
+        elif requested_status in valid_status_values:
+            status = requested_status
+        elif customer_name:
+            # 고객명 검색이 들어오면 상태 제한 없이 전체에서 찾도록 기본값 처리
+            status = self.STATUS_ALL
+        else:
+            status = Status.NEW
+
+        if status != self.STATUS_ALL:
+            queryset = queryset.filter(status=status)
+
         if status == Status.ARCHIVED:
             settlement_month = (self.request.GET.get('settlement_month') or 'current').strip()
             if settlement_month != 'current':
@@ -73,10 +88,22 @@ class OrderListView(LoginRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        status_filter = self.request.GET.get('status') or Status.NEW
+        requested_status = (self.request.GET.get('status') or '').strip()
+        customer_name_filter = (self.request.GET.get('customer_name') or '').strip()
+        valid_status_values = {value for value, _ in Status.choices}
+
+        if requested_status == self.STATUS_ALL:
+            status_filter = self.STATUS_ALL
+        elif requested_status in valid_status_values:
+            status_filter = requested_status
+        elif customer_name_filter:
+            status_filter = self.STATUS_ALL
+        else:
+            status_filter = Status.NEW
+
         context['status_filter'] = status_filter
-        context['customer_name_filter'] = (self.request.GET.get('customer_name') or '').strip()
-        context['status_choices'] = Status.choices
+        context['customer_name_filter'] = customer_name_filter
+        context['status_choices'] = [(self.STATUS_ALL, '전체보기')] + list(Status.choices)
         if status_filter == Status.ARCHIVED:
             selected_settlement_month = (self.request.GET.get('settlement_month') or 'current').strip()
             context['selected_settlement_month'] = selected_settlement_month
@@ -774,6 +801,31 @@ def search_customer_orders(request):
         return JsonResponse({'orders': orders_data})
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+@login_required
+def customer_name_autocomplete(request):
+    """전역 고객명 검색 자동완성 API"""
+    from django.http import JsonResponse
+
+    query = (request.GET.get('q') or '').strip()
+    if len(query) < 1:
+        return JsonResponse({'results': []})
+
+    # 최근 주문 고객을 우선 노출하고, 결과 수를 제한해 응답 속도 유지
+    rows = (
+        Order.objects
+        .filter(customer_name__icontains=query)
+        .exclude(customer_name__isnull=True)
+        .exclude(customer_name__exact='')
+        .values('customer_name')
+        .annotate(last_payment_date=Max('payment_date'))
+        .order_by('-last_payment_date')[:10]
+    )
+
+    return JsonResponse({
+        'results': [row['customer_name'] for row in rows]
+    })
 
 
 @login_required

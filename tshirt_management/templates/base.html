@@ -197,6 +197,109 @@
         .modal-footer {
             border-color: var(--border);
         }
+
+        .global-product-search {
+            width: 320px;
+            max-width: 40vw;
+            margin-left: 8px;
+            margin-right: 18px;
+            position: relative;
+        }
+
+        .global-customer-search {
+            width: 250px;
+            max-width: 30vw;
+            margin-left: 14px;
+            position: relative;
+        }
+
+        .global-customer-search .form-control {
+            background-color: #111827;
+            border-color: #2b3542;
+            color: #e5e7eb;
+            font-size: 0.85rem;
+        }
+
+        .global-customer-search .btn {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+
+        .global-customer-autocomplete {
+            position: absolute;
+            top: calc(100% + 2px);
+            left: 0;
+            right: 0;
+            z-index: 1055;
+            border: 1px solid #2b3542;
+            background: #0f141b;
+            max-height: 260px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .global-product-search .form-control {
+            background-color: #111827;
+            border-color: #2b3542;
+            color: #e5e7eb;
+            font-size: 0.85rem;
+        }
+
+        .global-product-search .btn {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+
+        .global-search-autocomplete {
+            position: absolute;
+            top: calc(100% + 2px);
+            left: 0;
+            right: 0;
+            z-index: 1055;
+            border: 1px solid #2b3542;
+            background: #0f141b;
+            max-height: 280px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .global-search-autocomplete-item {
+            display: block;
+            width: 100%;
+            border: 0;
+            border-bottom: 1px solid #1d2633;
+            background: transparent;
+            color: #dbe3ef;
+            text-align: left;
+            padding: 8px 10px;
+            font-size: 0.82rem;
+            cursor: pointer;
+        }
+
+        .global-search-autocomplete-item:hover,
+        .global-search-autocomplete-item.active {
+            background: #1a2433;
+            color: #ffffff;
+        }
+
+        .global-search-autocomplete-meta {
+            color: #98a7bb;
+            margin-left: 6px;
+            font-size: 0.76rem;
+        }
+
+        #globalProductSearchModal .table th,
+        #globalProductSearchModal .table td {
+            color: #e5edf9 !important;
+        }
+
+        #globalProductSearchModal .table thead th {
+            color: #f3f6fb !important;
+        }
+
+        #globalProductSearchModal .table .text-muted {
+            color: #aebbd0 !important;
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -208,8 +311,25 @@
             <a class="navbar-brand" href="{% url 'dashboard' %}" style="font-size: 1rem;">
                 <i class="fas fa-home me-2"></i>홈
             </a>
-            
-            <div class="navbar-nav ms-auto">
+
+            <form class="global-customer-search d-flex" id="globalCustomerSearchForm" method="get" action="{% url 'order_list' %}" autocomplete="off">
+                <input type="hidden" name="status" value="ALL">
+                <input class="form-control form-control-sm" id="globalCustomerSearchInput" name="customer_name" type="search" placeholder="고객명 검색" aria-label="고객명 검색">
+                <button class="btn btn-outline-secondary btn-sm" type="submit">
+                    <i class="fas fa-user"></i>
+                </button>
+                <div class="global-customer-autocomplete" id="globalCustomerAutocomplete"></div>
+            </form>
+
+            <form class="global-product-search d-flex" id="globalProductSearchForm" role="search" autocomplete="off">
+                <input class="form-control form-control-sm" id="globalProductSearchInput" type="search" placeholder="제품 가격 검색" aria-label="제품 가격 검색">
+                <button class="btn btn-outline-secondary btn-sm" type="submit">
+                    <i class="fas fa-search"></i>
+                </button>
+                <div class="global-search-autocomplete" id="globalSearchAutocomplete"></div>
+            </form>
+
+            <div class="navbar-nav">
                 <a class="nav-link" href="{% url 'order_list' %}" style="font-size: 0.9rem;">
                     <i class="fas fa-list me-1"></i>주문
                 </a>
@@ -237,8 +357,324 @@
         {% block content %}{% endblock %}
     </div>
 
+    <!-- 전역 제품 가격 검색 모달 -->
+    <div class="modal fade" id="globalProductSearchModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-tags me-2"></i>제품 가격 검색 결과</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="닫기"></button>
+                </div>
+                <div class="modal-body" id="globalProductSearchResults">
+                    <div class="text-muted">검색어를 입력하고 Enter를 누르세요.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const customerForm = document.getElementById('globalCustomerSearchForm');
+            const customerInput = document.getElementById('globalCustomerSearchInput');
+            const customerAutocomplete = document.getElementById('globalCustomerAutocomplete');
+            if (!customerForm || !customerInput || !customerAutocomplete) return;
+
+            let customerItems = [];
+            let activeCustomerIndex = -1;
+            let customerDebounce = null;
+
+            function hideCustomerAutocomplete() {
+                customerAutocomplete.style.display = 'none';
+                customerAutocomplete.innerHTML = '';
+                customerItems = [];
+                activeCustomerIndex = -1;
+            }
+
+            function renderCustomerAutocomplete(items) {
+                customerItems = (items || []).slice(0, 10);
+                activeCustomerIndex = -1;
+                if (customerItems.length === 0) {
+                    hideCustomerAutocomplete();
+                    return;
+                }
+
+                customerAutocomplete.innerHTML = customerItems.map((name, index) => (
+                    `<button type="button" class="global-search-autocomplete-item" data-index="${index}" data-name="${name}">${name}</button>`
+                )).join('');
+                customerAutocomplete.style.display = 'block';
+            }
+
+            function setActiveCustomer(index) {
+                const nodes = customerAutocomplete.querySelectorAll('.global-search-autocomplete-item');
+                nodes.forEach(node => node.classList.remove('active'));
+                if (index >= 0 && index < nodes.length) {
+                    nodes[index].classList.add('active');
+                    nodes[index].scrollIntoView({ block: 'nearest' });
+                    activeCustomerIndex = index;
+                }
+            }
+
+            customerInput.addEventListener('input', function() {
+                const query = (this.value || '').trim();
+                if (customerDebounce) clearTimeout(customerDebounce);
+                if (query.length < 1) {
+                    hideCustomerAutocomplete();
+                    return;
+                }
+
+                customerDebounce = setTimeout(async () => {
+                    try {
+                        const url = `{% url 'customer_name_autocomplete' %}?q=${encodeURIComponent(query)}`;
+                        const response = await fetch(url);
+                        if (!response.ok) {
+                            hideCustomerAutocomplete();
+                            return;
+                        }
+                        const data = await response.json();
+                        renderCustomerAutocomplete(data.results || []);
+                    } catch (error) {
+                        hideCustomerAutocomplete();
+                    }
+                }, 220);
+            });
+
+            customerInput.addEventListener('keydown', function(e) {
+                if (customerItems.length === 0 || customerAutocomplete.style.display === 'none') return;
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const next = activeCustomerIndex + 1 >= customerItems.length ? 0 : activeCustomerIndex + 1;
+                    setActiveCustomer(next);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const prev = activeCustomerIndex - 1 < 0 ? customerItems.length - 1 : activeCustomerIndex - 1;
+                    setActiveCustomer(prev);
+                } else if (e.key === 'Enter' && activeCustomerIndex >= 0) {
+                    e.preventDefault();
+                    customerInput.value = customerItems[activeCustomerIndex];
+                    hideCustomerAutocomplete();
+                    customerForm.requestSubmit();
+                } else if (e.key === 'Escape') {
+                    hideCustomerAutocomplete();
+                }
+            });
+
+            customerAutocomplete.addEventListener('click', function(e) {
+                const btn = e.target.closest('.global-search-autocomplete-item');
+                if (!btn) return;
+                const name = btn.getAttribute('data-name') || '';
+                if (!name) return;
+                customerInput.value = name;
+                hideCustomerAutocomplete();
+                customerForm.requestSubmit();
+            });
+
+            customerForm.addEventListener('submit', function() {
+                hideCustomerAutocomplete();
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!customerForm.contains(e.target)) {
+                    hideCustomerAutocomplete();
+                }
+            });
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchForm = document.getElementById('globalProductSearchForm');
+            const searchInput = document.getElementById('globalProductSearchInput');
+            const resultsContainer = document.getElementById('globalProductSearchResults');
+            const modalElement = document.getElementById('globalProductSearchModal');
+            const autocompleteBox = document.getElementById('globalSearchAutocomplete');
+            if (!searchForm || !searchInput || !resultsContainer || !modalElement || !autocompleteBox) return;
+
+            const searchModal = new bootstrap.Modal(modalElement);
+            let autocompleteItems = [];
+            let activeAutocompleteIndex = -1;
+            let debounceTimer = null;
+
+            function formatWon(value) {
+                const number = Number(value || 0);
+                return number.toLocaleString('ko-KR') + '원';
+            }
+
+            function renderResults(data) {
+                const items = data.results || [];
+                if (items.length === 0) {
+                    resultsContainer.innerHTML = '<div class="text-muted">검색 결과가 없습니다.</div>';
+                    return;
+                }
+
+                const html = items.map(product => {
+                    const groupText = product.item_type === 'POST_PROCESSING'
+                        ? '후가공'
+                        : (product.product_group || '미분류');
+                    const options = product.options || [];
+                    const optionHtml = options.length
+                        ? options.map(opt => (
+                            '<tr>' +
+                            `<td>${opt.option_detail}${opt.is_active ? '' : ' <span class="text-muted">(비활성)</span>'}</td>` +
+                            `<td class="text-end">${formatWon(opt.base_price)}</td>` +
+                            '</tr>'
+                        )).join('')
+                        : '<tr><td colspan="2" class="text-muted text-center">옵션 없음</td></tr>';
+
+                    return (
+                        '<div class="card mb-3">' +
+                            '<div class="card-header d-flex justify-content-between align-items-center">' +
+                                `<div><strong>${product.name}</strong> <span class="text-muted ms-2">(${groupText})</span></div>` +
+                                `<span class="badge bg-light text-dark">기본가 ${formatWon(product.base_price)}</span>` +
+                            '</div>' +
+                            '<div class="card-body p-0">' +
+                                '<div class="table-responsive">' +
+                                    '<table class="table table-sm mb-0">' +
+                                        '<thead><tr><th>옵션</th><th class="text-end">가격</th></tr></thead>' +
+                                        `<tbody>${optionHtml}</tbody>` +
+                                    '</table>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>'
+                    );
+                }).join('');
+
+                resultsContainer.innerHTML = html;
+            }
+
+            function hideAutocomplete() {
+                autocompleteBox.style.display = 'none';
+                autocompleteBox.innerHTML = '';
+                autocompleteItems = [];
+                activeAutocompleteIndex = -1;
+            }
+
+            function renderAutocomplete(items) {
+                autocompleteItems = items.slice(0, 8);
+                activeAutocompleteIndex = -1;
+                if (autocompleteItems.length === 0) {
+                    hideAutocomplete();
+                    return;
+                }
+
+                const html = autocompleteItems.map((item, index) => {
+                    const groupText = item.item_type === 'POST_PROCESSING'
+                        ? '후가공'
+                        : (item.product_group || '미분류');
+                    return (
+                        `<button type="button" class="global-search-autocomplete-item" data-index="${index}" data-name="${item.name}">` +
+                        `${item.name}<span class="global-search-autocomplete-meta">${groupText} / 기본가 ${formatWon(item.base_price)}</span>` +
+                        '</button>'
+                    );
+                }).join('');
+                autocompleteBox.innerHTML = html;
+                autocompleteBox.style.display = 'block';
+            }
+
+            function setActiveAutocomplete(index) {
+                const nodes = autocompleteBox.querySelectorAll('.global-search-autocomplete-item');
+                nodes.forEach(node => node.classList.remove('active'));
+                if (index >= 0 && index < nodes.length) {
+                    nodes[index].classList.add('active');
+                    nodes[index].scrollIntoView({ block: 'nearest' });
+                    activeAutocompleteIndex = index;
+                }
+            }
+
+            async function performSearch(query) {
+                resultsContainer.innerHTML = '<div class="text-muted">검색 중...</div>';
+                searchModal.show();
+                const url = `{% url 'product_price_search' %}?q=${encodeURIComponent(query)}`;
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('검색 요청 실패');
+                }
+                const data = await response.json();
+                renderResults(data);
+            }
+
+            searchForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const query = (searchInput.value || '').trim();
+                if (!query) {
+                    resultsContainer.innerHTML = '<div class="text-muted">검색어를 입력해주세요.</div>';
+                    searchModal.show();
+                    return;
+                }
+
+                hideAutocomplete();
+
+                try {
+                    await performSearch(query);
+                } catch (error) {
+                    resultsContainer.innerHTML = '<div class="text-danger">검색 중 오류가 발생했습니다.</div>';
+                }
+            });
+
+            searchInput.addEventListener('input', function() {
+                const query = (this.value || '').trim();
+                if (debounceTimer) clearTimeout(debounceTimer);
+                if (query.length < 1) {
+                    hideAutocomplete();
+                    return;
+                }
+
+                debounceTimer = setTimeout(async () => {
+                    try {
+                        const url = `{% url 'product_price_search' %}?q=${encodeURIComponent(query)}`;
+                        const response = await fetch(url);
+                        if (!response.ok) {
+                            hideAutocomplete();
+                            return;
+                        }
+                        const data = await response.json();
+                        renderAutocomplete(data.results || []);
+                    } catch (error) {
+                        hideAutocomplete();
+                    }
+                }, 180);
+            });
+
+            searchInput.addEventListener('keydown', function(e) {
+                if (autocompleteItems.length === 0 || autocompleteBox.style.display === 'none') return;
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const nextIndex = activeAutocompleteIndex + 1 >= autocompleteItems.length ? 0 : activeAutocompleteIndex + 1;
+                    setActiveAutocomplete(nextIndex);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const prevIndex = activeAutocompleteIndex - 1 < 0 ? autocompleteItems.length - 1 : activeAutocompleteIndex - 1;
+                    setActiveAutocomplete(prevIndex);
+                } else if (e.key === 'Enter' && activeAutocompleteIndex >= 0) {
+                    e.preventDefault();
+                    const selected = autocompleteItems[activeAutocompleteIndex];
+                    if (!selected) return;
+                    searchInput.value = selected.name;
+                    hideAutocomplete();
+                    searchForm.requestSubmit();
+                } else if (e.key === 'Escape') {
+                    hideAutocomplete();
+                }
+            });
+
+            autocompleteBox.addEventListener('click', function(e) {
+                const btn = e.target.closest('.global-search-autocomplete-item');
+                if (!btn) return;
+                const name = btn.getAttribute('data-name') || '';
+                if (!name) return;
+                searchInput.value = name;
+                hideAutocomplete();
+                searchForm.requestSubmit();
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!searchForm.contains(e.target)) {
+                    hideAutocomplete();
+                }
+            });
+        });
+    </script>
     
     {% block extra_js %}{% endblock %}
 </body>

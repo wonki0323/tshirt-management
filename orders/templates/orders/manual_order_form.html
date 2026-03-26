@@ -29,6 +29,15 @@
         color: #4d4d4d !important;
         opacity: 1;
     }
+
+    #selectedOptionsTable .text-muted {
+        color: #9fb0c2 !important;
+    }
+
+    #selectedOptionsTable td,
+    #selectedOptionsTable th {
+        color: #d7e2f0;
+    }
 </style>
 {% endblock %}
 
@@ -153,17 +162,6 @@
                                     {% if form.shipping_cost.errors %}
                                         <div class="text-danger small">{{ form.shipping_cost.errors.0 }}</div>
                                     {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="mb-3">
-                                    <div class="form-check mb-2">
-                                        {{ form.manual_total_input }}
-                                        <label class="form-check-label" for="id_manual_total_input">
-                                            {{ form.manual_total_input.label }}
-                                        </label>
-                                        <div class="form-text">{{ form.manual_total_input.help_text }}</div>
-                                    </div>
                                 </div>
                             </div>
                             <div class="col-12">
@@ -410,7 +408,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const addressInput = document.getElementById('id_shipping_address');
     const addressSearchBtn = document.getElementById('addressSearchBtn');
     const shippingCostInput = document.getElementById('id_shipping_cost');
-    const manualTotalInput = document.getElementById('id_manual_total_input');
     const totalAmountInput = document.getElementById('id_total_order_amount');
     
     // === 2. 스마트스토어 방식 옵션 선택 로직 시작 ===
@@ -891,17 +888,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // 총 결제금액 자동 합산
     function calculateTotal() {
         console.log('calculateTotal 호출됨');
-        
-        if (manualTotalInput.checked) {
-            // 수동 입력 모드
-            totalAmountInput.removeAttribute('readonly');
-            totalAmountInput.classList.remove('readonly-field');
-            console.log('수동 입력 모드');
-            return;
-        }
-        
-        // 자동 합산 모드 - readonly 제거하여 값 변경 가능하게
-        totalAmountInput.removeAttribute('readonly');
+
+        // 자동 합산 모드
         totalAmountInput.classList.add('readonly-field');
         
         let itemsTotal = 0;
@@ -931,17 +919,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // 값 설정 - 소수점 제거하고 정수만 표시
         totalAmountInput.value = Math.round(total);
         
-        // 다시 readonly 설정 (사용자가 직접 수정 못하도록)
-        if (!manualTotalInput.checked) {
-            totalAmountInput.setAttribute('readonly', 'readonly');
-        }
+        // readonly 유지 (사용자 직접 수정 불가)
+        totalAmountInput.setAttribute('readonly', 'readonly');
     }
     
     // 이벤트 리스너 등록
     customerNameInput.addEventListener('input', checkCustomerExists);
     customerPhoneInput.addEventListener('input', checkCustomerExists);
     
-    manualTotalInput.addEventListener('change', calculateTotal);
     shippingCostInput.addEventListener('input', calculateTotal);
     
     // 기존 정적 리스너 제거 (동적 요소는 상위 위임으로 처리됨)

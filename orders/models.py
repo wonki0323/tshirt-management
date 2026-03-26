@@ -138,10 +138,8 @@ class Order(models.Model):
         labels = []
         for item in self.items.all():
             if item.product_option and getattr(item.product_option.product, 'item_type', '') == 'POST_PROCESSING':
-                if item.smartstore_option_text:
-                    labels.append(f"{item.smartstore_product_name} ({item.smartstore_option_text})")
-                else:
-                    labels.append(item.smartstore_product_name)
+                labels.append(item.smartstore_product_name)
+        labels = list(dict.fromkeys(labels))
         return ", ".join(labels)
 
     @property

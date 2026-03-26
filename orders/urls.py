@@ -14,6 +14,7 @@ urlpatterns = [
     path('manual-create/', views.manual_order_create, name='manual_order_create'),
     path('check-customer/', views.check_customer_exists, name='check_customer_exists'),
     path('search-customer-orders/', views.search_customer_orders, name='search_customer_orders'),
+    path('customer-name-autocomplete/', views.customer_name_autocomplete, name='customer_name_autocomplete'),
     path('debug-upload/', views.debug_upload, name='debug_upload'),
     path('settlement/', views.settlement_list, name='settlement_list'),
     path('accounting/', views.accounting_list, name='accounting_list'),

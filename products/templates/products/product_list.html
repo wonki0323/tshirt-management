@@ -52,7 +52,6 @@
                             {% for option in product.options.all|slice:":3" %}
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <small>{{ option.option_detail }}</small>
-                                <small class="text-muted">{{ option.base_cost|floatformat:0|intcomma }}원</small>
                             </div>
                             {% endfor %}
                             {% if product.options.count > 3 %}

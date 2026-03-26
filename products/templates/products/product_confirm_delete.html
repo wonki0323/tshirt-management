@@ -40,10 +40,7 @@
                         <strong>포함된 옵션:</strong>
                         <ul class="list-group list-group-flush">
                             {% for option in object.options.all %}
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>{{ option.option_detail }}</span>
-                                <span class="text-muted">{{ option.base_cost|floatformat:0|intcomma }}원</span>
-                            </li>
+                            <li class="list-group-item">{{ option.option_detail }}</li>
                             {% endfor %}
                         </ul>
                     </div>

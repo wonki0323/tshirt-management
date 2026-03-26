@@ -4,6 +4,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.contrib import messages
 from django.urls import reverse_lazy
+from django.http import JsonResponse
+from django.db.models import Q
 from .models import Product, ProductOption, ItemTypeChoices
 from .forms import ProductForm, ProductOptionFormSet
 
@@ -160,3 +162,58 @@ class ProductDeleteView(LoginRequiredMixin, DeleteView):
         except Exception as e:
             messages.error(request, f'제품 삭제 중 오류가 발생했습니다: {str(e)}')
             return redirect('product_list')
+
+
+@login_required
+def product_price_search(request):
+    """전역 네비게이션용 제품/옵션 가격 검색 API"""
+    query = (request.GET.get('q') or '').strip()
+    if len(query) < 1:
+        return JsonResponse({'query': query, 'results': []})
+
+    products = (
+        Product.objects
+        .filter(
+            Q(name__icontains=query) |
+            Q(product_group__icontains=query) |
+            Q(options__option_detail__icontains=query)
+        )
+        .distinct()
+        .order_by('item_type', 'product_group', 'name')[:20]
+    )
+
+    results = []
+    for product in products:
+        option_qs = product.options.order_by('option_detail')[:50]
+        matched_option_qs = product.options.filter(option_detail__icontains=query).order_by('option_detail')[:10]
+
+        options = [
+            {
+                'id': option.id,
+                'option_detail': option.option_detail,
+                'base_price': int(option.base_price or 0),
+                'is_active': bool(option.is_active),
+            }
+            for option in option_qs
+        ]
+
+        matched_options = [
+            {
+                'id': option.id,
+                'option_detail': option.option_detail,
+                'base_price': int(option.base_price or 0),
+            }
+            for option in matched_option_qs
+        ]
+
+        results.append({
+            'id': product.id,
+            'name': product.name,
+            'item_type': product.item_type,
+            'product_group': product.product_group or '',
+            'base_price': int(product.base_price or 0),
+            'options': options,
+            'matched_options': matched_options,
+        })
+
+    return JsonResponse({'query': query, 'results': results})

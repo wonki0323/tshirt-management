@@ -381,21 +381,7 @@
         <div class="col-12 col-lg-auto">
             <h1 class="mb-0">주문 관리</h1>
         </div>
-        <div class="col-12 col-lg d-flex justify-content-lg-center">
-            <form method="get" class="d-flex flex-wrap align-items-center gap-2 justify-content-center w-100" style="max-width: 520px;">
-                <input type="hidden" name="status" value="{{ status_filter }}">
-                {% if status_filter == 'ARCHIVED' %}
-                <input type="hidden" name="settlement_month" value="{{ selected_settlement_month|default:'current' }}">
-                {% endif %}
-                <label for="customer_name_header" class="form-label mb-0 text-nowrap small">고객명 검색</label>
-                <input type="search" id="customer_name_header" name="customer_name" class="form-control flex-grow-1"
-                       style="min-width: 140px; max-width: 280px;" placeholder="고객명을 입력하세요" value="{{ customer_name_filter }}">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-search"></i> 검색
-                </button>
-            </form>
-        </div>
-        <div class="col-12 col-lg-auto d-flex gap-2 justify-content-lg-end flex-wrap">
+        <div class="col-12 col-lg d-flex gap-2 justify-content-lg-end flex-wrap">
             {% if status_filter == 'ARCHIVED' %}
             <form method="get" class="d-flex align-items-center gap-2">
                 <input type="hidden" name="status" value="ARCHIVED">
@@ -437,7 +423,7 @@
         <!-- 상태 필터 -->
         <div class="mb-3 d-flex flex-wrap justify-content-center gap-2">
             {% for status_value, status_label in status_choices %}
-                <a href="{% url 'order_list' %}?status={{ status_value }}{% if customer_name_filter %}&amp;customer_name={{ customer_name_filter|urlencode }}{% endif %}{% if status_value == 'ARCHIVED' and selected_settlement_month %}&amp;settlement_month={{ selected_settlement_month|urlencode }}{% endif %}" class="btn {% if status_filter == status_value %}btn-primary{% else %}btn-outline-primary{% endif %}">{{ status_label }}</a>
+                <a href="{% url 'order_list' %}?status={{ status_value }}{% if status_value == 'ARCHIVED' and selected_settlement_month %}&amp;settlement_month={{ selected_settlement_month|urlencode }}{% endif %}" class="btn {% if status_filter == status_value %}btn-primary{% else %}btn-outline-primary{% endif %}">{{ status_label }}</a>
             {% endfor %}
         </div>
 
@@ -511,7 +497,7 @@
                             {% for item in order.items.all %}
                                 {% if item.product_option and item.product_option.product.item_type == 'POST_PROCESSING' %}
                                     <span class="badge print-method-badge mb-1" style="background-color: {{ item.product_option.product.display_color|default:'#B0BEC5' }}; border-color: {{ item.product_option.product.display_color|default:'#B0BEC5' }};">
-                                        {{ item.smartstore_product_name }}{% if item.smartstore_option_text %} ({{ item.smartstore_option_text }}){% endif %}
+                                        {{ item.smartstore_product_name }}
                                     </span>
                                 {% endif %}
                             {% endfor %}

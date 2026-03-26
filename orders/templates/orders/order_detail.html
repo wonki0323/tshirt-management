@@ -512,7 +512,7 @@
                                         {% for item in order.items.all %}
                                             {% if item.product_option and item.product_option.product.item_type == 'POST_PROCESSING' %}
                                                 <span class="badge print-method-badge me-1 mb-1" style="background-color: {{ item.product_option.product.display_color|default:'#B0BEC5' }}; border-color: {{ item.product_option.product.display_color|default:'#B0BEC5' }};">
-                                                    {{ item.smartstore_product_name }}{% if item.smartstore_option_text %} ({{ item.smartstore_option_text }}){% endif %}
+                                                    {{ item.smartstore_product_name }}
                                                 </span>
                                             {% endif %}
                                         {% endfor %}
@@ -561,11 +561,11 @@
                     <thead class="table-light">
                         <tr>
                             <th style="width: 5%;">#</th>
-                            <th style="width: 25%;">제품명</th>
+                            <th style="width: 15%;">그룹</th>
+                            <th style="width: 20%;">제품명</th>
                             <th style="width: 25%;">옵션</th>
                             <th style="width: 10%;" class="text-center">수량</th>
                             <th style="width: 12%;" class="text-end">단가</th>
-                            <th style="width: 12%;" class="text-end">원가</th>
                             <th style="width: 12%;" class="text-end">소계</th>
                         </tr>
                     </thead>
@@ -574,15 +574,16 @@
                         <tr>
                             <td>{{ forloop.counter }}</td>
                             <td>
-                                <strong>{{ item.smartstore_product_name }}</strong>
-                                {% if item.product_option %}
-                                    {% if item.product_option.product.item_type != 'POST_PROCESSING' and item.product_option.product.product_group %}
-                                        <br>
-                                        <small class="text-muted">
-                                            <i class="fas fa-layer-group"></i> {{ item.product_option.product.product_group }}
-                                        </small>
-                                    {% endif %}
+                                {% if item.product_option and item.product_option.product.item_type == 'POST_PROCESSING' %}
+                                    후가공
+                                {% elif item.product_option and item.product_option.product.product_group %}
+                                    {{ item.product_option.product.product_group }}
+                                {% else %}
+                                    -
                                 {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ item.smartstore_product_name }}</strong>
                             </td>
                             <td>
                                 {{ item.smartstore_option_text }}
@@ -595,7 +596,6 @@
                             </td>
                             <td class="text-center fw-bold">{{ item.quantity }}개</td>
                             <td class="text-end">{{ item.unit_price|floatformat:0|intcomma }}원</td>
-                            <td class="text-end text-muted">{{ item.unit_cost|floatformat:0|intcomma }}원</td>
                             <td class="text-end fw-bold">{{ item.total_price|floatformat:0|intcomma }}원</td>
                         </tr>
                         {% empty %}
@@ -609,9 +609,9 @@
                     {% if order_items %}
                     <tfoot class="table-light">
                         <tr>
-                            <th colspan="3" class="text-center" style="color: #1a1a1a !important;">총계</th>
+                            <th colspan="4" class="text-center" style="color: #1a1a1a !important;">총계</th>
                             <th class="text-center" style="color: #1a1a1a !important;">{{ physical_items_count }}개</th>
-                            <th colspan="2" class="text-end" style="color: #1a1a1a !important;">합계</th>
+                            <th class="text-end" style="color: #1a1a1a !important;">합계</th>
                             <th class="text-end" style="color: #1a1a1a !important;">{{ order.total_order_amount|floatformat:0|intcomma }}원</th>
                         </tr>
                     </tfoot>
