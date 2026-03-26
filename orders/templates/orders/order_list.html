@@ -111,8 +111,8 @@
     }
 
     .calendar-day.other-month {
-        background-color: #0a0d12;
-        opacity: 0.55;
+        background-color: #1a1a1a;
+        opacity: 1;
     }
 
     .calendar-day.today {
@@ -291,10 +291,14 @@
         margin-bottom: 5px;
         color: #495057;
     }
+
+    .calendar-day-header.weekend {
+        color: #dc3545 !important;
+    }
     
     .calendar-day.other-month {
-        background-color: #f8f9fa;
-        opacity: 0.5;
+        background-color: #1a1a1a;
+        opacity: 1;
     }
     
     .calendar-day.today {
@@ -314,7 +318,7 @@
     }
     
     .calendar-header.saturday {
-        color: #0d6efd;
+        color: #dc3545;
     }
     
     .calendar-order-item {
@@ -336,6 +340,11 @@
     }
     
     /* 상태별 색상 */
+    .calendar-order-item.status-NEW {
+        background-color: #2f3540;
+        color: #edf2ff;
+    }
+
     .calendar-order-item.status-CONSULTING {
         background-color: #1f3a5f; /* muted blue */
         color: #e8f0ff;
@@ -651,6 +660,7 @@
         <!-- 범례 -->
         <div class="mt-3 mb-4">
             <div class="d-flex gap-2 justify-content-center flex-wrap">
+                <div><span class="badge" style="background-color: #2f3540; color: #edf2ff;">등록</span></div>
                 <div><span class="badge" style="background-color: #1f3a5f; color: #e8f0ff;">결제</span></div>
                 <div><span class="badge" style="background-color: #1f4d46; color: #e6fff7;">제작중</span></div>
                 <div><span class="badge" style="background-color: #5a4420; color: #fff6e8;">발송</span></div>
@@ -1519,11 +1529,28 @@ function renderCalendar() {
     const daysInMonth = lastDay.getDate();
     const firstDayOfWeek = firstDay.getDay();
     
+    function getDateKey(year, month, day) {
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    function getOrdersByDate(year, month, day) {
+        const dateKey = getDateKey(year, month, day);
+        return calendarOrders.filter(order => order.due_date === dateKey);
+    }
+
     // 이전 달 날짜들
     const prevMonthLastDay = new Date(currentYear, currentMonth - 1, 0).getDate();
+    let prevYear = currentYear;
+    let prevMonth = currentMonth - 1;
+    if (prevMonth <= 0) {
+        prevMonth = 12;
+        prevYear -= 1;
+    }
     for (let i = firstDayOfWeek - 1; i >= 0; i--) {
         const day = prevMonthLastDay - i;
-        const dayEl = createDayElement(day, true, null);
+        const dayOrders = getOrdersByDate(prevYear, prevMonth, day);
+        const dayOfWeek = new Date(prevYear, prevMonth - 1, day).getDay();
+        const dayEl = createDayElement(day, true, dayOrders, false, dayOfWeek);
         calendar.appendChild(dayEl);
     }
     
@@ -1540,21 +1567,30 @@ function renderCalendar() {
                         date.getMonth() === today.getMonth() && 
                         date.getDate() === today.getDate();
         
-        const dayEl = createDayElement(day, false, dayOrders, isToday);
+        const dayOfWeek = date.getDay();
+        const dayEl = createDayElement(day, false, dayOrders, isToday, dayOfWeek);
         calendar.appendChild(dayEl);
     }
     
     // 다음 달 날짜들 (6주 채우기)
     const totalCells = calendar.children.length - 7; // 헤더 제외
     const remainingCells = (Math.ceil(totalCells / 7) * 7) - totalCells;
+    let nextYear = currentYear;
+    let nextMonth = currentMonth + 1;
+    if (nextMonth > 12) {
+        nextMonth = 1;
+        nextYear += 1;
+    }
     for (let day = 1; day <= remainingCells; day++) {
-        const dayEl = createDayElement(day, true, null);
+        const dayOrders = getOrdersByDate(nextYear, nextMonth, day);
+        const dayOfWeek = new Date(nextYear, nextMonth - 1, day).getDay();
+        const dayEl = createDayElement(day, true, dayOrders, false, dayOfWeek);
         calendar.appendChild(dayEl);
     }
 }
 
 // 날짜 요소 생성
-function createDayElement(day, isOtherMonth, orders, isToday = false) {
+function createDayElement(day, isOtherMonth, orders, isToday = false, dayOfWeek = null) {
     const dayEl = document.createElement('div');
     dayEl.className = 'calendar-day';
     if (isOtherMonth) dayEl.classList.add('other-month');
@@ -1572,6 +1608,9 @@ function createDayElement(day, isOtherMonth, orders, isToday = false) {
     // 날짜 헤더
     const header = document.createElement('div');
     header.className = 'calendar-day-header';
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+        header.classList.add('weekend');
+    }
     
     // 해당 날짜의 총 개수 및 진행 상태별 계산
     if (orders && orders.length > 0) {

@@ -154,15 +154,23 @@ class OrderListView(LoginRequiredMixin, ListView):
         start_date = datetime(year, month, 1).date()
         end_date = datetime(year, month, last_day).date()
         
-        # 해당 월의 주문들 (NEW만 제외, 나머지 모든 상태 포함)
+        # 캘린더에 실제 보이는 6주(이전/다음달 포함) 범위 계산
+        # Python weekday: 월(0)~일(6), 캘린더는 일(0)~토(6)
+        start_weekday_sun0 = (start_date.weekday() + 1) % 7
+        display_start_date = start_date - timedelta(days=start_weekday_sun0)
+        display_end_date = display_start_date + timedelta(days=41)
+        
+        # 해당 월의 주문들 (모든 상태 포함)
         # due_date가 있으면 due_date 기준, 없으면 payment_date 기준
         from django.db.models import Q
         
         calendar_orders = Order.objects.filter(
-            Q(due_date__gte=start_date, due_date__lte=end_date) |
-            Q(due_date__isnull=True, payment_date__gte=start_date, payment_date__lte=end_date)
-        ).exclude(
-            status=Status.NEW
+            Q(due_date__gte=display_start_date, due_date__lte=display_end_date) |
+            Q(
+                due_date__isnull=True,
+                payment_date__date__gte=display_start_date,
+                payment_date__date__lte=display_end_date
+            )
         ).prefetch_related('items__product_option__product')
         
         # JSON 변환용 데이터

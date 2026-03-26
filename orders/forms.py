@@ -221,8 +221,8 @@ class ManualOrderForm(forms.Form):
             shipping_cost=self.cleaned_data.get('shipping_cost', Decimal('3500')),
             total_order_amount=self.cleaned_data.get('total_order_amount', Decimal('0')),
             payment_date=timezone.now(),  # 자동으로 현재 시각 설정
-            # 마감일은 등록 단계에서 입력받지 않고, 결제 단계 전환 시 자동 설정
-            due_date=None
+            # 수동 등록에서 선택한 발송 마감일 저장 (미선택 시 None)
+            due_date=self.cleaned_data.get('due_date')
         )
         
         # 제품 옵션 선택 처리 (수량 포함)
