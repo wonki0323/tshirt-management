@@ -4,6 +4,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, DetailView
 from django.views.decorators.http import require_POST
 from django.db.models import Q
+from django.db.models.functions import TruncMonth
+from django.db.models import Count
 from django.contrib import messages
 from django.http import HttpResponse
 from django.utils import timezone
@@ -44,6 +46,21 @@ class OrderListView(LoginRequiredMixin, ListView):
         status = self.request.GET.get('status') or Status.NEW
         customer_name = (self.request.GET.get('customer_name') or '').strip()
         queryset = queryset.filter(status=status)
+        if status == Status.ARCHIVED:
+            settlement_month = (self.request.GET.get('settlement_month') or 'current').strip()
+            if settlement_month != 'current':
+                try:
+                    year, month = map(int, settlement_month.split('-'))
+                    queryset = queryset.filter(
+                        payment_date__year=year,
+                        payment_date__month=month,
+                    )
+                except (ValueError, TypeError):
+                    cutoff = timezone.now() - timedelta(days=15)
+                    queryset = queryset.filter(payment_date__gte=cutoff)
+            else:
+                cutoff = timezone.now() - timedelta(days=15)
+                queryset = queryset.filter(payment_date__gte=cutoff)
         if customer_name:
             queryset = queryset.filter(customer_name__icontains=customer_name)
         
@@ -56,9 +73,44 @@ class OrderListView(LoginRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['status_filter'] = self.request.GET.get('status') or Status.NEW
+        status_filter = self.request.GET.get('status') or Status.NEW
+        context['status_filter'] = status_filter
         context['customer_name_filter'] = (self.request.GET.get('customer_name') or '').strip()
         context['status_choices'] = Status.choices
+        if status_filter == Status.ARCHIVED:
+            selected_settlement_month = (self.request.GET.get('settlement_month') or 'current').strip()
+            context['selected_settlement_month'] = selected_settlement_month
+            month_options = []
+            now = timezone.now()
+            month_options.append({'value': 'current', 'label': '현재'})
+
+            monthly_counts_qs = (
+                Order.objects.filter(status=Status.ARCHIVED)
+                .annotate(month_start=TruncMonth('payment_date'))
+                .values('month_start')
+                .annotate(count=Count('id'))
+            )
+            monthly_counts = {}
+            for row in monthly_counts_qs:
+                if row['month_start']:
+                    key = row['month_start'].strftime('%Y-%m')
+                    monthly_counts[key] = row['count']
+
+            for i in range(1, 13):
+                year = now.year
+                month = now.month - i
+                while month <= 0:
+                    month += 12
+                    year -= 1
+                key = f'{year}-{month:02d}'
+                count = monthly_counts.get(key, 0)
+                month_options.append({
+                    'value': key,
+                    'label': f'{year}년 {month}월 ({count}건)',
+                    'count': count,
+                    'disabled': count == 0,
+                })
+            context['settlement_month_options'] = month_options
         
         # 캘린더 뷰용 데이터
         import json
@@ -143,6 +195,7 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         order = self.get_object()
+        from products.models import ItemTypeChoices
         
         # 주문 항목들 가져오기 (이미 prefetch됨)
         order_items = order.items.all()
@@ -151,7 +204,7 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
         # 실물 제품 총 개수 계산
         physical_items_count = sum(
             item.quantity for item in order_items
-            if item.product_option and item.product_option.product.is_physical
+            if item.product_option and item.product_option.product.item_type == ItemTypeChoices.PRODUCT
         )
         context['physical_items_count'] = physical_items_count
         
@@ -597,11 +650,14 @@ def manual_order_create(request):
     else:
         form = ManualOrderForm()
     
-    # 제품별로 옵션 그룹핑 (계층 구조)
-    from products.models import Product
+    # 제품/후가공 옵션 그룹핑
+    from products.models import Product, ItemTypeChoices
     
     products_with_options = []
-    products = Product.objects.filter(is_active=True).prefetch_related('options')
+    products = Product.objects.filter(
+        is_active=True,
+        item_type=ItemTypeChoices.PRODUCT
+    ).prefetch_related('options').order_by('product_group', 'name')
     
     for product in products:
         options = product.options.filter(is_active=True)
@@ -620,11 +676,37 @@ def manual_order_create(request):
                     for opt in options
                 ]
             })
+
+    post_processing_with_options = []
+    post_process_items = Product.objects.filter(
+        is_active=True,
+        item_type=ItemTypeChoices.POST_PROCESSING
+    ).prefetch_related('options').order_by('name')
+
+    for item in post_process_items:
+        options = item.options.filter(is_active=True)
+        if options.exists():
+            post_processing_with_options.append({
+                'product': item,
+                'options': [
+                    {
+                        'id': opt.id,
+                        'option_detail': opt.option_detail,
+                        'display_color': item.display_color,
+                        'base_price': opt.base_price,
+                        'product_base_price': item.base_price,
+                        'total_price': item.base_price + opt.base_price,
+                        'base_cost': opt.base_cost,
+                    }
+                    for opt in options
+                ]
+            })
     
     return render(request, 'orders/manual_order_form.html', {
         'form': form,
         'title': '수동 주문 등록',
-        'products_with_options': products_with_options
+        'products_with_options': products_with_options,
+        'post_processing_with_options': post_processing_with_options
     })
 
 
@@ -683,7 +765,6 @@ def search_customer_orders(request):
                 'customer_phone': order.customer_phone,
                 'shipping_address': order.shipping_address,
                 'customer_memo': order.customer_memo,
-                'print_method': order.print_method,
                 'total_amount': float(order.total_order_amount),
                 'payment_date': order.payment_date.strftime('%Y-%m-%d %H:%M'),
                 'status': order.get_status_display(),
@@ -705,7 +786,7 @@ def debug_upload(request):
 def order_update(request, pk):
     """주문 정보 수정"""
     from .forms import OrderUpdateForm
-    from products.models import Product, ProductOption
+    from products.models import Product, ProductOption, ItemTypeChoices
     from .models import OrderItem, OrderThumbnail
     from decimal import Decimal
     import json
@@ -818,7 +899,10 @@ def order_update(request, pk):
         form = OrderUpdateForm(instance=order)
     
     # 제품 데이터 준비 (계층형 선택용) - 미리 로드
-    products = Product.objects.filter(is_active=True).prefetch_related('options')
+    products = Product.objects.filter(
+        is_active=True,
+        item_type=ItemTypeChoices.PRODUCT
+    ).prefetch_related('options').order_by('product_group', 'name')
     
     products_with_options = []
     for product in products:
@@ -833,6 +917,30 @@ def order_update(request, pk):
                         'base_price': opt.base_price,
                         'product_base_price': product.base_price,
                         'total_price': product.base_price + opt.base_price,
+                    }
+                    for opt in options
+                ]
+            })
+
+    post_processing_with_options = []
+    post_process_items = Product.objects.filter(
+        is_active=True,
+        item_type=ItemTypeChoices.POST_PROCESSING
+    ).prefetch_related('options').order_by('name')
+
+    for item in post_process_items:
+        options = item.options.filter(is_active=True)
+        if options.exists():
+            post_processing_with_options.append({
+                'product': item,
+                'options': [
+                    {
+                        'id': opt.id,
+                        'option_detail': opt.option_detail,
+                        'display_color': item.display_color,
+                        'base_price': opt.base_price,
+                        'product_base_price': item.base_price,
+                        'total_price': item.base_price + opt.base_price,
                     }
                     for opt in options
                 ]
@@ -873,6 +981,7 @@ def order_update(request, pk):
         'form': form,
         'order': order,
         'products_with_options': products_with_options,
+        'post_processing_with_options': post_processing_with_options,
         'existing_items_json': json.dumps(existing_items)
     })
 

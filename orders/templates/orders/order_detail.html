@@ -40,6 +40,21 @@
         color: #e6ebf2 !important;
     }
 
+    .print-method-badge {
+        color: #111111 !important;
+        border: 1px solid transparent;
+    }
+
+    .print-method-badge.dtg {
+        background-color: #6ea7ae !important;
+        border-color: #5f9197 !important;
+    }
+
+    .print-method-badge.dtf {
+        background-color: #ae756e !important;
+        border-color: #95645e !important;
+    }
+
     /* 메모: 어두운 빨간 박스 */
     .customer-memo-darkred {
         background-color: #2a1114;
@@ -490,14 +505,22 @@
                                 <th>배송지</th>
                                 <td>{{ order.shipping_address|linebreaks|default:"-" }}</td>
                             </tr>
-                            {% if order.print_method %}
                             <tr>
-                                <th>인쇄 방법</th>
+                                <th>후가공</th>
                                 <td>
-                                    <span class="badge bg-info">{{ order.get_print_method_display }}</span>
+                                    {% if order.post_processing_display %}
+                                        {% for item in order.items.all %}
+                                            {% if item.product_option and item.product_option.product.item_type == 'POST_PROCESSING' %}
+                                                <span class="badge print-method-badge me-1 mb-1" style="background-color: {{ item.product_option.product.display_color|default:'#B0BEC5' }}; border-color: {{ item.product_option.product.display_color|default:'#B0BEC5' }};">
+                                                    {{ item.smartstore_product_name }}{% if item.smartstore_option_text %} ({{ item.smartstore_option_text }}){% endif %}
+                                                </span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
                                 </td>
                             </tr>
-                            {% endif %}
                             {% if order.tracking_number %}
                             <tr>
                                 <th>송장번호</th>
@@ -553,10 +576,12 @@
                             <td>
                                 <strong>{{ item.smartstore_product_name }}</strong>
                                 {% if item.product_option %}
-                                    <br>
-                                    <small class="text-muted">
-                                        <i class="fas fa-tag"></i> {{ item.product_option.product.name }}
-                                    </small>
+                                    {% if item.product_option.product.item_type != 'POST_PROCESSING' and item.product_option.product.product_group %}
+                                        <br>
+                                        <small class="text-muted">
+                                            <i class="fas fa-layer-group"></i> {{ item.product_option.product.product_group }}
+                                        </small>
+                                    {% endif %}
                                 {% endif %}
                             </td>
                             <td>
@@ -584,10 +609,10 @@
                     {% if order_items %}
                     <tfoot class="table-light">
                         <tr>
-                            <th colspan="3" class="text-center">총계</th>
-                            <th class="text-center">{{ physical_items_count }}개</th>
-                            <th colspan="2" class="text-end">합계</th>
-                            <th class="text-end">{{ order.total_order_amount|floatformat:0|intcomma }}원</th>
+                            <th colspan="3" class="text-center" style="color: #1a1a1a !important;">총계</th>
+                            <th class="text-center" style="color: #1a1a1a !important;">{{ physical_items_count }}개</th>
+                            <th colspan="2" class="text-end" style="color: #1a1a1a !important;">합계</th>
+                            <th class="text-end" style="color: #1a1a1a !important;">{{ order.total_order_amount|floatformat:0|intcomma }}원</th>
                         </tr>
                     </tfoot>
                     {% endif %}

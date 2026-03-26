@@ -3,6 +3,15 @@
 
 {% block title %}순이익 요약{% endblock %}
 
+{% block extra_css %}
+<style>
+    .net-profit-box-text,
+    .net-profit-box-text * {
+        color: #1a1a1a !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -63,7 +72,7 @@
     </div>
 
     <!-- 현재 조회 기간 표시 -->
-    <div class="alert alert-info mb-4">
+    <div class="alert alert-info mb-4 net-profit-box-text">
         <i class="fas fa-calendar-alt"></i> <strong>{{ year }}년 {{ month }}월</strong> 순이익 현황
     </div>
 
@@ -74,7 +83,7 @@
         </div>
         <div class="card-body">
             <!-- 계산식 -->
-            <div class="alert alert-light mb-4">
+            <div class="alert alert-light mb-4 net-profit-box-text">
                 <h6 class="mb-3">계산식:</h6>
                 {% if include_smartstore_fee %}
                 <p class="mb-1">
@@ -110,19 +119,19 @@
             <!-- 주요 수치 표시 -->
             <div class="row text-center">
                 <div class="col-md-4 mb-3">
-                    <div class="p-4 bg-light rounded">
+                    <div class="p-4 bg-light rounded net-profit-box-text">
                         <h6 class="text-muted mb-2">순이익 (부가세 포함)</h6>
                         <h2 class="display-5 text-success mb-0">{{ net_profit|floatformat:0|intcomma }}원</h2>
                     </div>
                 </div>
                 <div class="col-md-4 mb-3">
-                    <div class="p-4 bg-light rounded">
+                    <div class="p-4 bg-light rounded net-profit-box-text">
                         <h6 class="text-muted mb-2">부가세 금액</h6>
                         <h2 class="display-5 text-warning mb-0">{{ vat_amount|floatformat:0|intcomma }}원</h2>
                     </div>
                 </div>
                 <div class="col-md-4 mb-3">
-                    <div class="p-4 bg-primary text-white rounded">
+                    <div class="p-4 bg-primary text-white rounded net-profit-box-text">
                         <h6 class="mb-2" style="opacity: 0.9;">부가세 제외 순이익</h6>
                         <h2 class="display-5 mb-0">{{ vat_exclusive_profit|floatformat:0|intcomma }}원</h2>
                     </div>
@@ -145,7 +154,7 @@
                     <p class="mb-0"><strong>수수료:</strong> <span class="text-danger">{{ smartstore_fee|floatformat:0|intcomma }}원</span></p>
                 </div>
                 <div class="col-md-6">
-                    <div class="alert alert-warning mb-0">
+                    <div class="alert alert-warning mb-0 net-profit-box-text">
                         <small>
                             <i class="fas fa-info-circle"></i> 
                             스마트스토어 수수료는 매출의 6%로 보수적으로 계산되었습니다.
@@ -166,26 +175,26 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-md-3 mb-3">
-                    <div class="text-center p-3 border rounded">
+                    <div class="text-center p-3 border rounded net-profit-box-text">
                         <h6 class="text-muted">매출</h6>
                         <h4 class="text-primary mb-0">{{ total_revenue|floatformat:0|intcomma }}원</h4>
                     </div>
                 </div>
                 <div class="col-md-3 mb-3">
-                    <div class="text-center p-3 border rounded">
+                    <div class="text-center p-3 border rounded net-profit-box-text">
                         <h6 class="text-muted">매입</h6>
                         <h4 class="text-info mb-0">{{ total_purchase|floatformat:0|intcomma }}원</h4>
                     </div>
                 </div>
                 <div class="col-md-3 mb-3">
-                    <div class="text-center p-3 border rounded">
+                    <div class="text-center p-3 border rounded net-profit-box-text">
                         <h6 class="text-muted">지출</h6>
                         <h4 class="text-warning mb-0">{{ total_expense|floatformat:0|intcomma }}원</h4>
                     </div>
                 </div>
                 {% if include_smartstore_fee %}
                 <div class="col-md-3 mb-3">
-                    <div class="text-center p-3 border rounded">
+                    <div class="text-center p-3 border rounded net-profit-box-text">
                         <h6 class="text-muted">수수료</h6>
                         <h4 class="text-secondary mb-0">{{ smartstore_fee|floatformat:0|intcomma }}원</h4>
                     </div>

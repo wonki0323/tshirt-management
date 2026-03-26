@@ -78,6 +78,21 @@
         font-weight: 400;
     }
 
+    .print-method-badge {
+        color: #111111 !important;
+        border: 1px solid transparent;
+    }
+
+    .print-method-badge.dtg {
+        background-color: #6ea7ae !important;
+        border-color: #5f9197 !important;
+    }
+
+    .print-method-badge.dtf {
+        background-color: #ae756e !important;
+        border-color: #95645e !important;
+    }
+
     .form-control,
     .form-select {
         border-radius: 0 !important;
@@ -369,6 +384,9 @@
         <div class="col-12 col-lg d-flex justify-content-lg-center">
             <form method="get" class="d-flex flex-wrap align-items-center gap-2 justify-content-center w-100" style="max-width: 520px;">
                 <input type="hidden" name="status" value="{{ status_filter }}">
+                {% if status_filter == 'ARCHIVED' %}
+                <input type="hidden" name="settlement_month" value="{{ selected_settlement_month|default:'current' }}">
+                {% endif %}
                 <label for="customer_name_header" class="form-label mb-0 text-nowrap small">고객명 검색</label>
                 <input type="search" id="customer_name_header" name="customer_name" class="form-control flex-grow-1"
                        style="min-width: 140px; max-width: 280px;" placeholder="고객명을 입력하세요" value="{{ customer_name_filter }}">
@@ -378,6 +396,21 @@
             </form>
         </div>
         <div class="col-12 col-lg-auto d-flex gap-2 justify-content-lg-end flex-wrap">
+            {% if status_filter == 'ARCHIVED' %}
+            <form method="get" class="d-flex align-items-center gap-2">
+                <input type="hidden" name="status" value="ARCHIVED">
+                {% if customer_name_filter %}
+                <input type="hidden" name="customer_name" value="{{ customer_name_filter }}">
+                {% endif %}
+                <select name="settlement_month" class="form-select" style="min-width: 140px;" onchange="this.form.submit()">
+                    {% for opt in settlement_month_options %}
+                    <option value="{{ opt.value }}" {% if selected_settlement_month == opt.value %}selected{% endif %} {% if opt.disabled %}disabled{% endif %}>
+                        {{ opt.label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </form>
+            {% endif %}
             <a href="{% url 'manual_order_create' %}" class="btn btn-primary">
                 <i class="fas fa-plus"></i> 수동 등록
             </a>
@@ -404,7 +437,7 @@
         <!-- 상태 필터 -->
         <div class="mb-3 d-flex flex-wrap justify-content-center gap-2">
             {% for status_value, status_label in status_choices %}
-                <a href="{% url 'order_list' %}?status={{ status_value }}{% if customer_name_filter %}&amp;customer_name={{ customer_name_filter|urlencode }}{% endif %}" class="btn {% if status_filter == status_value %}btn-primary{% else %}btn-outline-primary{% endif %}">{{ status_label }}</a>
+                <a href="{% url 'order_list' %}?status={{ status_value }}{% if customer_name_filter %}&amp;customer_name={{ customer_name_filter|urlencode }}{% endif %}{% if status_value == 'ARCHIVED' and selected_settlement_month %}&amp;settlement_month={{ selected_settlement_month|urlencode }}{% endif %}" class="btn {% if status_filter == status_value %}btn-primary{% else %}btn-outline-primary{% endif %}">{{ status_label }}</a>
             {% endfor %}
         </div>
 
@@ -423,7 +456,7 @@
                     <th>주문번호</th>
                     <th>상태</th>
                     <th>고객명</th>
-                    <th>인쇄방법</th>
+                    <th>후가공</th>
                     <th>주문 제품</th>
                     <th>총금액</th>
                     <th>결제일</th>
@@ -474,21 +507,27 @@
                     </td>
                     <td>{{ order.customer_name }}</td>
                     <td class="text-center">
-                        {% if order.print_method %}
-                            <span class="badge bg-info">{{ order.get_print_method_display }}</span>
+                        {% if order.post_processing_display %}
+                            {% for item in order.items.all %}
+                                {% if item.product_option and item.product_option.product.item_type == 'POST_PROCESSING' %}
+                                    <span class="badge print-method-badge mb-1" style="background-color: {{ item.product_option.product.display_color|default:'#B0BEC5' }}; border-color: {{ item.product_option.product.display_color|default:'#B0BEC5' }};">
+                                        {{ item.smartstore_product_name }}{% if item.smartstore_option_text %} ({{ item.smartstore_option_text }}){% endif %}
+                                    </span>
+                                {% endif %}
+                            {% endfor %}
                         {% else %}
                             <span class="text-muted">-</span>
                         {% endif %}
                     </td>
                     <td>
-                        {% if order.items.count > 0 %}
-                            {% with first_item=order.items.first %}
+                        {% if order.product_only_items %}
+                            {% with first_item=order.product_only_items.0 %}
                             <div class="product-dropdown-wrapper">
                                 <button type="button" class="product-dropdown-btn" data-order-id="{{ order.id }}">
-                                    <span class="btn-text">{{ first_item.smartstore_product_name }}{% if order.items.count > 1 %} 외 {{ order.items.count|add:"-1" }}{% endif %}</span>
+                                    <span class="btn-text">{{ first_item.smartstore_product_name }}{% if order.product_only_items|length > 1 %} 외 {{ order.product_only_items|length|add:"-1" }}{% endif %}</span>
                                 </button>
                                 <div class="product-dropdown-menu" id="product-menu-{{ order.id }}">
-                                    {% for item in order.items.all %}
+                                    {% for item in order.product_only_items %}
                                         <div class="product-item">
                                             {{ item.smartstore_product_name }}{% if item.smartstore_option_text %} ({{ item.smartstore_option_text }}){% endif %} x{{ item.quantity }}
                                         </div>
@@ -569,7 +608,7 @@
         <ul class="pagination justify-content-center">
             {% if page_obj.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}{% if customer_name_filter %}&amp;customer_name={{ customer_name_filter|urlencode }}{% endif %}">이전</a>
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}{% if customer_name_filter %}&amp;customer_name={{ customer_name_filter|urlencode }}{% endif %}{% if status_filter == 'ARCHIVED' and selected_settlement_month %}&amp;settlement_month={{ selected_settlement_month|urlencode }}{% endif %}">이전</a>
                 </li>
             {% endif %}
             <li class="page-item active">
@@ -577,7 +616,7 @@
             </li>
             {% if page_obj.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}{% if customer_name_filter %}&amp;customer_name={{ customer_name_filter|urlencode }}{% endif %}">다음</a>
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}{% if customer_name_filter %}&amp;customer_name={{ customer_name_filter|urlencode }}{% endif %}{% if status_filter == 'ARCHIVED' and selected_settlement_month %}&amp;settlement_month={{ selected_settlement_month|urlencode }}{% endif %}">다음</a>
                 </li>
             {% endif %}
         </ul>

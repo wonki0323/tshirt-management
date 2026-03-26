@@ -61,6 +61,23 @@
         font-size: 0.85rem;
         font-weight: 500;
     }
+
+    .text-gray-10 {
+        color: #1a1a1a !important;
+    }
+
+    .month-selector .form-label,
+    .month-selector .col-form-label,
+    .month-selector .form-check-label {
+        color: #1a1a1a !important;
+    }
+
+    .order-table tfoot td,
+    .order-table tfoot .text-primary,
+    .order-table tfoot .text-danger,
+    .order-table tfoot .text-success {
+        color: #1a1a1a !important;
+    }
 </style>
 {% endblock %}
 
@@ -74,7 +91,7 @@
     <div class="month-selector">
         <form method="get" class="row align-items-center">
             <div class="col-auto">
-                <label for="month-select" class="col-form-label fw-bold">
+                <label for="month-select" class="col-form-label fw-bold text-gray-10">
                     <i class="fas fa-calendar-alt me-2"></i>조회 월:
                 </label>
             </div>

@@ -16,12 +16,6 @@ class Status(models.TextChoices):
     CANCELED = 'CANCELED', '주문 취소'
 
 
-class PrintMethod(models.TextChoices):
-    """인쇄 방법"""
-    DTG = 'DTG', 'DTG (Direct to Garment)'
-    DTF = 'DTF', 'DTF (Direct to Film)'
-
-
 class Order(models.Model):
     """주문 기본 정보"""
     smartstore_order_id = models.CharField(
@@ -58,14 +52,6 @@ class Order(models.Model):
         default='',
         verbose_name="고객 메모",
         help_text="고객에 대한 특이사항이나 주문 관련 메모"
-    )
-    print_method = models.CharField(
-        max_length=10,
-        choices=PrintMethod.choices,
-        blank=True,
-        null=True,
-        verbose_name="인쇄 방법",
-        help_text="DTG 또는 DTF 선택"
     )
     shipping_cost = models.DecimalField(
         max_digits=10,
@@ -146,6 +132,24 @@ class Order(models.Model):
            'GOODS'가 없으면 True (일반 주문), 있으면 False를 반환합니다."""
         has_goods = self.items.filter(product_option__product__category='GOODS').exists()
         return not has_goods
+
+    @property
+    def post_processing_display(self):
+        labels = []
+        for item in self.items.all():
+            if item.product_option and getattr(item.product_option.product, 'item_type', '') == 'POST_PROCESSING':
+                if item.smartstore_option_text:
+                    labels.append(f"{item.smartstore_product_name} ({item.smartstore_option_text})")
+                else:
+                    labels.append(item.smartstore_product_name)
+        return ", ".join(labels)
+
+    @property
+    def product_only_items(self):
+        return [
+            item for item in self.items.all()
+            if item.product_option and getattr(item.product_option.product, 'item_type', '') == 'PRODUCT'
+        ]
 
 
 class OrderItem(models.Model):

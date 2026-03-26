@@ -70,14 +70,13 @@ class OrderAdmin(admin.ModelAdmin):
         'smartstore_order_id', 
         'customer_name', 
         'status',
-        'print_method',
         'payment_date', 
         'due_date',
         'total_order_amount',
         'display_total_cost',
         'display_profit'
     ]
-    list_filter = ['status', 'print_method', 'payment_date']
+    list_filter = ['status', 'payment_date']
     search_fields = ['smartstore_order_id', 'customer_name', 'customer_phone', 'customer_memo']
     ordering = ['-payment_date']
     inlines = [OrderItemInline, OrderThumbnailInline, OrderCompletionPhotoInline]
@@ -85,7 +84,7 @@ class OrderAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('주문 정보', {
-            'fields': ('smartstore_order_id', 'status', 'payment_date', 'print_method')
+            'fields': ('smartstore_order_id', 'status', 'payment_date')
         }),
         ('고객 정보', {
             'fields': ('customer_name', 'customer_phone', 'shipping_address', 'customer_memo')

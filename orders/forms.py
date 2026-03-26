@@ -6,7 +6,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from decimal import Decimal
-from .models import Order, OrderItem, PrintMethod
+from .models import Order, OrderItem
 from products.models import ProductOption
 from utils.customer_utils import generate_customer_id
 
@@ -57,16 +57,6 @@ class ManualOrderForm(forms.Form):
             'rows': 3,
             'placeholder': '고객에 대한 특이사항이나 주문 관련 메모 (선택)',
             'id': 'id_customer_memo'
-        })
-    )
-    
-    print_method = forms.ChoiceField(
-        choices=[('', '선택안함')] + list(PrintMethod.choices),
-        label="인쇄 방법",
-        required=False,
-        widget=forms.Select(attrs={
-            'class': 'form-control',
-            'id': 'id_print_method'
         })
     )
     
@@ -228,7 +218,6 @@ class ManualOrderForm(forms.Form):
             customer_phone=customer_phone or '',
             shipping_address=self.cleaned_data.get('shipping_address', '') or '',
             customer_memo=self.cleaned_data.get('customer_memo', '') or '',
-            print_method=self.cleaned_data.get('print_method') or None,
             shipping_cost=self.cleaned_data.get('shipping_cost', Decimal('3500')),
             total_order_amount=self.cleaned_data.get('total_order_amount', Decimal('0')),
             payment_date=timezone.now(),  # 자동으로 현재 시각 설정
@@ -292,7 +281,7 @@ class OrderUpdateForm(forms.ModelForm):
         model = Order
         fields = [
             'customer_name', 'customer_phone', 'shipping_address',
-            'customer_memo', 'print_method', 'tracking_number',
+            'customer_memo', 'tracking_number',
             'shipping_cost', 'total_order_amount', 'due_date', 'status'
         ]
         widgets = {
@@ -313,9 +302,6 @@ class OrderUpdateForm(forms.ModelForm):
                 'class': 'form-control',
                 'rows': 3,
                 'placeholder': '고객 메모'
-            }),
-            'print_method': forms.Select(attrs={
-                'class': 'form-control'
             }),
             'tracking_number': forms.TextInput(attrs={
                 'class': 'form-control',

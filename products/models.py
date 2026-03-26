@@ -6,6 +6,10 @@ class CategoryChoices(models.TextChoices):
     GOODS = 'GOODS', '굿즈 (시안 필요)'
     GENERAL = 'GENERAL', '일반 (시안 불필요)'
 
+class ItemTypeChoices(models.TextChoices):
+    PRODUCT = 'PRODUCT', '제품'
+    POST_PROCESSING = 'POST_PROCESSING', '후가공'
+
 
 class Product(models.Model):
     """기본 제품 모델"""
@@ -20,6 +24,26 @@ class Product(models.Model):
         default=CategoryChoices.GOODS,
         verbose_name="카테고리",
         help_text="굿즈는 시안이 필요하고, 일반은 시안이 불필요합니다"
+    )
+    item_type = models.CharField(
+        max_length=20,
+        choices=ItemTypeChoices.choices,
+        default=ItemTypeChoices.PRODUCT,
+        verbose_name="항목 유형",
+        help_text="제품 또는 후가공 항목을 선택하세요"
+    )
+    product_group = models.CharField(
+        max_length=50,
+        default='반팔',
+        blank=True,
+        verbose_name="제품 그룹",
+        help_text="예: 반팔, 긴팔, 스웻셔츠, 기타"
+    )
+    display_color = models.CharField(
+        max_length=20,
+        default='#B0BEC5',
+        verbose_name="표시 박스색",
+        help_text="후가공 표시 박스에 사용할 색상"
     )
     base_price = models.DecimalField(
         max_digits=10,
@@ -58,6 +82,15 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        # 항목 유형 기준 기본 동작 고정
+        if self.item_type == ItemTypeChoices.POST_PROCESSING:
+            self.is_active = True
+            self.product_group = ''
+        if self.item_type == ItemTypeChoices.PRODUCT:
+            self.is_physical = True
+        super().save(*args, **kwargs)
+
 
 class ProductOption(models.Model):
     """제품 세부 옵션 및 원가 관리"""
@@ -71,6 +104,13 @@ class ProductOption(models.Model):
         max_length=200,
         verbose_name="옵션 상세",
         help_text="예: 화이트 / L 사이즈"
+    )
+    option_color = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        verbose_name="색상",
+        help_text="후가공 선택 시 사용할 색상"
     )
     base_price = models.DecimalField(
         max_digits=10,

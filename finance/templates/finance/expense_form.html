@@ -3,6 +3,52 @@
 
 {% block title %}{{ title }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .expense-form-gray10,
+    .expense-form-gray10 * {
+        color: #1a1a1a !important;
+    }
+
+    .card-header.bg-warning h3,
+    .card-header.bg-warning h3 i {
+        color: #111111 !important;
+    }
+
+    .expense-form-gray10 .form-control,
+    .expense-form-gray10 .form-select,
+    .expense-form-gray10 textarea {
+        color: #cccccc !important;
+    }
+
+    .expense-form-gray10 .form-control::placeholder,
+    .expense-form-gray10 .form-select::placeholder,
+    .expense-form-gray10 textarea::placeholder {
+        color: #cccccc !important;
+        opacity: 1;
+    }
+
+    /* 폴다운 목록 기본 텍스트를 70% 그레이로 */
+    .expense-form-gray10 .form-select option {
+        color: #b3b3b3 !important;
+        background-color: #0f141b !important;
+    }
+
+    /* 선택(활성)된 옵션은 더 밝게 표시 */
+    .expense-form-gray10 .form-select option:checked {
+        color: #f3f4f6 !important;
+        background-color: #2563eb !important;
+    }
+
+    /* 날짜 선택 아이콘 가시성 향상 */
+    .expense-form-gray10 input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1) brightness(1.15);
+        opacity: 0.9;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
@@ -14,7 +60,7 @@
                     </h3>
                 </div>
                 <div class="card-body">
-                    <form method="post">
+                    <form method="post" class="expense-form-gray10">
                         {% csrf_token %}
                         
                         <div class="row mb-3">
@@ -69,7 +115,7 @@
                             </div>
                         </div>
 
-                        <div class="alert alert-warning">
+                        <div class="alert alert-warning expense-form-gray10">
                             <strong>총 지출 금액:</strong>
                             <span id="total-amount">0원</span>
                         </div>
@@ -91,6 +137,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.getElementById('{{ form.date.id_for_label }}');
     const amountInput = document.getElementById('{{ form.amount.id_for_label }}');
     const quantityInput = document.getElementById('{{ form.quantity.id_for_label }}');
     const totalAmountSpan = document.getElementById('total-amount');
@@ -105,6 +152,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     amountInput.addEventListener('input', updateTotal);
     quantityInput.addEventListener('input', updateTotal);
+
+    // 날짜 필드를 클릭하면 달력 picker를 바로 열어줌 (지원 브라우저)
+    if (dateInput) {
+        dateInput.addEventListener('focus', function() {
+            if (typeof this.showPicker === 'function') {
+                this.showPicker();
+            }
+        });
+        dateInput.addEventListener('click', function() {
+            if (typeof this.showPicker === 'function') {
+                this.showPicker();
+            }
+        });
+    }
     
     // 초기값 계산
     updateTotal();

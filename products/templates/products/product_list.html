@@ -29,23 +29,22 @@
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">{{ product.name }}</h5>
-                    <span class="badge {% if product.category == 'GOODS' %}bg-danger{% else %}bg-primary{% endif %}">
-                        {{ product.get_category_display }}
-                    </span>
+                    <div class="d-flex gap-1">
+                        <span class="badge {% if product.item_type == 'POST_PROCESSING' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">
+                            {{ product.get_item_type_display }}
+                        </span>
+                        <span class="badge {% if product.category == 'GOODS' %}bg-danger{% else %}bg-primary{% endif %}">
+                            {{ product.get_category_display }}
+                        </span>
+                    </div>
                 </div>
                 <div class="card-body">
+                    <div class="mb-2">
+                        <strong>그룹:</strong> {{ product.product_group|default:"-" }}
+                    </div>
                     <div class="mb-3">
                         <strong>옵션 수:</strong> {{ product.options.count }}개
                     </div>
-                    <div class="mb-3">
-                        <strong>상태:</strong> 
-                        {% if product.is_active %}
-                            <span class="badge bg-success">활성</span>
-                        {% else %}
-                            <span class="badge bg-secondary">비활성</span>
-                        {% endif %}
-                    </div>
-                    
                     {% if product.options.exists %}
                     <div class="mb-3">
                         <strong>옵션 목록:</strong>

@@ -8,6 +8,27 @@
     .readonly-field {
         background-color: #e9ecef;
     }
+
+    .selection-placeholder {
+        color: #262626 !important;
+    }
+
+    .option-step-label {
+        color: #262626 !important;
+    }
+
+    .option-select-box {
+        background-color: #cccccc !important;
+        border-color: #bfbfbf !important;
+        color: #1a1a1a !important;
+    }
+
+    .option-select-box:disabled {
+        background-color: #cccccc !important;
+        border-color: #bfbfbf !important;
+        color: #4d4d4d !important;
+        opacity: 1;
+    }
 </style>
 {% endblock %}
 
@@ -102,17 +123,6 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="id_print_method" class="form-label">
-                                        {{ form.print_method.label }}
-                                    </label>
-                                    {{ form.print_method }}
-                                    {% if form.print_method.errors %}
-                                        <div class="text-danger small">{{ form.print_method.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
                                     <label for="id_due_date" class="form-label">
                                         {{ form.due_date.label }}
                                     </label>
@@ -184,28 +194,56 @@
                                 <div class="card bg-light border-0">
                                     <div class="card-body">
                                         <div class="row g-2">
+                                            <!-- 제품 그룹 선택 -->
+                                            <div class="col-md-3">
+                                                <label class="form-label small fw-bold option-step-label">1. 그룹 선택</label>
+                                                <select class="form-select option-select-box" id="productGroupSelect">
+                                                    <option value="">그룹을 선택하세요</option>
+                                                </select>
+                                            </div>
                                             <!-- 제품 선택 -->
-                                            <div class="col-md-4">
-                                                <label class="form-label small fw-bold">1. 제품 선택</label>
-                                                <select class="form-select" id="productSelect">
+                                            <div class="col-md-3">
+                                                <label class="form-label small fw-bold option-step-label">2. 제품 선택</label>
+                                                <select class="form-select option-select-box" id="productSelect">
                                                     <option value="">제품을 선택하세요</option>
-                                                    {% for product_group in products_with_options %}
-                                                    <option value="{{ product_group.product.id }}">{{ product_group.product.name }}</option>
-                                                    {% endfor %}
                                                 </select>
                                             </div>
                                             <!-- 색상 선택 -->
-                                            <div class="col-md-4">
-                                                <label class="form-label small fw-bold">2. 색상 선택</label>
-                                                <select class="form-select" id="colorSelect" disabled>
+                                            <div class="col-md-3">
+                                                <label class="form-label small fw-bold option-step-label">3. 색상 선택</label>
+                                                <select class="form-select option-select-box" id="colorSelect" disabled>
                                                     <option value="">색상을 선택하세요</option>
                                                 </select>
                                             </div>
                                             <!-- 사이즈 선택 -->
-                                            <div class="col-md-4">
-                                                <label class="form-label small fw-bold">3. 사이즈 선택</label>
-                                                <select class="form-select" id="sizeSelect" disabled>
+                                            <div class="col-md-3">
+                                                <label class="form-label small fw-bold option-step-label">4. 사이즈 선택</label>
+                                                <select class="form-select option-select-box" id="sizeSelect" disabled>
                                                     <option value="">사이즈를 선택하세요</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <hr class="my-3">
+                                        <div class="row g-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-bold option-step-label">후가공 항목</label>
+                                                <select class="form-select option-select-box" id="postProcessSelect">
+                                                    <option value="">후가공을 선택하세요</option>
+                                                    {% for pp in post_processing_with_options %}
+                                                    <option value="{{ pp.product.id }}">{{ pp.product.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label small fw-bold option-step-label">후가공 색상</label>
+                                                <select class="form-select option-select-box" id="postProcessColorSelect" disabled>
+                                                    <option value="">색상을 선택하세요</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label small fw-bold option-step-label">후가공 옵션</label>
+                                                <select class="form-select option-select-box" id="postProcessOptionSelect" disabled>
+                                                    <option value="">후가공 옵션을 선택하세요</option>
                                                 </select>
                                             </div>
                                         </div>
@@ -264,6 +302,7 @@
                                 {% for product_group in products_with_options %}
                                 "{{ product_group.product.id }}": {
                                     "name": "{{ product_group.product.name }}",
+                                    "group": "{{ product_group.product.product_group|default:'반팔'|escapejs }}",
                                     "options": [
                                         {% for option in product_group.options %}
                                         {
@@ -272,6 +311,26 @@
                                             "price": {{ option.total_price|floatformat:0 }},
                                             "base_price": {{ option.product_base_price|floatformat:0 }},
                                             "option_price": {{ option.base_price|floatformat:0 }}
+                                        }{% if not forloop.last %},{% endif %}
+                                        {% endfor %}
+                                    ]
+                                }{% if not forloop.last %},{% endif %}
+                                {% endfor %}
+                            }
+                        </script>
+
+                        <script id="post-processing-data" type="application/json">
+                            {
+                                {% for pp in post_processing_with_options %}
+                                "{{ pp.product.id }}": {
+                                    "name": "{{ pp.product.name }}",
+                                    "options": [
+                                        {% for option in pp.options %}
+                                        {
+                                            "id": "{{ option.id }}",
+                                            "detail": "{{ option.option_detail }}",
+                                            "price": {{ option.total_price|floatformat:0 }},
+                                            "color": "{{ pp.product.display_color|default:'#B0BEC5'|escapejs }}"
                                         }{% if not forloop.last %},{% endif %}
                                         {% endfor %}
                                     ]
@@ -356,23 +415,97 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // === 2. 스마트스토어 방식 옵션 선택 로직 시작 ===
     const productsData = JSON.parse(document.getElementById('products-data').textContent);
+    const postProcessingData = JSON.parse(document.getElementById('post-processing-data').textContent);
+    const productGroupSelect = document.getElementById('productGroupSelect');
     const productSelect = document.getElementById('productSelect');
     const colorSelect = document.getElementById('colorSelect');
     const sizeSelect = document.getElementById('sizeSelect');
+    const postProcessSelect = document.getElementById('postProcessSelect');
+    const postProcessColorSelect = document.getElementById('postProcessColorSelect');
+    const postProcessOptionSelect = document.getElementById('postProcessOptionSelect');
     const selectedOptionsList = document.getElementById('selectedOptionsList');
     const emptyRow = document.getElementById('emptyRow');
 
     let currentOptions = []; // 현재 선택된 제품의 전체 옵션 목록
+
+    function updateSelectTextColor(selectElement) {
+        if (!selectElement) return;
+        if (selectElement.value) {
+            selectElement.classList.remove('selection-placeholder');
+        } else {
+            selectElement.classList.add('selection-placeholder');
+        }
+    }
+
+    updateSelectTextColor(productGroupSelect);
+    updateSelectTextColor(productSelect);
+    updateSelectTextColor(colorSelect);
+    updateSelectTextColor(sizeSelect);
+    updateSelectTextColor(postProcessSelect);
+    updateSelectTextColor(postProcessColorSelect);
+    updateSelectTextColor(postProcessOptionSelect);
+
+    const allProducts = Object.entries(productsData).map(([id, value]) => ({ id, ...value }));
+    const groupNames = [...new Set(allProducts.map(item => item.group || '반팔'))];
+
+    function resetProductSelects() {
+        productSelect.innerHTML = '<option value="">제품을 선택하세요</option>';
+        colorSelect.innerHTML = '<option value="">색상을 선택하세요</option>';
+        sizeSelect.innerHTML = '<option value="">사이즈를 선택하세요</option>';
+        productSelect.disabled = true;
+        colorSelect.disabled = true;
+        sizeSelect.disabled = true;
+        updateSelectTextColor(productSelect);
+        updateSelectTextColor(colorSelect);
+        updateSelectTextColor(sizeSelect);
+    }
+
+    function fillProductsByGroup(groupName) {
+        resetProductSelects();
+        if (!groupName) return;
+        allProducts
+            .filter(item => (item.group || '반팔') === groupName)
+            .forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = item.name;
+                productSelect.appendChild(option);
+            });
+        productSelect.disabled = false;
+        updateSelectTextColor(productSelect);
+    }
+
+    groupNames.forEach(group => {
+        const option = document.createElement('option');
+        option.value = group;
+        option.textContent = group;
+        productGroupSelect.appendChild(option);
+    });
+
+    const defaultGroup = groupNames.includes('반팔') ? '반팔' : (groupNames[0] || '');
+    if (defaultGroup) {
+        productGroupSelect.value = defaultGroup;
+        fillProductsByGroup(defaultGroup);
+    }
+    updateSelectTextColor(productGroupSelect);
     
-    // 1. 제품 선택 시
+    productGroupSelect.addEventListener('change', function() {
+        updateSelectTextColor(productGroupSelect);
+        fillProductsByGroup(this.value);
+    });
+
+    // 2. 제품 선택 시
     productSelect.addEventListener('change', function() {
         const productId = this.value;
+        updateSelectTextColor(productSelect);
         
         // 초기화
         colorSelect.innerHTML = '<option value="">색상을 선택하세요</option>';
         colorSelect.disabled = true;
         sizeSelect.innerHTML = '<option value="">사이즈를 선택하세요</option>';
         sizeSelect.disabled = true;
+        updateSelectTextColor(colorSelect);
+        updateSelectTextColor(sizeSelect);
         
         if (!productId) return;
 
@@ -399,15 +532,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         colorSelect.disabled = false;
+        updateSelectTextColor(colorSelect);
     });
 
-    // 2. 색상 선택 시
+    // 3. 색상 선택 시
     colorSelect.addEventListener('change', function() {
         const selectedColor = this.value;
+        updateSelectTextColor(colorSelect);
         
         // 사이즈 초기화
         sizeSelect.innerHTML = '<option value="">사이즈를 선택하세요</option>';
         sizeSelect.disabled = true;
+        updateSelectTextColor(sizeSelect);
         
         if (!selectedColor) return;
 
@@ -446,11 +582,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         sizeSelect.disabled = false;
+        updateSelectTextColor(sizeSelect);
     });
 
-    // 3. 사이즈 선택 (최종 선택) -> 목록에 추가
+    // 4. 사이즈 선택 (최종 선택) -> 목록에 추가
     sizeSelect.addEventListener('change', function() {
         const optionId = this.value;
+        updateSelectTextColor(sizeSelect);
         if (!optionId) return;
 
         const selectedOption = sizeSelect.options[sizeSelect.selectedIndex];
@@ -474,6 +612,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 선택 초기화 (연속 입력을 위해)
             sizeSelect.value = '';
+            updateSelectTextColor(sizeSelect);
             return;
         }
 
@@ -512,8 +651,114 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 선택 초기화
         sizeSelect.value = '';
+        updateSelectTextColor(sizeSelect);
         
         // 총액 계산
+        calculateTotal();
+    });
+
+    postProcessSelect.addEventListener('change', function() {
+        const postProcessId = this.value;
+        updateSelectTextColor(postProcessSelect);
+        postProcessColorSelect.innerHTML = '<option value="">색상을 선택하세요</option>';
+        postProcessColorSelect.disabled = true;
+        postProcessOptionSelect.innerHTML = '<option value="">후가공 옵션을 선택하세요</option>';
+        postProcessOptionSelect.disabled = true;
+        updateSelectTextColor(postProcessColorSelect);
+        updateSelectTextColor(postProcessOptionSelect);
+        if (!postProcessId) return;
+
+        const options = postProcessingData[postProcessId]?.options || [];
+        const colors = [...new Set(options.map(item => item.color || '기본'))];
+        colors.forEach(color => {
+            const option = document.createElement('option');
+            option.value = color;
+            option.textContent = color;
+            postProcessColorSelect.appendChild(option);
+        });
+        postProcessColorSelect.disabled = false;
+        updateSelectTextColor(postProcessColorSelect);
+    });
+
+    postProcessColorSelect.addEventListener('change', function() {
+        const postProcessId = postProcessSelect.value;
+        const selectedColor = this.value;
+        updateSelectTextColor(postProcessColorSelect);
+        postProcessOptionSelect.innerHTML = '<option value="">후가공 옵션을 선택하세요</option>';
+        postProcessOptionSelect.disabled = true;
+        updateSelectTextColor(postProcessOptionSelect);
+        if (!postProcessId || !selectedColor) return;
+
+        const options = (postProcessingData[postProcessId]?.options || []).filter(
+            item => (item.color || '기본') === selectedColor
+        );
+        options.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = `${item.detail} (${formatNumberWithCommas(item.price)}원)`;
+            option.dataset.price = item.price;
+            option.dataset.detail = item.detail;
+            option.dataset.color = item.color || '기본';
+            postProcessOptionSelect.appendChild(option);
+        });
+        postProcessOptionSelect.disabled = false;
+        updateSelectTextColor(postProcessOptionSelect);
+    });
+
+    postProcessOptionSelect.addEventListener('change', function() {
+        const optionId = this.value;
+        updateSelectTextColor(postProcessOptionSelect);
+        if (!optionId) return;
+
+        const selectedOption = this.options[this.selectedIndex];
+        const price = parseFloat(selectedOption.dataset.price || '0');
+        const detail = selectedOption.dataset.detail || '';
+        const color = selectedOption.dataset.color || '';
+        const processName = postProcessSelect.options[postProcessSelect.selectedIndex].text;
+        const fullOptionName = color ? `[후가공] ${processName} - ${color} / ${detail}` : `[후가공] ${processName} - ${detail}`;
+
+        const existingRow = document.querySelector(`tr[data-option-id="${optionId}"]`);
+        if (existingRow) {
+            const quantityInput = existingRow.querySelector('.product-quantity');
+            quantityInput.value = parseInt(quantityInput.value) + 1;
+            existingRow.style.backgroundColor = '#e8f0fe';
+            setTimeout(() => existingRow.style.backgroundColor = '', 500);
+            calculateTotal();
+            this.value = '';
+            updateSelectTextColor(postProcessOptionSelect);
+            return;
+        }
+
+        if (emptyRow) emptyRow.style.display = 'none';
+        const tr = document.createElement('tr');
+        tr.dataset.optionId = optionId;
+        tr.className = 'align-middle';
+        tr.innerHTML = `
+            <td>
+                <div class="fw-bold text-dark">${fullOptionName}</div>
+                <div class="small text-muted">단가: ${formatNumberWithCommas(price)}원</div>
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <button type="button" class="btn btn-outline-secondary btn-minus" tabindex="-1"><i class="fas fa-minus"></i></button>
+                    <input type="number" class="form-control text-center product-quantity"
+                           name="product_option_${optionId}" value="1" min="1"
+                           data-price="${price}" data-option-id="${optionId}">
+                    <button type="button" class="btn btn-outline-secondary btn-plus" tabindex="-1"><i class="fas fa-plus"></i></button>
+                </div>
+            </td>
+            <td class="text-end fw-bold option-total-price">
+                ${formatNumberWithCommas(price)}원
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-outline-danger btn-sm btn-remove" tabindex="-1">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        `;
+        selectedOptionsList.appendChild(tr);
+        this.value = '';
+        updateSelectTextColor(postProcessOptionSelect);
         calculateTotal();
     });
 
@@ -888,10 +1133,6 @@ function loadOrderData(orderIndex) {
         document.getElementById('id_customer_phone').value = order.customer_phone || '';
         document.getElementById('id_shipping_address').value = order.shipping_address || '';
         document.getElementById('id_customer_memo').value = order.customer_memo || '';
-        
-        if (order.print_method) {
-            document.getElementById('id_print_method').value = order.print_method;
-        }
         
         // 모달 닫기
         closeSearchModal();

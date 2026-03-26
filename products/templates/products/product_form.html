@@ -3,6 +3,28 @@
 {% block title %}{% if object %}제품 수정{% else %}새 제품 추가{% endif %}{% endblock %}
 
 {% block content %}
+<style>
+    .color-swatch-picker,
+    .product-color-picker {
+        display: grid;
+        grid-template-columns: repeat(8, 20px);
+        gap: 6px;
+        align-items: center;
+    }
+
+    .color-swatch-btn {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #374151;
+        cursor: pointer;
+        padding: 0;
+    }
+
+    .color-swatch-btn.active {
+        border-color: #ffffff;
+        box-shadow: 0 0 0 1px #111827;
+    }
+</style>
 <div class="container mt-4">
     <div class="row justify-content-center">
         <div class="col-md-8">
@@ -34,13 +56,34 @@
                             </div>
                             <div class="row">
                                 <div class="col-md-3">
+                                    <label for="{{ form.item_type.id_for_label }}" class="form-label">항목 유형</label>
+                                    {{ form.item_type }}
+                                    {% if form.item_type.errors %}
+                                        <div class="text-danger">{{ form.item_type.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="{{ form.product_group.id_for_label }}" class="form-label">제품 그룹</label>
+                                    {{ form.product_group }}
+                                    {% if form.product_group.errors %}
+                                        <div class="text-danger">{{ form.product_group.errors }}</div>
+                                    {% endif %}
+                                    <div class="form-text small">기본값: 반팔 (후가공이면 비워도 됩니다)</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">표시 박스색</label>
+                                    {{ form.display_color }}
+                                    <div id="product-color-picker" class="product-color-picker"></div>
+                                    <div class="form-text small">제품명 1개당 1색상만 사용됩니다.</div>
+                                </div>
+                                <div class="col-md-2">
                                     <label for="{{ form.category.id_for_label }}" class="form-label">카테고리</label>
                                     {{ form.category }}
                                     {% if form.category.errors %}
                                         <div class="text-danger">{{ form.category.errors }}</div>
                                     {% endif %}
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <label for="{{ form.base_price.id_for_label }}" class="form-label">기본 판매가 (원)</label>
                                     {{ form.base_price }}
                                     {% if form.base_price.errors %}
@@ -48,26 +91,10 @@
                                     {% endif %}
                                     <div class="form-text small">옵션 없을 때 판매가</div>
                                 </div>
-                                <div class="col-md-3">
-                                    <div class="form-check mt-4">
-                                        {{ form.is_active }}
-                                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
-                                            활성화
-                                        </label>
+                                <div class="col-md-12">
+                                    <div class="form-text small mt-2">
+                                        설정 안내: 후가공은 자동으로 활성화되고, 제품은 자동으로 실물 처리됩니다.
                                     </div>
-                                    {% if form.is_active.errors %}
-                                        <div class="text-danger">{{ form.is_active.errors }}</div>
-                                    {% endif %}
-                                    <div class="form-check mt-2">
-                                        {{ form.is_physical }}
-                                        <label class="form-check-label" for="{{ form.is_physical.id_for_label }}">
-                                            실물
-                                        </label>
-                                    </div>
-                                    {% if form.is_physical.errors %}
-                                        <div class="text-danger">{{ form.is_physical.errors }}</div>
-                                    {% endif %}
-                                    <div class="form-text small">캘린더 개수 집계</div>
                                 </div>
                             </div>
                         </div>
@@ -134,10 +161,10 @@
                                         <tr>
                                             <th style="width: 30%;">옵션 상세</th>
                                             <th style="width: 20%;">판매가 (원)</th>
-                                            <th style="width: 20%;">재고 수량</th>
+                                            <th style="width: 15%;">재고 수량</th>
                                             <th style="width: 10%;" class="text-center">재고 추적</th>
                                             <th style="width: 10%;" class="text-center">활성화</th>
-                                            <th style="width: 10%;" class="text-center">삭제</th>
+                                            <th style="width: 5%;" class="text-center">삭제</th>
                                         </tr>
                                     </thead>
                                     <tbody id="options-tbody">
@@ -211,6 +238,65 @@ function removeCommas(value) {
 
 // 가격 입력 필드에 콤마 자동 추가
 document.addEventListener('DOMContentLoaded', function() {
+    const COLOR_PRESETS = [
+        '#E57373', '#F06292', '#BA68C8', '#9575CD',
+        '#7986CB', '#64B5F6', '#4FC3F7', '#4DD0E1',
+        '#4DB6AC', '#81C784', '#AED581', '#FFD54F',
+        '#FFB74D', '#A1887F', '#90A4AE', '#B0BEC5'
+    ];
+
+    function initializeProductColorPicker() {
+        const hiddenInput = document.getElementById('id_display_color');
+        const picker = document.getElementById('product-color-picker');
+        if (!hiddenInput || !picker || picker.dataset.colorInit === 'true') return;
+
+        picker.innerHTML = '';
+        COLOR_PRESETS.forEach(color => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'color-swatch-btn';
+            btn.style.backgroundColor = color;
+            btn.dataset.value = color;
+            if (hiddenInput.value === color) {
+                btn.classList.add('active');
+            }
+            btn.addEventListener('click', function() {
+                hiddenInput.value = color;
+                picker.querySelectorAll('.color-swatch-btn').forEach(el => el.classList.remove('active'));
+                btn.classList.add('active');
+            });
+            picker.appendChild(btn);
+        });
+
+        if (!hiddenInput.value) {
+            hiddenInput.value = '#B0BEC5';
+        }
+        const activeBtn = picker.querySelector(`[data-value="${hiddenInput.value}"]`) || picker.querySelector('[data-value="#B0BEC5"]');
+        if (activeBtn) activeBtn.classList.add('active');
+        picker.dataset.colorInit = 'true';
+    }
+
+    const itemTypeSelect = document.getElementById('id_item_type');
+    const productGroupInput = document.getElementById('id_product_group');
+
+    function syncProductGroupByType() {
+        if (!itemTypeSelect || !productGroupInput) return;
+        if (itemTypeSelect.value === 'POST_PROCESSING') {
+            productGroupInput.value = '';
+            productGroupInput.placeholder = '후가공은 제품 그룹을 사용하지 않습니다';
+        } else {
+            if (!productGroupInput.value) {
+                productGroupInput.value = '반팔';
+            }
+            productGroupInput.placeholder = '예: 반팔, 긴팔, 스웻셔츠, 기타';
+        }
+    }
+
+    if (itemTypeSelect) {
+        itemTypeSelect.addEventListener('change', syncProductGroupByType);
+        syncProductGroupByType();
+    }
+
     // 모든 price-input 클래스 필드에 이벤트 리스너 추가
     function attachPriceFormatting() {
         document.querySelectorAll('.price-input').forEach(input => {
@@ -252,6 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 페이지 로드 시 포맷팅 적용
     attachPriceFormatting();
+    initializeProductColorPicker();
     
     // MutationObserver로 동적 추가된 필드도 감지
     const observer = new MutationObserver(function(mutations) {

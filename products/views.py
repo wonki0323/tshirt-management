@@ -4,7 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.contrib import messages
 from django.urls import reverse_lazy
-from .models import Product, ProductOption
+from .models import Product, ProductOption, ItemTypeChoices
 from .forms import ProductForm, ProductOptionFormSet
 
 
@@ -42,7 +42,7 @@ class ProductListView(LoginRequiredMixin, ListView):
     template_name = 'products/product_list.html'
     context_object_name = 'products'
     paginate_by = 20
-    ordering = ['name']
+    ordering = ['item_type', 'product_group', 'name']
 
 
 class ProductCreateView(LoginRequiredMixin, CreateView):
