@@ -6,7 +6,17 @@
 {% block extra_css %}
 <style>
     .readonly-field {
-        background-color: #e9ecef;
+        background-color: #0f141b !important;
+        color: #f3f4f6 !important;
+        border-color: #2b3542 !important;
+        opacity: 1;
+    }
+
+    #id_total_order_amount[readonly] {
+        background-color: #0f141b !important;
+        color: #f3f4f6 !important;
+        border-color: #2b3542 !important;
+        opacity: 1;
     }
 
     .selection-placeholder {
@@ -37,6 +47,17 @@
     #selectedOptionsTable td,
     #selectedOptionsTable th {
         color: #d7e2f0;
+    }
+
+    #selectedOptionsTable .text-dark,
+    #selectedOptionsTable .fw-bold,
+    #selectedOptionsTable .option-total-price {
+        color: #e8f1ff !important;
+    }
+
+    #selectedOptionsTable .text-muted,
+    #selectedOptionsTable .small {
+        color: #bfd0e8 !important;
     }
 </style>
 {% endblock %}
@@ -198,6 +219,18 @@
                                         </td>
                                     </tr>
                                 </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th colspan="2" class="text-end">택배비</th>
+                                        <th class="text-end" id="shippingFeeDisplay">0원</th>
+                                        <th></th>
+                                    </tr>
+                                    <tr>
+                                        <th colspan="2" class="text-end">총 결제 금액</th>
+                                        <th class="text-end" id="grandTotalDisplay">0원</th>
+                                        <th></th>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     </div>
@@ -221,6 +254,9 @@
                             {{ form.shipping_cost.label }}
                         </label>
                         {{ form.shipping_cost }}
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-outline-danger btn-sm" id="toggleShippingBtn">택배비 삭제</button>
+                        </div>
                     </div>
                     
                     <div class="col-md-4 mb-3">
@@ -385,6 +421,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const emptyRow = document.getElementById('emptyRow');
     const shippingCostInput = document.getElementById('{{ form.shipping_cost.id_for_label }}');
     const totalAmountInput = document.getElementById('{{ form.total_order_amount.id_for_label }}');
+    const shippingFeeDisplay = document.getElementById('shippingFeeDisplay');
+    const grandTotalDisplay = document.getElementById('grandTotalDisplay');
+    const toggleShippingBtn = document.getElementById('toggleShippingBtn');
+    let lastNonZeroShipping = parseFloat(shippingCostInput.value) || 3500;
 
     let currentOptions = []; 
 
@@ -466,10 +506,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        const shippingCost = parseFloat(shippingCostInput.value) || 0;
+        const shippingCostRaw = shippingCostInput.value ? shippingCostInput.value.trim() : '';
+        const shippingCost = parseFloat(shippingCostRaw) || 0;
+        if (shippingCost > 0) {
+            lastNonZeroShipping = shippingCost;
+        }
         const total = itemsTotal + shippingCost;
         
         totalAmountInput.value = Math.round(total);
+        if (shippingFeeDisplay) {
+            shippingFeeDisplay.textContent = formatNumberWithCommas(shippingCost) + '원';
+        }
+        if (grandTotalDisplay) {
+            grandTotalDisplay.textContent = formatNumberWithCommas(total) + '원';
+        }
     }
 
     productGroupSelect.addEventListener('change', function() {
@@ -708,6 +758,41 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     shippingCostInput.addEventListener('input', calculateTotal);
+    shippingCostInput.addEventListener('blur', function() {
+        if (!this.value || this.value.trim() === '') {
+            this.value = '0';
+            calculateTotal();
+        }
+        syncShippingToggleButton();
+    });
+
+    function syncShippingToggleButton() {
+        if (!toggleShippingBtn) return;
+        const shippingCost = parseFloat(shippingCostInput.value) || 0;
+        if (shippingCost > 0) {
+            toggleShippingBtn.textContent = '택배비 삭제';
+            toggleShippingBtn.classList.remove('btn-outline-success');
+            toggleShippingBtn.classList.add('btn-outline-danger');
+        } else {
+            toggleShippingBtn.textContent = '택배비 다시 추가';
+            toggleShippingBtn.classList.remove('btn-outline-danger');
+            toggleShippingBtn.classList.add('btn-outline-success');
+        }
+    }
+
+    if (toggleShippingBtn) {
+        toggleShippingBtn.addEventListener('click', function() {
+            const shippingCost = parseFloat(shippingCostInput.value) || 0;
+            if (shippingCost > 0) {
+                lastNonZeroShipping = shippingCost;
+                shippingCostInput.value = '0';
+            } else {
+                shippingCostInput.value = String(lastNonZeroShipping > 0 ? lastNonZeroShipping : 3500);
+            }
+            calculateTotal();
+            syncShippingToggleButton();
+        });
+    }
 
     // === 초기 데이터 로딩 ===
     if (existingItemsData && existingItemsData.length > 0) {
@@ -716,6 +801,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     calculateTotal();
+    syncShippingToggleButton();
 });
 </script>
 {% endblock %}

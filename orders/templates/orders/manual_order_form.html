@@ -6,7 +6,23 @@
 {% block extra_css %}
 <style>
     .readonly-field {
-        background-color: #e9ecef;
+        background-color: #0f141b !important;
+        color: #f3f4f6 !important;
+        border-color: #2b3542 !important;
+        opacity: 1;
+    }
+
+    #id_total_order_amount[readonly] {
+        background-color: #0f141b !important;
+        color: #f3f4f6 !important;
+        border-color: #2b3542 !important;
+        opacity: 1;
+    }
+
+    #id_total_order_amount[readonly] + .input-group-text {
+        background-color: #0f141b !important;
+        color: #f3f4f6 !important;
+        border-color: #2b3542 !important;
     }
 
     .selection-placeholder {
@@ -37,6 +53,17 @@
     #selectedOptionsTable td,
     #selectedOptionsTable th {
         color: #d7e2f0;
+    }
+
+    #selectedOptionsTable .text-dark,
+    #selectedOptionsTable .fw-bold,
+    #selectedOptionsTable .option-total-price {
+        color: #e8f1ff !important;
+    }
+
+    #selectedOptionsTable .text-muted,
+    #selectedOptionsTable .small {
+        color: #bfd0e8 !important;
     }
 </style>
 {% endblock %}
@@ -158,6 +185,9 @@
                                         {{ form.shipping_cost }}
                                         <span class="input-group-text">원</span>
                                     </div>
+                                    <div class="mt-2">
+                                        <button type="button" class="btn btn-outline-danger btn-sm" id="toggleShippingBtn">택배비 삭제</button>
+                                    </div>
                                     <div class="form-text">{{ form.shipping_cost.help_text }}</div>
                                     {% if form.shipping_cost.errors %}
                                         <div class="text-danger small">{{ form.shipping_cost.errors.0 }}</div>
@@ -269,6 +299,18 @@
                                                 </td>
                                             </tr>
                                         </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <th colspan="2" class="text-end">택배비</th>
+                                                <th class="text-end" id="shippingFeeDisplay">3,500원</th>
+                                                <th></th>
+                                            </tr>
+                                            <tr>
+                                                <th colspan="2" class="text-end">총 결제 금액</th>
+                                                <th class="text-end" id="grandTotalDisplay">3,500원</th>
+                                                <th></th>
+                                            </tr>
+                                        </tfoot>
                                     </table>
                                 </div>
                             </div>
@@ -409,6 +451,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const addressSearchBtn = document.getElementById('addressSearchBtn');
     const shippingCostInput = document.getElementById('id_shipping_cost');
     const totalAmountInput = document.getElementById('id_total_order_amount');
+    const shippingFeeDisplay = document.getElementById('shippingFeeDisplay');
+    const grandTotalDisplay = document.getElementById('grandTotalDisplay');
+    const toggleShippingBtn = document.getElementById('toggleShippingBtn');
+    let lastNonZeroShipping = parseFloat(shippingCostInput.value) || 3500;
     const dueDateInput = document.getElementById('id_due_date');
     // 발송 마감일 입력 클릭 시 달력 피커 강제 오픈 (브라우저/테마 이슈 대응)
     if (dueDateInput) {
@@ -926,7 +972,11 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('제품 총액:', itemsTotal);
         
         // 택배비 추가
-        const shippingCost = parseFloat(shippingCostInput.value) || 0;
+        const shippingCostRaw = shippingCostInput.value ? shippingCostInput.value.trim() : '';
+        const shippingCost = parseFloat(shippingCostRaw) || 0;
+        if (shippingCost > 0) {
+            lastNonZeroShipping = shippingCost;
+        }
         const total = itemsTotal + shippingCost;
         
         console.log('택배비:', shippingCost);
@@ -934,6 +984,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 값 설정 - 소수점 제거하고 정수만 표시
         totalAmountInput.value = Math.round(total);
+        if (shippingFeeDisplay) {
+            shippingFeeDisplay.textContent = formatNumberWithCommas(shippingCost) + '원';
+        }
+        if (grandTotalDisplay) {
+            grandTotalDisplay.textContent = formatNumberWithCommas(total) + '원';
+        }
         
         // readonly 유지 (사용자 직접 수정 불가)
         totalAmountInput.setAttribute('readonly', 'readonly');
@@ -944,6 +1000,41 @@ document.addEventListener('DOMContentLoaded', function() {
     customerPhoneInput.addEventListener('input', checkCustomerExists);
     
     shippingCostInput.addEventListener('input', calculateTotal);
+    shippingCostInput.addEventListener('blur', function() {
+        if (!this.value || this.value.trim() === '') {
+            this.value = '0';
+            calculateTotal();
+        }
+        syncShippingToggleButton();
+    });
+
+    function syncShippingToggleButton() {
+        if (!toggleShippingBtn) return;
+        const shippingCost = parseFloat(shippingCostInput.value) || 0;
+        if (shippingCost > 0) {
+            toggleShippingBtn.textContent = '택배비 삭제';
+            toggleShippingBtn.classList.remove('btn-outline-success');
+            toggleShippingBtn.classList.add('btn-outline-danger');
+        } else {
+            toggleShippingBtn.textContent = '택배비 다시 추가';
+            toggleShippingBtn.classList.remove('btn-outline-danger');
+            toggleShippingBtn.classList.add('btn-outline-success');
+        }
+    }
+
+    if (toggleShippingBtn) {
+        toggleShippingBtn.addEventListener('click', function() {
+            const shippingCost = parseFloat(shippingCostInput.value) || 0;
+            if (shippingCost > 0) {
+                lastNonZeroShipping = shippingCost;
+                shippingCostInput.value = '0';
+            } else {
+                shippingCostInput.value = String(lastNonZeroShipping > 0 ? lastNonZeroShipping : 3500);
+            }
+            calculateTotal();
+            syncShippingToggleButton();
+        });
+    }
     
     // 기존 정적 리스너 제거 (동적 요소는 상위 위임으로 처리됨)
     /*
@@ -954,6 +1045,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 초기 계산
     calculateTotal();
+    syncShippingToggleButton();
     
     // 폼 제출 시 확인
     document.getElementById('manualOrderForm').addEventListener('submit', function(e) {

@@ -599,6 +599,15 @@
                             </td>
                         </tr>
                         {% endfor %}
+                        <tr>
+                            <td>-</td>
+                            <td>배송</td>
+                            <td><strong>택배비</strong></td>
+                            <td>-</td>
+                            <td class="text-center">-</td>
+                            <td class="text-end">{{ order.shipping_cost|floatformat:0|intcomma }}원</td>
+                            <td class="text-end fw-bold">{{ order.shipping_cost|floatformat:0|intcomma }}원</td>
+                        </tr>
                     </tbody>
                     {% if order_items %}
                     <tfoot class="table-light">
