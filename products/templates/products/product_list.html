@@ -3,6 +3,23 @@
 
 {% block title %}제품 관리{% endblock %}
 
+{% block extra_css %}
+<style>
+    .product-meta-label,
+    .product-meta-value {
+        color: #e5edf9 !important;
+    }
+
+    .group-color-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #111111 !important;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -40,26 +57,25 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-2">
-                        <strong>그룹:</strong> {{ product.product_group|default:"-" }}
+                        <strong class="product-meta-label">그룹:</strong>
+                        {% if product.item_type == 'POST_PROCESSING' %}
+                            <span class="group-color-badge ms-1" style="background-color: {{ product.display_color|default:'#B0BEC5' }};">
+                                후가공
+                            </span>
+                        {% elif product.product_group %}
+                            <span class="group-color-badge ms-1" style="background-color: {{ product.display_color|default:'#B0BEC5' }};">
+                                {{ product.product_group }}
+                            </span>
+                        {% else %}
+                            <span class="group-color-badge ms-1" style="background-color: {{ product.display_color|default:'#B0BEC5' }};">
+                                미분류
+                            </span>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
-                        <strong>옵션 수:</strong> {{ product.options.count }}개
+                        <strong class="product-meta-label">옵션 수:</strong>
+                        <span class="product-meta-value">{{ product.options.count }}개</span>
                     </div>
-                    {% if product.options.exists %}
-                    <div class="mb-3">
-                        <strong>옵션 목록:</strong>
-                        <div class="mt-2">
-                            {% for option in product.options.all|slice:":3" %}
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <small>{{ option.option_detail }}</small>
-                            </div>
-                            {% endfor %}
-                            {% if product.options.count > 3 %}
-                            <small class="text-muted">+{{ product.options.count|add:"-3" }}개 더...</small>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endif %}
                 </div>
                 <div class="card-footer">
                     <div class="btn-group w-100" role="group">
