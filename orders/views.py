@@ -175,6 +175,8 @@ class OrderListView(LoginRequiredMixin, ListView):
         
         # JSON 변환용 데이터
         orders_data = []
+        from products.models import ItemTypeChoices
+
         for order in calendar_orders:
             # 발송 완료 여부: shipping_date가 있거나 COMPLETED 이상
             is_shipped = bool(order.shipping_date) or order.status in [
@@ -186,11 +188,13 @@ class OrderListView(LoginRequiredMixin, ListView):
             # 캘린더 표시용 날짜: due_date가 있으면 due_date, 없으면 payment_date
             display_date = order.due_date if order.due_date else order.payment_date.date() if order.payment_date else None
             
-            # 실물 제품 개수만 합산 (미리 로드된 데이터 사용)
+            # 제품(PRODUCT) 타입만 합산 (후가공 제외)
             physical_items_count = 0
             for item in order.items.all():
-                # product_option이 있고, 해당 product가 실물인 경우만 카운트
-                if item.product_option and item.product_option.product.is_physical:
+                if (
+                    item.product_option and
+                    item.product_option.product.item_type == ItemTypeChoices.PRODUCT
+                ):
                     physical_items_count += item.quantity
             
             orders_data.append({

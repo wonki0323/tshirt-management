@@ -2,6 +2,7 @@
 주문 관련 폼
 """
 import re
+from datetime import datetime
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -276,11 +277,21 @@ class ManualOrderForm(forms.Form):
 
 class OrderUpdateForm(forms.ModelForm):
     """주문 정보 수정 폼 (모든 단계에서 사용 가능)"""
+    payment_date = forms.DateField(
+        required=False,
+        label="결제일시",
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date'
+        }),
+        input_formats=['%Y-%m-%d']
+    )
     
     class Meta:
         model = Order
         fields = [
             'customer_name', 'customer_phone', 'shipping_address',
+            'payment_date',
             'customer_memo', 'tracking_number',
             'shipping_cost', 'total_order_amount', 'due_date', 'status'
         ]
@@ -329,3 +340,19 @@ class OrderUpdateForm(forms.ModelForm):
         for field_name in self.fields:
             if field_name != 'customer_name':
                 self.fields[field_name].required = False
+
+        if self.instance and self.instance.pk and self.instance.payment_date:
+            self.fields['payment_date'].initial = timezone.localtime(self.instance.payment_date).date()
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        selected_date = self.cleaned_data.get('payment_date')
+        if selected_date:
+            naive_dt = datetime.combine(selected_date, datetime.min.time())
+            if timezone.is_aware(instance.payment_date or timezone.now()):
+                instance.payment_date = timezone.make_aware(naive_dt, timezone.get_current_timezone())
+            else:
+                instance.payment_date = naive_dt
+        if commit:
+            instance.save()
+        return instance

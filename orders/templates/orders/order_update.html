@@ -88,6 +88,13 @@
                         </label>
                         {{ form.customer_phone }}
                     </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.payment_date.id_for_label }}" class="form-label">
+                            결제일시
+                        </label>
+                        {{ form.payment_date }}
+                    </div>
                     
                     <div class="col-12 mb-3">
                         <label for="{{ form.shipping_address.id_for_label }}" class="form-label">
@@ -322,11 +329,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const addressSearchBtn = document.getElementById('addressSearchBtn');
     const addressInput = document.getElementById('{{ form.shipping_address.id_for_label }}');
     const dueDateInput = document.getElementById('{{ form.due_date.id_for_label }}');
+    const paymentDateInput = document.getElementById('{{ form.payment_date.id_for_label }}');
 
-    // 발송 마감일 입력 클릭 시 달력 피커 강제 오픈 (브라우저/테마 이슈 대응)
-    if (dueDateInput) {
+    // 날짜 입력 클릭 시 달력 피커 강제 오픈 (브라우저/테마 이슈 대응)
+    function attachDatePickerOpen(input) {
+        if (!input) return;
         ['focus', 'click'].forEach(evt => {
-            dueDateInput.addEventListener(evt, function() {
+            input.addEventListener(evt, function() {
                 if (typeof this.showPicker === 'function') {
                     try {
                         this.showPicker();
@@ -337,6 +346,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+    attachDatePickerOpen(dueDateInput);
+    attachDatePickerOpen(paymentDateInput);
     
     // 주소 검색
     if (addressSearchBtn) {

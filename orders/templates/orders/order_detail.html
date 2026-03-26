@@ -452,12 +452,6 @@
                                 <th>결제일시</th>
                                 <td>{{ order.payment_date|date:"Y년 m월 d일 H:i" }}</td>
                             </tr>
-                            {% if order.confirmed_date %}
-                            <tr>
-                                <th>컨펌일시</th>
-                                <td>{{ order.confirmed_date|date:"Y년 m월 d일 H:i" }}</td>
-                            </tr>
-                            {% endif %}
                             {% if order.due_date %}
                             <tr>
                                 <th>마감일</th>
