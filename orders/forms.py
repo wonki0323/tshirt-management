@@ -76,17 +76,6 @@ class ManualOrderForm(forms.Form):
         help_text="기본 3,500원 (제주/도서산간 변경 가능)"
     )
     
-    manual_total_input = forms.BooleanField(
-        required=False,
-        initial=False,
-        label="총 결제금액 수동 입력",
-        widget=forms.CheckboxInput(attrs={
-            'class': 'form-check-input',
-            'id': 'id_manual_total_input'
-        }),
-        help_text="체크하면 자동 합산이 비활성화됩니다"
-    )
-    
     total_order_amount = forms.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -96,8 +85,7 @@ class ManualOrderForm(forms.Form):
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
             'placeholder': '0',
-            'id': 'id_total_order_amount',
-            'readonly': 'readonly'
+            'id': 'id_total_order_amount'
         })
     )
     
@@ -123,19 +111,6 @@ class ManualOrderForm(forms.Form):
     #     help_text="등록된 제품 옵션 중에서 선택하세요"
     # )
     
-    # 수동 입력 항목 (메모)
-    manual_items = forms.CharField(
-        label="수동 입력 항목 / 메모 (선택사항)",
-        widget=forms.Textarea(attrs={
-            'class': 'form-control',
-            'rows': 5,
-            'placeholder': '제품 옵션을 선택하지 않고 직접 입력하거나 메모를 작성하세요',
-            'id': 'id_manual_items'
-        }),
-        required=False,
-        help_text="제품 옵션 대신 텍스트로 주문 내용을 입력하거나 메모로 활용할 수 있습니다"
-    )
-    
     def clean_customer_phone(self):
         """연락처 유효성 검사 (선택사항)"""
         phone = self.cleaned_data.get('customer_phone')
@@ -153,12 +128,10 @@ class ManualOrderForm(forms.Form):
         
         cleaned_data = super().clean()
         customer_name = cleaned_data.get('customer_name')
-        manual_items = cleaned_data.get('manual_items')
         total_order_amount = cleaned_data.get('total_order_amount')
         
         logger.info("=== 폼 유효성 검사 시작 ===")
         logger.info(f"customer_name: {customer_name}")
-        logger.info(f"manual_items: {manual_items}")
         logger.info(f"total_order_amount: {total_order_amount}")
         
         # 고객명은 필수
@@ -186,8 +159,8 @@ class ManualOrderForm(forms.Form):
         
         logger.info(f"has_product_options: {has_product_options}")
         
-        # 제품 옵션이나 수동 입력 중 하나는 있어야 함
-        if not has_product_options and not manual_items:
+        # 제품 옵션이 없어도 주문 생성은 허용 (고객 입력 중심 운영)
+        if not has_product_options:
             logger.warning("제품 옵션도 없고 수동 입력도 없음 - 주문 내용이 비어있음")
             # 이름만 있어도 진행 가능하도록 경고만 로깅
             logger.info("이름만 입력된 상태로 주문 생성 허용")
@@ -253,24 +226,6 @@ class ManualOrderForm(forms.Form):
                 except (ValueError, TypeError, ProductOption.DoesNotExist) as e:
                     # 잘못된 값이나 존재하지 않는 옵션은 건너뜀
                     continue
-        
-        # 수동 입력 항목 처리 (메모로 저장)
-        manual_items = self.cleaned_data.get('manual_items', '')
-        
-        # 제품 옵션 개수 확인
-        has_product_items = OrderItem.objects.filter(order=order).exists()
-        
-        if manual_items and not has_product_items:
-            # 제품 옵션이 없고 수동 입력만 있는 경우, 하나의 OrderItem으로 저장
-            OrderItem.objects.create(
-                order=order,
-                smartstore_product_name="수동 입력 주문",
-                smartstore_option_text="",
-                manual_text=manual_items,
-                quantity=1,
-                unit_price=self.cleaned_data.get('total_order_amount', Decimal('0')) - self.cleaned_data.get('shipping_cost', Decimal('3500')),
-                unit_cost=0  # 수동 등록시 원가는 0으로 설정
-            )
         
         return order
 

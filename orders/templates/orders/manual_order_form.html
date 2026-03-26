@@ -88,7 +88,7 @@
     {% endif %}
 
     <div class="row">
-        <div class="col-lg-8">
+        <div class="col-12">
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">주문 정보 입력</h5>
@@ -184,8 +184,6 @@
                                     <div class="input-group">
                                         {{ form.shipping_cost }}
                                         <span class="input-group-text">원</span>
-                                    </div>
-                                    <div class="mt-2">
                                         <button type="button" class="btn btn-outline-danger btn-sm" id="toggleShippingBtn">택배비 삭제</button>
                                     </div>
                                     <div class="form-text">{{ form.shipping_cost.help_text }}</div>
@@ -262,13 +260,7 @@
                                                     {% endfor %}
                                                 </select>
                                             </div>
-                                            <div class="col-md-3">
-                                                <label class="form-label small fw-bold option-step-label">후가공 색상</label>
-                                                <select class="form-select option-select-box" id="postProcessColorSelect" disabled>
-                                                    <option value="">색상을 선택하세요</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-3">
+                                            <div class="col-md-6">
                                                 <label class="form-label small fw-bold option-step-label">후가공 옵션</label>
                                                 <select class="form-select option-select-box" id="postProcessOptionSelect" disabled>
                                                     <option value="">후가공 옵션을 선택하세요</option>
@@ -301,6 +293,12 @@
                                         </tbody>
                                         <tfoot>
                                             <tr>
+                                                <th class="text-end">총계(제품만)</th>
+                                                <th class="text-center" id="productItemsCountDisplay">0개</th>
+                                                <th class="text-end" id="productItemsAmountDisplay">0원</th>
+                                                <th></th>
+                                            </tr>
+                                            <tr>
                                                 <th colspan="2" class="text-end">택배비</th>
                                                 <th class="text-end" id="shippingFeeDisplay">3,500원</th>
                                                 <th></th>
@@ -315,25 +313,6 @@
                                 </div>
                             </div>
                             
-                            <!-- 수동 입력 (기존 유지) -->
-                            <div class="col-12">
-                                <div class="accordion" id="manualInputAccordion">
-                                    <div class="accordion-item border-0">
-                                        <h2 class="accordion-header" id="headingManual">
-                                            <button class="accordion-button collapsed py-2 bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#collapseManual" aria-expanded="false">
-                                                <small><i class="fas fa-pen me-1"></i> 텍스트로 직접 입력하기 (선택사항)</small>
-                                            </button>
-                                        </h2>
-                                        <div id="collapseManual" class="accordion-collapse collapse" aria-labelledby="headingManual">
-                                            <div class="accordion-body">
-                                                <label for="id_manual_items" class="form-label small">{{ form.manual_items.label }}</label>
-                                                {{ form.manual_items }}
-                                                <div class="form-text">{{ form.manual_items.help_text }}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         <!-- 데이터 전달을 위한 Hidden Script -->
@@ -406,34 +385,6 @@
                 </div>
             </div>
         </div>
-        
-        <!-- 도움말 -->
-        <div class="col-lg-4">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="card-title mb-0">도움말</h6>
-                </div>
-                <div class="card-body">
-                    <h6>고객 ID 관리</h6>
-                    <ul class="small">
-                        <li>동일한 이름과 연락처: <code>김철수-001</code>, <code>김철수-002</code></li>
-                        <li>이름만 같고 연락처 다름: <code>김철수B</code>, <code>김철수C</code></li>
-                    </ul>
-                    
-                    <h6>수동 입력 항목</h6>
-                    <div class="small">
-                        <p>제품 옵션을 선택하지 않고 텍스트로 주문 내용을 입력할 수 있습니다.</p>
-                        <p>메모로도 활용 가능하며, 결제금액만 입력하면 주문이 등록됩니다.</p>
-                    </div>
-                    
-                    <h6>자동 합산</h6>
-                    <div class="small">
-                        <p>제품 옵션을 선택하면 총 결제금액이 자동으로 계산됩니다 (택배비 포함).</p>
-                        <p>수동 입력을 원하시면 체크박스를 선택하세요.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -453,6 +404,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalAmountInput = document.getElementById('id_total_order_amount');
     const shippingFeeDisplay = document.getElementById('shippingFeeDisplay');
     const grandTotalDisplay = document.getElementById('grandTotalDisplay');
+    const productItemsCountDisplay = document.getElementById('productItemsCountDisplay');
+    const productItemsAmountDisplay = document.getElementById('productItemsAmountDisplay');
     const toggleShippingBtn = document.getElementById('toggleShippingBtn');
     let lastNonZeroShipping = parseFloat(shippingCostInput.value) || 3500;
     const dueDateInput = document.getElementById('id_due_date');
@@ -480,7 +433,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const colorSelect = document.getElementById('colorSelect');
     const sizeSelect = document.getElementById('sizeSelect');
     const postProcessSelect = document.getElementById('postProcessSelect');
-    const postProcessColorSelect = document.getElementById('postProcessColorSelect');
     const postProcessOptionSelect = document.getElementById('postProcessOptionSelect');
     const selectedOptionsList = document.getElementById('selectedOptionsList');
     const emptyRow = document.getElementById('emptyRow');
@@ -501,7 +453,6 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSelectTextColor(colorSelect);
     updateSelectTextColor(sizeSelect);
     updateSelectTextColor(postProcessSelect);
-    updateSelectTextColor(postProcessColorSelect);
     updateSelectTextColor(postProcessOptionSelect);
 
     const allProducts = Object.entries(productsData).map(([id, value]) => ({ id, ...value }));
@@ -692,7 +643,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <button type="button" class="btn btn-outline-secondary btn-minus" tabindex="-1"><i class="fas fa-minus"></i></button>
                     <input type="number" class="form-control text-center product-quantity" 
                            name="product_option_${optionId}" value="1" min="1" 
-                           data-price="${price}" data-option-id="${optionId}">
+                           data-price="${price}" data-option-id="${optionId}" data-is-post-processing="0">
                     <button type="button" class="btn btn-outline-secondary btn-plus" tabindex="-1"><i class="fas fa-plus"></i></button>
                 </div>
             </td>
@@ -719,38 +670,12 @@ document.addEventListener('DOMContentLoaded', function() {
     postProcessSelect.addEventListener('change', function() {
         const postProcessId = this.value;
         updateSelectTextColor(postProcessSelect);
-        postProcessColorSelect.innerHTML = '<option value="">색상을 선택하세요</option>';
-        postProcessColorSelect.disabled = true;
         postProcessOptionSelect.innerHTML = '<option value="">후가공 옵션을 선택하세요</option>';
         postProcessOptionSelect.disabled = true;
-        updateSelectTextColor(postProcessColorSelect);
         updateSelectTextColor(postProcessOptionSelect);
         if (!postProcessId) return;
 
         const options = postProcessingData[postProcessId]?.options || [];
-        const colors = [...new Set(options.map(item => item.color || '기본'))];
-        colors.forEach(color => {
-            const option = document.createElement('option');
-            option.value = color;
-            option.textContent = color;
-            postProcessColorSelect.appendChild(option);
-        });
-        postProcessColorSelect.disabled = false;
-        updateSelectTextColor(postProcessColorSelect);
-    });
-
-    postProcessColorSelect.addEventListener('change', function() {
-        const postProcessId = postProcessSelect.value;
-        const selectedColor = this.value;
-        updateSelectTextColor(postProcessColorSelect);
-        postProcessOptionSelect.innerHTML = '<option value="">후가공 옵션을 선택하세요</option>';
-        postProcessOptionSelect.disabled = true;
-        updateSelectTextColor(postProcessOptionSelect);
-        if (!postProcessId || !selectedColor) return;
-
-        const options = (postProcessingData[postProcessId]?.options || []).filter(
-            item => (item.color || '기본') === selectedColor
-        );
         options.forEach(item => {
             const option = document.createElement('option');
             option.value = item.id;
@@ -802,7 +727,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <button type="button" class="btn btn-outline-secondary btn-minus" tabindex="-1"><i class="fas fa-minus"></i></button>
                     <input type="number" class="form-control text-center product-quantity"
                            name="product_option_${optionId}" value="1" min="1"
-                           data-price="${price}" data-option-id="${optionId}">
+                           data-price="${price}" data-option-id="${optionId}" data-is-post-processing="1">
                     <button type="button" class="btn btn-outline-secondary btn-plus" tabindex="-1"><i class="fas fa-plus"></i></button>
                 </div>
             </td>
@@ -951,10 +876,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function calculateTotal() {
         console.log('calculateTotal 호출됨');
 
-        // 자동 합산 모드
-        totalAmountInput.classList.add('readonly-field');
-        
         let itemsTotal = 0;
+        let productOnlyQuantityTotal = 0;
+        let productOnlyAmountTotal = 0;
         
         // (수정됨) 동적으로 추가된 product-quantity 입력 필드들 확인
         const currentProductInputs = document.querySelectorAll('.product-quantity');
@@ -966,6 +890,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const price = parseFloat(input.getAttribute('data-price')) || 0;
                 const subtotal = price * quantity;
                 itemsTotal += subtotal;
+                const isPostProcessing = input.getAttribute('data-is-post-processing') === '1';
+                if (!isPostProcessing) {
+                    productOnlyQuantityTotal += quantity;
+                    productOnlyAmountTotal += subtotal;
+                }
             }
         });
         
@@ -984,6 +913,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 값 설정 - 소수점 제거하고 정수만 표시
         totalAmountInput.value = Math.round(total);
+        if (productItemsCountDisplay) {
+            productItemsCountDisplay.textContent = formatNumberWithCommas(productOnlyQuantityTotal) + '개';
+        }
+        if (productItemsAmountDisplay) {
+            productItemsAmountDisplay.textContent = formatNumberWithCommas(productOnlyAmountTotal) + '원';
+        }
         if (shippingFeeDisplay) {
             shippingFeeDisplay.textContent = formatNumberWithCommas(shippingCost) + '원';
         }
@@ -991,8 +926,6 @@ document.addEventListener('DOMContentLoaded', function() {
             grandTotalDisplay.textContent = formatNumberWithCommas(total) + '원';
         }
         
-        // readonly 유지 (사용자 직접 수정 불가)
-        totalAmountInput.setAttribute('readonly', 'readonly');
     }
     
     // 이벤트 리스너 등록
@@ -1051,7 +984,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('manualOrderForm').addEventListener('submit', function(e) {
         const customerName = customerNameInput.value.trim();
         const customerPhone = customerPhoneInput.value.trim();
-        const manualItems = document.getElementById('id_manual_items').value.trim();
         const totalAmount = parseFloat(totalAmountInput.value) || 0;
         
         // 수량이 입력된 제품 옵션 확인 (동적 조회)
@@ -1144,15 +1076,15 @@ function showOrderSearchModal(orders) {
         let itemsHTML = '';
         if (order.items && order.items.length > 0) {
             itemsHTML = order.items.map(item => 
-                `<li>${item.product_name || '제품명 없음'} (${item.option_text || '옵션 없음'}) x${item.quantity || 0}</li>`
+                `<li style="color: #f8fafc;">${item.product_name || '제품명 없음'} (${item.option_text || '옵션 없음'}) x${item.quantity || 0}</li>`
             ).join('');
         } else {
-            itemsHTML = '<li>주문 제품 정보 없음</li>';
+            itemsHTML = '<li style="color: #f8fafc;">주문 제품 정보 없음</li>';
         }
         
         ordersHTML += `
             <div class="card mb-3">
-                <div class="card-header bg-light">
+                <div class="card-header" style="background-color: #111827 !important; color: #f8fafc !important; border-color: #334155 !important;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <strong>${order.order_id}</strong> - ${order.customer_name}
@@ -1163,16 +1095,16 @@ function showOrderSearchModal(orders) {
                         </button>
                     </div>
                 </div>
-                <div class="card-body">
+                <div class="card-body" style="background-color: #0f172a; color: #f8fafc;">
                     <div class="row">
                         <div class="col-md-6">
-                            <p class="mb-1"><strong>연락처:</strong> ${order.customer_phone || '없음'}</p>
-                            <p class="mb-1"><strong>결제일:</strong> ${order.payment_date}</p>
-                            <p class="mb-1"><strong>금액:</strong> ${order.total_amount.toLocaleString()}원</p>
+                            <p class="mb-1" style="color: #f8fafc;"><strong>연락처:</strong> ${order.customer_phone || '없음'}</p>
+                            <p class="mb-1" style="color: #f8fafc;"><strong>결제일:</strong> ${order.payment_date}</p>
+                            <p class="mb-1" style="color: #f8fafc;"><strong>금액:</strong> ${order.total_amount.toLocaleString()}원</p>
                         </div>
                         <div class="col-md-6">
-                            <p class="mb-1"><strong>주문 제품:</strong></p>
-                            <ul class="small mb-0">${itemsHTML}</ul>
+                            <p class="mb-1" style="color: #f8fafc;"><strong>주문 제품:</strong></p>
+                            <ul class="small mb-0" style="color: #f8fafc;">${itemsHTML}</ul>
                         </div>
                     </div>
                     ${order.customer_memo ? `<div class="alert alert-warning mt-2 mb-0 py-2"><strong>메모:</strong> ${order.customer_memo}</div>` : ''}
