@@ -281,6 +281,16 @@
                         {{ form.due_date }}
                         <div class="form-text small">발송 마감 예정일을 선택하세요 (선택사항)</div>
                     </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.is_urgent.id_for_label }}" class="form-label">긴급 주문</label>
+                        <div class="form-check mt-1">
+                            {{ form.is_urgent }}
+                            <label class="form-check-label ms-1" for="{{ form.is_urgent.id_for_label }}">
+                                긴급건으로 표시
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 시안 및 이미지 업로드 -->

@@ -99,6 +99,17 @@ class ManualOrderForm(forms.Form):
         }),
         help_text="발송 마감 예정일을 선택하세요"
     )
+
+    urgent_order = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="긴급 주문",
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input',
+            'id': 'id_urgent_order'
+        }),
+        help_text="체크하면 주문 목록에서 붉은색으로 강조됩니다."
+    )
     
     # 제품 옵션 선택 (수량 입력 방식으로 변경되어 사용하지 않음, 하지만 템플릿 에러 방지를 위해 유지)
     # product_options = forms.ModelMultipleChoiceField(
@@ -196,7 +207,8 @@ class ManualOrderForm(forms.Form):
             total_order_amount=self.cleaned_data.get('total_order_amount', Decimal('0')),
             payment_date=timezone.now(),  # 자동으로 현재 시각 설정
             # 수동 등록에서 선택한 발송 마감일 저장 (미선택 시 None)
-            due_date=self.cleaned_data.get('due_date')
+            due_date=self.cleaned_data.get('due_date'),
+            is_urgent=self.cleaned_data.get('urgent_order', False),
         )
         
         # 제품 옵션 선택 처리 (수량 포함)
@@ -248,7 +260,7 @@ class OrderUpdateForm(forms.ModelForm):
             'customer_name', 'customer_phone', 'shipping_address',
             'payment_date',
             'customer_memo', 'tracking_number',
-            'shipping_cost', 'total_order_amount', 'due_date', 'status'
+            'shipping_cost', 'total_order_amount', 'due_date', 'is_urgent', 'status'
         ]
         widgets = {
             'customer_name': forms.TextInput(attrs={
@@ -285,6 +297,9 @@ class OrderUpdateForm(forms.ModelForm):
             }),
             'status': forms.Select(attrs={
                 'class': 'form-control'
+            }),
+            'is_urgent': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
             })
         }
     

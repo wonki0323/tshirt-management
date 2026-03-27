@@ -104,6 +104,11 @@ class Order(models.Model):
         verbose_name="송장번호",
         help_text="택배 송장 번호"
     )
+    is_urgent = models.BooleanField(
+        default=False,
+        verbose_name="긴급 주문",
+        help_text="긴급 처리 대상 주문 여부"
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일시")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="수정일시")
 

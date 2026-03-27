@@ -381,6 +381,36 @@
         color: white;
         border-color: #0d6efd;
     }
+
+    /* 긴급 주문 강조 */
+    .table tbody tr.urgent-order-row,
+    .table.table-striped tbody tr.urgent-order-row,
+    .table.table-hover tbody tr.urgent-order-row {
+        background-color: #5b1418 !important;
+        --bs-table-bg: #5b1418;
+        --bs-table-striped-bg: #5b1418;
+        --bs-table-hover-bg: #6a1a1f;
+        --bs-table-color: #ffffff;
+        --bs-table-hover-color: #ffffff;
+    }
+
+    .table tbody tr.urgent-order-row > td,
+    .table.table-striped tbody tr.urgent-order-row > td,
+    .table.table-hover tbody tr.urgent-order-row > td {
+        background-color: #5b1418 !important;
+        color: #ffffff !important;
+        border-color: #7a1f25 !important;
+        box-shadow: inset 0 0 0 9999px #5b1418 !important;
+    }
+
+    .table.table-hover tbody tr.urgent-order-row:hover > td {
+        background-color: #6a1a1f !important;
+        box-shadow: inset 0 0 0 9999px #6a1a1f !important;
+    }
+
+    .urgent-order-row a {
+        color: #fff1f2 !important;
+    }
 </style>
 {% endblock %}
 
@@ -461,7 +491,7 @@
             </thead>
             <tbody>
                 {% for order in orders %}
-                <tr>
+                <tr{% if order.is_urgent %} class="urgent-order-row"{% endif %}>
                     {% if status_filter == 'PRODUCED' %}
                     <td>
                         <input type="checkbox" name="order_ids" value="{{ order.id }}" class="form-check-input order-checkbox">
@@ -497,6 +527,11 @@
                         {% else %}
                             <span class="badge bg-light text-dark" title="굿즈 주문 (상담/시안 제작 필요)">
                                 <i class="fas fa-palette"></i> 굿즈
+                            </span>
+                        {% endif %}
+                        {% if order.is_urgent %}
+                            <span class="badge ms-1" style="background-color: #dc2626; color: #ffffff;" title="긴급 주문">
+                                긴급
                             </span>
                         {% endif %}
                     </td>
@@ -691,6 +726,14 @@ function getCookie(name) {
 
 // 전체 선택/해제 기능
 document.addEventListener('DOMContentLoaded', function() {
+    // 긴급 주문 행 강제 강조 (테이블 기본 striping/hover 덮어쓰기)
+    document.querySelectorAll('tr.urgent-order-row > td').forEach(td => {
+        td.style.backgroundColor = '#5b1418';
+        td.style.color = '#ffffff';
+        td.style.borderColor = '#7a1f25';
+        td.style.boxShadow = 'inset 0 0 0 9999px #5b1418';
+    });
+
     const selectAllCheckbox = document.getElementById('selectAll');
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function() {
