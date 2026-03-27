@@ -264,7 +264,7 @@
                             {{ form.total_order_amount.label }}
                         </label>
                         {{ form.total_order_amount }}
-                        <div class="form-text small">자동 계산됩니다. (수정 불가)</div>
+                        <div class="form-text small">자동 계산값이 입력되며, 필요 시 직접 수정할 수 있습니다.</div>
                     </div>
                     
                     <div class="col-md-4 mb-3">
@@ -425,6 +425,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const grandTotalDisplay = document.getElementById('grandTotalDisplay');
     const toggleShippingBtn = document.getElementById('toggleShippingBtn');
     let lastNonZeroShipping = parseFloat(shippingCostInput.value) || 3500;
+    let manualTotalOverride = false;
 
     let currentOptions = []; 
 
@@ -511,14 +512,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (shippingCost > 0) {
             lastNonZeroShipping = shippingCost;
         }
-        const total = itemsTotal + shippingCost;
-        
-        totalAmountInput.value = Math.round(total);
+        const autoTotal = itemsTotal + shippingCost;
+        if (!manualTotalOverride) {
+            totalAmountInput.value = Math.round(autoTotal);
+        }
+        const appliedTotal = parseFloat(totalAmountInput.value) || 0;
+
         if (shippingFeeDisplay) {
             shippingFeeDisplay.textContent = formatNumberWithCommas(shippingCost) + '원';
         }
         if (grandTotalDisplay) {
-            grandTotalDisplay.textContent = formatNumberWithCommas(total) + '원';
+            grandTotalDisplay.textContent = formatNumberWithCommas(appliedTotal) + '원';
         }
     }
 
@@ -793,6 +797,15 @@ document.addEventListener('DOMContentLoaded', function() {
             syncShippingToggleButton();
         });
     }
+
+    totalAmountInput.addEventListener('input', function() {
+        const rawValue = this.value ? this.value.trim() : '';
+        manualTotalOverride = rawValue !== '';
+        const appliedTotal = parseFloat(rawValue) || 0;
+        if (grandTotalDisplay) {
+            grandTotalDisplay.textContent = formatNumberWithCommas(appliedTotal) + '원';
+        }
+    });
 
     // === 초기 데이터 로딩 ===
     if (existingItemsData && existingItemsData.length > 0) {

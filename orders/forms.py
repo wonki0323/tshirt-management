@@ -277,8 +277,7 @@ class OrderUpdateForm(forms.ModelForm):
                 'class': 'form-control'
             }),
             'total_order_amount': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'readonly': 'readonly'
+                'class': 'form-control'
             }),
             'due_date': forms.DateInput(attrs={
                 'class': 'form-control',
