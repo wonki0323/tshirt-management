@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 from orders.models import Order, OrderItem, Status
 from finance.models import Expense, Purchase
 from products.models import Product
@@ -22,17 +22,19 @@ def dashboard(request):
     active_orders = Order.objects.exclude(status=Status.CANCELED)
     
     # FINANCE: 이번 달 매출-매입=순이익 계산
-    # 매출: 발송/결과통보 주문 중 '이번 달' 결제건
-    completed_orders = Order.objects.filter(
-        status__in=[Status.COMPLETED, Status.SETTLED, Status.ARCHIVED],
+    # 매출: 매출현황(sales_status)과 동일 — 결제 이후 상태, 이번 달 payment_date 기준 (등록/취소 제외)
+    monthly_revenue_orders = Order.objects.filter(
+        Q(status=Status.CONSULTING)
+        | Q(status=Status.PRODUCED)
+        | Q(status=Status.COMPLETED)
+        | Q(status=Status.SETTLED)
+        | Q(status=Status.ARCHIVED),
         payment_date__year=now.year,
-        payment_date__month=now.month
+        payment_date__month=now.month,
     )
-    
-    total_revenue = sum(
-        order.total_order_amount 
-        for order in completed_orders
-    )
+    total_revenue = monthly_revenue_orders.aggregate(
+        total=Sum('total_order_amount')
+    )['total'] or Decimal('0')
     
     # 매입: 이번 달 매입 내역
     purchases = Purchase.objects.filter(
