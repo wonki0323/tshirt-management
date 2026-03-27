@@ -1261,7 +1261,7 @@ def move_to_accounting(request, pk):
 
 @login_required
 def sales_status(request):
-    """매출 현황 - 제작중 이상 상태의 주문 매출 집계 (월별)"""
+    """매출 현황 - 결제 이후 상태 주문 매출 집계 (월별)"""
     from django.db.models import Sum, Q
     from dateutil.relativedelta import relativedelta
     
@@ -1277,10 +1277,11 @@ def sales_status(request):
         now = timezone.now()
         year, month = now.year, now.month
     
-    # 선택한 월의 1일부터 말일까지의 주문 조회
-    # 상태: 제작중 이상 (입금 완료된 주문)
+    # 선택한 월의 주문 조회
+    # 상태: 결제 이후 (등록/취소 제외)
     # 관련 데이터 미리 로드하여 N+1 쿼리 방지
     orders = Order.objects.filter(
+        Q(status=Status.CONSULTING) |
         Q(status=Status.PRODUCED) | 
         Q(status=Status.COMPLETED) | 
         Q(status=Status.SETTLED) |
@@ -1297,7 +1298,7 @@ def sales_status(request):
     # 상태별 주문 수
     status_counts = {}
     for status_value, status_label in Status.choices:
-        if status_value in ['PRODUCED', 'COMPLETED', 'SETTLED', 'ARCHIVED']:
+        if status_value in ['CONSULTING', 'PRODUCED', 'COMPLETED', 'SETTLED', 'ARCHIVED']:
             count = orders.filter(status=status_value).count()
             status_counts[status_label] = count
     
