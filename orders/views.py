@@ -431,9 +431,9 @@ def upload_design_and_confirm(request):
         messages.error(request, '주문 ID가 없습니다.')
         return redirect(request.META.get('HTTP_REFERER', '/orders/'))
     
-    if not design_files and not thumbnail_images:
-        logger.error("업로드할 파일이 없습니다.")
-        messages.error(request, '시안 파일 또는 썸네일 이미지를 1개 이상 선택해주세요.')
+    if not thumbnail_images:
+        logger.error("썸네일이 없습니다.")
+        messages.error(request, '썸네일 이미지를 1장 이상 선택해주세요.')
         return redirect(request.META.get('HTTP_REFERER', '/orders/'))
     
     try:
@@ -629,6 +629,14 @@ def upload_design_and_confirm(request):
                     request, 
                     f'✅ Google Drive에 시안 파일 {file_count}개가 업로드되었습니다!<br>'
                     f'썸네일 {len(thumbnail_images)}장 업로드 완료<br>'
+                    f'주문 상태는 변경하지 않았습니다.<br>'
+                    f'<a href="{upload_result["folder"]["webViewLink"]}" target="_blank" class="btn btn-sm btn-primary">Google Drive 폴더 열기</a>'
+                )
+            elif not design_files:
+                messages.success(
+                    request,
+                    f'✅ 썸네일 {len(thumbnail_images)}장이 저장되었습니다. (시안 파일은 선택하지 않음)<br>'
+                    f'Google Drive 폴더가 준비되었습니다.<br>'
                     f'주문 상태는 변경하지 않았습니다.<br>'
                     f'<a href="{upload_result["folder"]["webViewLink"]}" target="_blank" class="btn btn-sm btn-primary">Google Drive 폴더 열기</a>'
                 )

@@ -83,9 +83,13 @@
                             <input type="text" class="form-control" id="customer_name_display" readonly>
                         </div>
                         <div class="mb-3">
-                            <label for="design_files" class="form-label">시안 파일</label>
-                            <input type="file" class="form-control" id="design_files" name="design_files" multiple required>
-                            <div class="form-text">여러 파일을 선택할 수 있습니다.</div>
+                            <label for="thumbnail_images" class="form-label">썸네일 (필수)</label>
+                            <input type="file" class="form-control" id="thumbnail_images" name="thumbnail_images" multiple required accept="image/*">
+                        </div>
+                        <div class="mb-3">
+                            <label for="design_files" class="form-label">시안 파일 (선택)</label>
+                            <input type="file" class="form-control" id="design_files" name="design_files" multiple accept="image/*,.pdf,.ai,.psd">
+                            <div class="form-text">선택하지 않아도 썸네일만으로 제출할 수 있습니다.</div>
                         </div>
                         <input type="hidden" name="order_id" id="modal_order_id">
                     </div>

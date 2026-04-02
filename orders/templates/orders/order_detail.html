@@ -237,6 +237,29 @@
         font-size: 18px;
         font-weight: 500;
     }
+
+    /* 시안 업로드 모달: 썸네일 드롭 영역 */
+    .thumbnail-drop-zone {
+        border: 2px dashed #6b7280;
+        border-radius: 8px;
+        padding: 12px;
+        background: rgba(15, 20, 27, 0.55);
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .thumbnail-drop-zone.thumbnail-drop-zone--over {
+        border-color: #60a5fa;
+        background: rgba(30, 58, 138, 0.22);
+    }
+    .thumbnail-drop-zone .form-text,
+    .thumbnail-drop-zone .form-text strong {
+        color: #f9fafb !important;
+    }
+    .thumbnail-upload-subhint {
+        color: #f3f4f6 !important;
+    }
+    #uploadDesignModal .thumbnail-preview-item-caption {
+        color: #111827 !important;
+    }
 </style>
 {% endblock %}
 
@@ -699,6 +722,140 @@ function getCookie(name) {
     return cookieValue;
 }
 
+function escapeHtmlUpload(str) {
+    if (str === undefined || str === null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function mergeImagesIntoThumbnailInput(fileInput, newFileList) {
+    const imgs = Array.from(newFileList || []).filter(f => f && f.type && f.type.indexOf('image/') === 0);
+    if (!imgs.length) return false;
+    const dt = new DataTransfer();
+    Array.from(fileInput.files || []).forEach(f => dt.items.add(f));
+    imgs.forEach(f => dt.items.add(f));
+    fileInput.files = dt.files;
+    return true;
+}
+
+function renderThumbnailPreviewFromInput(thumbnailInput, thumbnailPreview) {
+    if (!thumbnailInput || !thumbnailPreview) return;
+    if (!thumbnailInput.files || thumbnailInput.files.length === 0) {
+        thumbnailPreview.innerHTML = '';
+        return;
+    }
+    let html = `
+        <div class="alert alert-success py-2 px-3">
+            <strong>선택된 썸네일 (${thumbnailInput.files.length}장):</strong>
+            <div class="mt-2 d-flex flex-wrap gap-3 align-items-start">
+    `;
+    Array.from(thumbnailInput.files).forEach((file, idx) => {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const flex = thumbnailPreview.querySelector('.d-flex');
+            if (!flex) return;
+            const safeName = escapeHtmlUpload(file.name);
+            const imgHtml = `
+                <div class="text-center position-relative d-inline-block align-top" style="padding-top:2px;">
+                    <button type="button" class="thumbnail-remove-btn" data-index="${idx}" title="이미지 제거" aria-label="이미지 제거"
+                        style="position:absolute;top:0;right:0;z-index:2;width:28px;height:28px;border-radius:50%;border:none;background:rgba(220,38,38,0.95);color:#fff;font-size:18px;line-height:1;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.4);">×</button>
+                    <img src="${ev.target.result}" alt="썸네일 ${idx + 1}" style="max-width: 150px; max-height: 150px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); display:block;">
+                    <div class="small mt-1 thumbnail-preview-item-caption">${idx + 1}. ${safeName}</div>
+                </div>
+            `;
+            flex.insertAdjacentHTML('beforeend', imgHtml);
+        };
+        reader.readAsDataURL(file);
+    });
+    html += '</div></div>';
+    thumbnailPreview.innerHTML = html;
+}
+
+function setupThumbnailDropPaste(thumbnailInput, thumbnailPreview) {
+    const zone = document.getElementById('thumbnailDropZone');
+    if (zone && thumbnailInput) {
+        let dragDepth = 0;
+        zone.addEventListener('dragenter', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dragDepth++;
+            zone.classList.add('thumbnail-drop-zone--over');
+        });
+        zone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dragDepth = Math.max(0, dragDepth - 1);
+            if (dragDepth === 0) zone.classList.remove('thumbnail-drop-zone--over');
+        });
+        zone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        zone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dragDepth = 0;
+            zone.classList.remove('thumbnail-drop-zone--over');
+            const fl = e.dataTransfer && e.dataTransfer.files;
+            if (fl && fl.length && mergeImagesIntoThumbnailInput(thumbnailInput, fl)) {
+                renderThumbnailPreviewFromInput(thumbnailInput, thumbnailPreview);
+            }
+        });
+    }
+    if (!window._uploadDesignModalPasteBound) {
+        window._uploadDesignModalPasteBound = true;
+        document.addEventListener('paste', function _uploadDesignModalPasteHandler(e) {
+            if (!document.getElementById('uploadDesignModal')) return;
+            const ti = document.getElementById('thumbnail_images');
+            const tp = document.getElementById('thumbnail-preview');
+            if (!ti || !tp) return;
+            const t = e.target;
+            if (t && t.tagName) {
+                const tag = t.tagName.toLowerCase();
+                if (tag === 'textarea') return;
+                if (tag === 'input' && t.type === 'text' && !t.readOnly) return;
+            }
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items || !items.length) return;
+            const pasted = [];
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                if (it.kind === 'file' && it.type && it.type.indexOf('image/') === 0) {
+                    const f = it.getAsFile();
+                    if (f) pasted.push(f);
+                }
+            }
+            if (!pasted.length) return;
+            e.preventDefault();
+            if (mergeImagesIntoThumbnailInput(ti, pasted)) {
+                renderThumbnailPreviewFromInput(ti, tp);
+            }
+        });
+    }
+    if (!window._uploadThumbnailRemoveBound) {
+        window._uploadThumbnailRemoveBound = true;
+        document.body.addEventListener('click', function(e) {
+            const btn = e.target.closest('#uploadDesignModal .thumbnail-remove-btn');
+            if (!btn) return;
+            e.preventDefault();
+            const ti = document.getElementById('thumbnail_images');
+            const tp = document.getElementById('thumbnail-preview');
+            if (!ti || !tp) return;
+            const idx = parseInt(btn.getAttribute('data-index'), 10);
+            if (Number.isNaN(idx)) return;
+            const dt = new DataTransfer();
+            Array.from(ti.files || []).forEach((f, i) => {
+                if (i !== idx) dt.items.add(f);
+            });
+            ti.files = dt.files;
+            renderThumbnailPreviewFromInput(ti, tp);
+        });
+    }
+}
+
 // 이미지 모달 열기
 function openImageModal(imageUrl, caption) {
     const modal = document.getElementById('imageModal');
@@ -990,17 +1147,22 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <label for="thumbnail_images" class="form-label">
                                         <i class="fas fa-images me-2"></i>썸네일 이미지 (여러 장 선택 가능) <span class="text-danger">*</span>
                                     </label>
-                                    <input type="file" class="form-control" id="thumbnail_images" name="thumbnail_images" multiple required accept="image/jpeg,image/png,image/jpg,image/gif,image/webp">
-                                    <div class="form-text">
+                                    <div id="thumbnailDropZone" class="thumbnail-drop-zone">
+                                        <input type="file" class="form-control mb-2" id="thumbnail_images" name="thumbnail_images" multiple required accept="image/jpeg,image/png,image/jpg,image/gif,image/webp">
+                                        <div class="form-text small mb-0">
+                                            이미지 파일을 이 영역으로 <strong>드래그</strong>하거나, 모달이 열린 상태에서 <strong>Ctrl+V</strong>로 클립보드 이미지를 붙여넣을 수 있습니다. (기존처럼 파일 선택도 가능)
+                                        </div>
+                                    </div>
+                                    <div class="form-text mt-1 thumbnail-upload-subhint">
                                         주문 상세 페이지에서 좌우로 넘겨볼 수 있는 썸네일 (JPG, PNG, GIF, WEBP) - 여러 장 선택 가능
                                     </div>
                                     <div id="thumbnail-preview" class="mt-2"></div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="design_files" class="form-label">
-                                        <i class="fas fa-upload me-2"></i>시안 파일 (여러 파일 선택 가능)
+                                        <i class="fas fa-upload me-2"></i>시안 파일 (선택, 여러 파일 선택 가능)
                                     </label>
-                                    <input type="file" class="form-control" id="design_files" name="design_files" multiple required accept="image/*,.pdf,.ai,.psd">
+                                    <input type="file" class="form-control" id="design_files" name="design_files" multiple accept="image/*,.pdf,.ai,.psd">
                                     <div class="form-text">
                                         <div class="alert alert-info py-2 px-3 mt-2 mb-0">
                                             <strong>📁 파일 선택 방법:</strong><br>
@@ -1054,36 +1216,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const uploadBtn = document.getElementById('uploadBtn');
             const cancelBtn = document.getElementById('cancelBtn');
             
-            // 썸네일 이미지 미리보기 (여러 장)
+            // 썸네일: 파일 선택 / 드래그 / 붙여넣기
             if (thumbnailInput && thumbnailPreview) {
-                thumbnailInput.addEventListener('change', function(e) {
-                    if (this.files && this.files.length > 0) {
-                        let html = `
-                            <div class="alert alert-success py-2 px-3">
-                                <strong>선택된 썸네일 (${this.files.length}장):</strong>
-                                <div class="mt-2 d-flex flex-wrap gap-2">
-                        `;
-                        
-                        Array.from(this.files).forEach((file, idx) => {
-                            const reader = new FileReader();
-                            reader.onload = function(e) {
-                                const imgHtml = `
-                                    <div class="text-center">
-                                        <img src="${e.target.result}" alt="썸네일 ${idx + 1}" style="max-width: 150px; max-height: 150px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
-                                        <div class="small mt-1">${idx + 1}. ${file.name}</div>
-                                    </div>
-                                `;
-                                thumbnailPreview.querySelector('.d-flex').insertAdjacentHTML('beforeend', imgHtml);
-                            };
-                            reader.readAsDataURL(file);
-                        });
-                        
-                        html += '</div></div>';
-                        thumbnailPreview.innerHTML = html;
-                    } else {
-                        thumbnailPreview.innerHTML = '';
-                    }
+                thumbnailInput.addEventListener('change', function() {
+                    renderThumbnailPreviewFromInput(thumbnailInput, thumbnailPreview);
                 });
+                setupThumbnailDropPaste(thumbnailInput, thumbnailPreview);
             }
             
             if (fileInput && fileList) {
