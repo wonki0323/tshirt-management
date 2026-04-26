@@ -236,10 +236,23 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
         order = self.get_object()
         from products.models import ItemTypeChoices
         
-        # 주문 항목들 가져오기 (이미 prefetch됨)
-        order_items = order.items.all()
+        # 주문 항목 (표시 순서: 의류 → 후가공)
+        order_items = list(
+            order.items.select_related('product_option__product').all()
+        )
         context['order_items'] = order_items
-        
+        clothing_order_items = []
+        post_processing_order_items = []
+        for item in order_items:
+            po = item.product_option
+            if po and po.product.item_type == ItemTypeChoices.POST_PROCESSING:
+                post_processing_order_items.append(item)
+            else:
+                clothing_order_items.append(item)
+        context['clothing_order_items'] = clothing_order_items
+        context['post_processing_order_items'] = post_processing_order_items
+        context['clothing_items_count'] = len(clothing_order_items)
+
         # 실물 제품 총 개수 계산
         physical_items_count = sum(
             item.quantity for item in order_items
@@ -1025,12 +1038,14 @@ def order_update(request, pk):
     for item in order_items:
         if item.product_option:
             try:
+                is_pp = item.product_option.product.item_type == ItemTypeChoices.POST_PROCESSING
                 # product_option이 있고, product도 존재하는 경우
                 existing_items.append({
                     'option_id': item.product_option.id,
                     'quantity': item.quantity,
                     'detail': f"{item.product_option.product.name} - {item.product_option.option_detail}",
-                    'price': float(item.unit_price)
+                    'price': float(item.unit_price),
+                    'is_post_processing': 1 if is_pp else 0,
                 })
             except (AttributeError, Exception):
                 # product_option이 삭제된 경우, 저장된 이름 사용
@@ -1038,7 +1053,8 @@ def order_update(request, pk):
                     'option_id': None,
                     'quantity': item.quantity,
                     'detail': f"{item.smartstore_product_name} ({item.smartstore_option_text})",
-                    'price': float(item.unit_price)
+                    'price': float(item.unit_price),
+                    'is_post_processing': 0,
                 })
         else:
             # product_option이 없는 경우 (수동 입력 또는 제품 삭제됨)
@@ -1046,7 +1062,8 @@ def order_update(request, pk):
                 'option_id': None,
                 'quantity': item.quantity,
                 'detail': f"{item.smartstore_product_name} ({item.smartstore_option_text})",
-                'price': float(item.unit_price)
+                'price': float(item.unit_price),
+                'is_post_processing': 0,
             })
     
     return render(request, 'orders/order_update.html', {

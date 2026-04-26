@@ -5,65 +5,100 @@
 
 {% block extra_css %}
 <style>
-    .readonly-field {
-        background-color: #0f141b !important;
-        color: #f3f4f6 !important;
-        border-color: #2b3542 !important;
-        opacity: 1;
+    .order-editor-page h1 {
+        color: #f3f4f6;
     }
 
-    #id_total_order_amount[readonly] {
-        background-color: #0f141b !important;
-        color: #f3f4f6 !important;
-        border-color: #2b3542 !important;
-        opacity: 1;
+    .order-editor-sheet .card-body,
+    .order-editor-sheet .table-responsive {
+        background-color: transparent !important;
     }
 
     .selection-placeholder {
-        color: #262626 !important;
+        color: #8a94a6 !important;
     }
 
     .option-step-label {
-        color: #262626 !important;
+        color: #c2cad6 !important;
     }
 
     .option-select-box {
-        background-color: #cccccc !important;
-        border-color: #bfbfbf !important;
-        color: #1a1a1a !important;
+        background-color: #0f141b !important;
+        border-color: #2b3542 !important;
+        color: #f3f4f6 !important;
     }
 
     .option-select-box:disabled {
-        background-color: #cccccc !important;
-        border-color: #bfbfbf !important;
-        color: #4d4d4d !important;
+        background-color: #0a0e14 !important;
+        border-color: #2b3542 !important;
+        color: #6b7280 !important;
         opacity: 1;
     }
 
-    #selectedOptionsTable .text-muted {
-        color: #9fb0c2 !important;
+    #selectedOptionsTable.table {
+        --bs-table-bg: #0b0f14;
+        --bs-table-color: #e8eaed;
+        --bs-table-hover-bg: #131a24;
+        --bs-table-border-color: #202833;
+        background-color: #0b0f14 !important;
+        color: #e8eaed !important;
     }
-
-    #selectedOptionsTable td,
-    #selectedOptionsTable th {
-        color: #d7e2f0;
+    #selectedOptionsTable thead th {
+        background-color: #121a25 !important;
+        color: #d7dbe2 !important;
+        border-color: #202833 !important;
     }
-
+    #selectedOptionsTable tbody tr {
+        background-color: #0b0f14 !important;
+    }
+    #selectedOptionsTable tbody td,
+    #selectedOptionsTable tbody th {
+        color: #e8eaed !important;
+        border-color: #202833 !important;
+    }
     #selectedOptionsTable .text-dark,
-    #selectedOptionsTable .fw-bold,
-    #selectedOptionsTable .option-total-price {
-        color: #e8f1ff !important;
+    #selectedOptionsTable .fw-bold {
+        color: #f3f4f6 !important;
     }
-
     #selectedOptionsTable .text-muted,
     #selectedOptionsTable .small {
-        color: #bfd0e8 !important;
+        color: #95a2b4 !important;
+    }
+    #selectedOptionsTable .option-total-price,
+    #selectedOptionsTable #productItemsAmountDisplay,
+    #selectedOptionsTable #postProcessItemsAmountDisplay,
+    #selectedOptionsTable #shippingFeeDisplay {
+        color: #ff9e9e !important;
+    }
+    #selectedOptionsTable #clothingDiscountAmountDisplay,
+    #selectedOptionsTable #postProcessDiscountAmountDisplay {
+        color: #ff5252 !important;
+        font-weight: 700 !important;
+    }
+    #selectedOptionsTable #grandTotalDisplay,
+    #selectedOptionsTable tr.grand-total-row th {
+        color: #f8fafc !important;
+        background-color: #1a2433 !important;
+    }
+    #selectedOptionsTable tr.grand-total-row.table-primary {
+        --bs-table-bg: #1a2433 !important;
+        background-color: #1a2433 !important;
+    }
+    #selectedOptionsTable tr.table-warning th,
+    #selectedOptionsTable tr.table-warning td {
+        background-color: #2a2419 !important;
+        color: #e8eaed !important;
+    }
+    #selectedOptionsTable tfoot th {
+        background-color: #121a25 !important;
+        color: #e8eaed !important;
+        border-color: #202833 !important;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-4 order-editor-page">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1><i class="fas fa-edit"></i> 주문 정보 수정</h1>
         <a href="{% url 'order_detail' order.pk %}" class="btn btn-secondary">
@@ -80,7 +115,7 @@
         {% endfor %}
     {% endif %}
 
-    <div class="card shadow-sm">
+    <div class="card shadow-sm order-editor-sheet">
         <div class="card-header bg-primary text-white">
             <h5 class="mb-0">주문번호: {{ order.smartstore_order_id }}</h5>
         </div>
@@ -221,13 +256,35 @@
                                 </tbody>
                                 <tfoot>
                                     <tr>
+                                        <th class="text-end">의류 소계</th>
+                                        <th class="text-center" id="productItemsCountDisplay">0개</th>
+                                        <th class="text-end" id="productItemsAmountDisplay">0원</th>
+                                        <th></th>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-end">후가공 소계</th>
+                                        <th class="text-center" id="postProcessItemsCountDisplay">0개</th>
+                                        <th class="text-end" id="postProcessItemsAmountDisplay">0원</th>
+                                        <th></th>
+                                    </tr>
+                                    <tr class="table-warning">
+                                        <th colspan="2" class="text-end" id="clothingDiscountLabel">의류 할인 (0%)</th>
+                                        <th class="text-end text-danger" id="clothingDiscountAmountDisplay">0원</th>
+                                        <th></th>
+                                    </tr>
+                                    <tr class="table-warning">
+                                        <th colspan="2" class="text-end" id="postProcessDiscountLabel">후가공 할인 (0%)</th>
+                                        <th class="text-end text-danger" id="postProcessDiscountAmountDisplay">0원</th>
+                                        <th></th>
+                                    </tr>
+                                    <tr>
                                         <th colspan="2" class="text-end">택배비</th>
                                         <th class="text-end" id="shippingFeeDisplay">0원</th>
                                         <th></th>
                                     </tr>
-                                    <tr>
+                                    <tr class="table-primary grand-total-row">
                                         <th colspan="2" class="text-end">총 결제 금액</th>
-                                        <th class="text-end" id="grandTotalDisplay">0원</th>
+                                        <th class="text-end fw-bold" id="grandTotalDisplay">0원</th>
                                         <th></th>
                                     </tr>
                                 </tfoot>
@@ -258,13 +315,42 @@
                             <button type="button" class="btn btn-outline-danger btn-sm" id="toggleShippingBtn">택배비 삭제</button>
                         </div>
                     </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.clothing_discount_percent.id_for_label }}" class="form-label">{{ form.clothing_discount_percent.label }} (%)</label>
+                        <div class="input-group">
+                            {{ form.clothing_discount_percent }}
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <div class="btn-group btn-group-sm flex-wrap gap-1 mt-1" role="group">
+                            <button type="button" class="btn btn-outline-secondary discount-preset-btn" data-target="{{ form.clothing_discount_percent.id_for_label }}" data-pct="0">0</button>
+                            <button type="button" class="btn btn-outline-secondary discount-preset-btn" data-target="{{ form.clothing_discount_percent.id_for_label }}" data-pct="5">5%</button>
+                            <button type="button" class="btn btn-outline-secondary discount-preset-btn" data-target="{{ form.clothing_discount_percent.id_for_label }}" data-pct="10">10%</button>
+                            <button type="button" class="btn btn-outline-secondary discount-preset-btn" data-target="{{ form.clothing_discount_percent.id_for_label }}" data-pct="15">15%</button>
+                            <button type="button" class="btn btn-outline-secondary discount-preset-btn" data-target="{{ form.clothing_discount_percent.id_for_label }}" data-pct="20">20%</button>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.post_processing_discount_percent.id_for_label }}" class="form-label">{{ form.post_processing_discount_percent.label }} (%)</label>
+                        <div class="input-group">
+                            {{ form.post_processing_discount_percent }}
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <div class="btn-group btn-group-sm flex-wrap gap-1 mt-1" role="group">
+                            <button type="button" class="btn btn-outline-secondary discount-preset-btn" data-target="{{ form.post_processing_discount_percent.id_for_label }}" data-pct="0">0</button>
+                            <button type="button" class="btn btn-outline-secondary discount-preset-btn" data-target="{{ form.post_processing_discount_percent.id_for_label }}" data-pct="5">5%</button>
+                            <button type="button" class="btn btn-outline-secondary discount-preset-btn" data-target="{{ form.post_processing_discount_percent.id_for_label }}" data-pct="10">10%</button>
+                            <button type="button" class="btn btn-outline-secondary discount-preset-btn" data-target="{{ form.post_processing_discount_percent.id_for_label }}" data-pct="15">15%</button>
+                            <button type="button" class="btn btn-outline-secondary discount-preset-btn" data-target="{{ form.post_processing_discount_percent.id_for_label }}" data-pct="20">20%</button>
+                        </div>
+                    </div>
                     
                     <div class="col-md-4 mb-3">
                         <label for="{{ form.total_order_amount.id_for_label }}" class="form-label">
                             {{ form.total_order_amount.label }}
                         </label>
                         {{ form.total_order_amount }}
-                        <div class="form-text small">자동 계산값이 입력되며, 필요 시 직접 수정할 수 있습니다.</div>
+                        <div class="form-text small">의류·후가공·할인·택배비를 반영한 자동값이며, 필요 시 직접 수정할 수 있습니다.</div>
                     </div>
                     
                     <div class="col-md-4 mb-3">
@@ -431,8 +517,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const emptyRow = document.getElementById('emptyRow');
     const shippingCostInput = document.getElementById('{{ form.shipping_cost.id_for_label }}');
     const totalAmountInput = document.getElementById('{{ form.total_order_amount.id_for_label }}');
+    const clothingDiscountInput = document.getElementById('{{ form.clothing_discount_percent.id_for_label }}');
+    const postProcessingDiscountInput = document.getElementById('{{ form.post_processing_discount_percent.id_for_label }}');
     const shippingFeeDisplay = document.getElementById('shippingFeeDisplay');
     const grandTotalDisplay = document.getElementById('grandTotalDisplay');
+    const productItemsCountDisplay = document.getElementById('productItemsCountDisplay');
+    const productItemsAmountDisplay = document.getElementById('productItemsAmountDisplay');
+    const postProcessItemsCountDisplay = document.getElementById('postProcessItemsCountDisplay');
+    const postProcessItemsAmountDisplay = document.getElementById('postProcessItemsAmountDisplay');
     const toggleShippingBtn = document.getElementById('toggleShippingBtn');
     let lastNonZeroShipping = parseFloat(shippingCostInput.value) || 3500;
     let manualTotalOverride = false;
@@ -504,29 +596,65 @@ document.addEventListener('DOMContentLoaded', function() {
         return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     }
 
-    // 총액 계산
+    // 총액 계산 (의류·후가공·할인·택배비)
     function calculateTotal() {
-        let itemsTotal = 0;
-        const currentInputs = document.querySelectorAll('.product-quantity');
-        
-        currentInputs.forEach(input => {
+        let productOnlyQuantityTotal = 0;
+        let productOnlyAmountTotal = 0;
+        let postProcessQuantityTotal = 0;
+        let postProcessAmountTotal = 0;
+
+        document.querySelectorAll('.product-quantity').forEach(input => {
             const quantity = parseInt(input.value) || 0;
             if (quantity > 0) {
                 const price = parseFloat(input.dataset.price) || 0;
-                itemsTotal += price * quantity;
+                const subtotal = price * quantity;
+                const isPost = input.getAttribute('data-is-post-processing') === '1';
+                if (isPost) {
+                    postProcessQuantityTotal += quantity;
+                    postProcessAmountTotal += subtotal;
+                } else {
+                    productOnlyQuantityTotal += quantity;
+                    productOnlyAmountTotal += subtotal;
+                }
             }
         });
-        
+
+        const clothingPct = Math.min(100, Math.max(0, parseFloat(clothingDiscountInput && clothingDiscountInput.value) || 0));
+        const postPct = Math.min(100, Math.max(0, parseFloat(postProcessingDiscountInput && postProcessingDiscountInput.value) || 0));
+        const clothingDisc = Math.round(productOnlyAmountTotal * clothingPct / 100);
+        const postDisc = Math.round(postProcessAmountTotal * postPct / 100);
+
         const shippingCostRaw = shippingCostInput.value ? shippingCostInput.value.trim() : '';
         const shippingCost = parseFloat(shippingCostRaw) || 0;
         if (shippingCost > 0) {
             lastNonZeroShipping = shippingCost;
         }
-        const autoTotal = itemsTotal + shippingCost;
+        const autoTotal = productOnlyAmountTotal + postProcessAmountTotal - clothingDisc - postDisc + shippingCost;
         if (!manualTotalOverride) {
             totalAmountInput.value = Math.round(autoTotal);
         }
         const appliedTotal = parseFloat(totalAmountInput.value) || 0;
+
+        if (productItemsCountDisplay) {
+            productItemsCountDisplay.textContent = formatNumberWithCommas(productOnlyQuantityTotal) + '개';
+        }
+        if (productItemsAmountDisplay) {
+            productItemsAmountDisplay.textContent = formatNumberWithCommas(productOnlyAmountTotal) + '원';
+        }
+        if (postProcessItemsCountDisplay) {
+            postProcessItemsCountDisplay.textContent = formatNumberWithCommas(postProcessQuantityTotal) + '개';
+        }
+        if (postProcessItemsAmountDisplay) {
+            postProcessItemsAmountDisplay.textContent = formatNumberWithCommas(postProcessAmountTotal) + '원';
+        }
+        const cdl = document.getElementById('clothingDiscountLabel');
+        if (cdl) cdl.textContent = '의류 할인 (' + clothingPct + '%)';
+        const pdl = document.getElementById('postProcessDiscountLabel');
+        if (pdl) pdl.textContent = '후가공 할인 (' + postPct + '%)';
+        const cda = document.getElementById('clothingDiscountAmountDisplay');
+        if (cda) cda.textContent = clothingDisc > 0 ? '-' + formatNumberWithCommas(clothingDisc) + '원' : '0원';
+        const pda = document.getElementById('postProcessDiscountAmountDisplay');
+        if (pda) pda.textContent = postDisc > 0 ? '-' + formatNumberWithCommas(postDisc) + '원' : '0원';
 
         if (shippingFeeDisplay) {
             shippingFeeDisplay.textContent = formatNumberWithCommas(shippingCost) + '원';
@@ -632,7 +760,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const productName = productSelect.options[productSelect.selectedIndex].text;
         const fullOptionName = `${productName} - ${detail}`;
 
-        addOptionRow(optionId, fullOptionName, price, 1);
+        addOptionRow(optionId, fullOptionName, price, 1, false);
         
         sizeSelect.value = '';
         updateSelectTextColor(sizeSelect);
@@ -671,14 +799,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const color = selected.dataset.color || '';
         const processName = postProcessSelect.options[postProcessSelect.selectedIndex].text;
         const label = color ? `[후가공] ${processName} - ${color} / ${detail}` : `[후가공] ${processName} - ${detail}`;
-        addOptionRow(optionId, label, price, 1);
+        addOptionRow(optionId, label, price, 1, true);
         this.value = '';
         updateSelectTextColor(postProcessOptionSelect);
         calculateTotal();
     });
 
     // 옵션 행 추가 함수
-    function addOptionRow(optionId, fullOptionName, price, quantity) {
+    function addOptionRow(optionId, fullOptionName, price, quantity, isPostProcessing) {
+        const postFlag = isPostProcessing ? '1' : '0';
         // 이미 있는지 확인
         const existingRow = document.querySelector(`tr[data-option-id="${optionId}"]`);
         if (existingRow) {
@@ -703,7 +832,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <button type="button" class="btn btn-outline-secondary btn-minus" tabindex="-1"><i class="fas fa-minus"></i></button>
                     <input type="number" class="form-control text-center product-quantity" 
                            name="product_option_${optionId}" value="${quantity}" min="1" 
-                           data-price="${price}" data-option-id="${optionId}">
+                           data-price="${price}" data-option-id="${optionId}" data-is-post-processing="${postFlag}">
                     <button type="button" class="btn btn-outline-secondary btn-plus" tabindex="-1"><i class="fas fa-plus"></i></button>
                 </div>
             </td>
@@ -734,10 +863,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const target = e.target;
         const row = target.closest('tr');
         if (!row) return;
-        
+
         const quantityInput = row.querySelector('.product-quantity');
-        
+
         if (target.closest('.btn-remove')) {
+            manualTotalOverride = false;
             row.remove();
             if (selectedOptionsList.children.length === 0 || (selectedOptionsList.children.length === 1 && selectedOptionsList.children[0].id === 'emptyRow')) {
                 if (emptyRow) emptyRow.style.display = '';
@@ -747,6 +877,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         if (target.closest('.btn-plus')) {
+            manualTotalOverride = false;
             quantityInput.value = parseInt(quantityInput.value) + 1;
             updateRowPrice(row);
             calculateTotal();
@@ -756,6 +887,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (target.closest('.btn-minus')) {
             const currentVal = parseInt(quantityInput.value);
             if (currentVal > 1) {
+                manualTotalOverride = false;
                 quantityInput.value = currentVal - 1;
                 updateRowPrice(row);
                 calculateTotal();
@@ -766,6 +898,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     selectedOptionsList.addEventListener('input', function(e) {
         if (e.target.classList.contains('product-quantity')) {
+            manualTotalOverride = false;
             updateRowPrice(e.target.closest('tr'));
             calculateTotal();
         }
@@ -820,9 +953,36 @@ document.addEventListener('DOMContentLoaded', function() {
     // === 초기 데이터 로딩 ===
     if (existingItemsData && existingItemsData.length > 0) {
         existingItemsData.forEach(item => {
-            addOptionRow(item.option_id, item.detail, item.price, item.quantity);
+            if (item.option_id == null) return;
+            addOptionRow(item.option_id, item.detail, item.price, item.quantity, !!Number(item.is_post_processing));
         });
     }
+
+    if (clothingDiscountInput) {
+        clothingDiscountInput.addEventListener('input', function() {
+            manualTotalOverride = false;
+            calculateTotal();
+        });
+    }
+    if (postProcessingDiscountInput) {
+        postProcessingDiscountInput.addEventListener('input', function() {
+            manualTotalOverride = false;
+            calculateTotal();
+        });
+    }
+    document.querySelectorAll('.discount-preset-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            manualTotalOverride = false;
+            const tid = this.getAttribute('data-target');
+            const pct = this.getAttribute('data-pct');
+            const el = document.getElementById(tid);
+            if (el) {
+                el.value = pct;
+                calculateTotal();
+            }
+        });
+    });
+
     calculateTotal();
     syncShippingToggleButton();
 });

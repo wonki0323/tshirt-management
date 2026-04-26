@@ -1,5 +1,6 @@
 from django.db import models
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
+from decimal import Decimal, ROUND_HALF_UP
 from django.utils import timezone
 from products.models import ProductOption
 import os
@@ -60,6 +61,22 @@ class Order(models.Model):
         validators=[MinValueValidator(0)],
         verbose_name="택배비",
         help_text="기본 3,500원 (제주/도서산간 변경 가능)"
+    )
+    clothing_discount_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="의류(제품) 할인율",
+        help_text="0~100%. 제품(의류) 줄 합계에 적용됩니다.",
+    )
+    post_processing_discount_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="후가공 할인율",
+        help_text="0~100%. 후가공 줄 합계에 적용됩니다.",
     )
     total_order_amount = models.DecimalField(
         max_digits=12,
@@ -130,6 +147,64 @@ class Order(models.Model):
     def profit(self):
         """주문의 순이익 계산 (총 결제금액 - 총 원가)"""
         return self.total_order_amount - self.total_cost
+
+    def _items_with_product(self):
+        return self.items.select_related('product_option__product').all()
+
+    @property
+    def clothing_items_subtotal(self):
+        """제품(의류) 주문 줄 판매가 합계 (할인 전)"""
+        total = Decimal('0')
+        for item in self._items_with_product():
+            po = item.product_option
+            if po and getattr(po.product, 'item_type', '') == 'PRODUCT':
+                total += Decimal(item.unit_price) * item.quantity
+        return total.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+
+    @property
+    def post_processing_items_subtotal(self):
+        """후가공 주문 줄 판매가 합계 (할인 전)"""
+        total = Decimal('0')
+        for item in self._items_with_product():
+            po = item.product_option
+            if po and getattr(po.product, 'item_type', '') == 'POST_PROCESSING':
+                total += Decimal(item.unit_price) * item.quantity
+        return total.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+
+    @property
+    def items_gross_subtotal(self):
+        """의류·후가공 판매 소계 합 (할인 전)"""
+        return (
+            self.clothing_items_subtotal + self.post_processing_items_subtotal
+        ).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+
+    @property
+    def has_item_discounts(self):
+        return (self.clothing_discount_percent or Decimal('0')) > 0 or (
+            self.post_processing_discount_percent or Decimal('0')
+        ) > 0
+
+    @property
+    def clothing_discount_amount(self):
+        pct = self.clothing_discount_percent or Decimal('0')
+        sub = self.clothing_items_subtotal
+        return (sub * pct / Decimal('100')).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+
+    @property
+    def post_processing_discount_amount(self):
+        pct = self.post_processing_discount_percent or Decimal('0')
+        sub = self.post_processing_items_subtotal
+        return (sub * pct / Decimal('100')).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+
+    @property
+    def items_total_after_discounts(self):
+        """줄 합계에서 의류·후가공 할인을 뺀 금액 (택배비 제외)"""
+        return (
+            self.clothing_items_subtotal
+            - self.clothing_discount_amount
+            + self.post_processing_items_subtotal
+            - self.post_processing_discount_amount
+        ).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
     
     @property
     def is_general_order(self):

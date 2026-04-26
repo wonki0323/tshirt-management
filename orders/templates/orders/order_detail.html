@@ -18,7 +18,6 @@
 
     .text-primary,
     .text-success,
-    .text-danger,
     .text-info,
     .text-warning {
         color: #d7dee8 !important;
@@ -76,6 +75,50 @@
     a.badge.bg-primary {
         cursor: pointer;
         transition: all 0.2s ease;
+    }
+
+    /* 주문 상세: 다크 UI 유지(라이트 패널 제거). 소계/총계 행만 약한 대비, 할인·금액 강조 */
+    .order-detail-info .order-detail-readable .card-body,
+    .order-detail-info .order-detail-readable .table-responsive {
+        background-color: transparent !important;
+    }
+    .order-detail-info .order-detail-readable tr.table-light td,
+    .order-detail-info .order-detail-readable tr.table-light th,
+    .order-detail-info .order-detail-readable tfoot.table-light th,
+    .order-detail-info .order-detail-readable tfoot.table-light td {
+        background-color: #121a25 !important;
+        color: #e8eaed !important;
+        border-color: #283241 !important;
+    }
+    .order-detail-info .order-detail-readable .order-money-red {
+        color: #ff9e9e !important;
+        font-weight: 600 !important;
+    }
+    .order-detail-info .order-detail-readable .order-total-payment {
+        color: #f8fafc !important;
+        font-weight: 700 !important;
+    }
+    .order-detail-info .order-detail-readable td.text-danger,
+    .order-detail-info .order-detail-readable th.text-danger,
+    .order-detail-info .order-detail-readable .order-discount-amount {
+        color: #ff5252 !important;
+        font-weight: 700 !important;
+    }
+    .order-detail-info .order-detail-readable tr.order-discount-row td {
+        background-color: #151c27 !important;
+    }
+    .order-detail-info .order-detail-readable tr.order-section-row td {
+        background-color: #161f2c !important;
+        color: #b8d4f0 !important;
+        font-size: 0.82rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        padding-top: 0.85rem;
+        padding-bottom: 0.4rem;
+        border-color: #283241 !important;
+    }
+    .order-detail-info .order-detail-readable .text-success {
+        color: #69f0ae !important;
     }
     
     /* 썸네일 호버 효과 */
@@ -264,7 +307,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-4 order-detail-info">
     <!-- 헤더 -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -429,7 +472,7 @@
     <div class="row">
         <!-- 왼쪽: 주문 기본 정보 -->
         <div class="col-md-6 mb-4">
-            <div class="card">
+            <div class="card order-detail-readable">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0"><i class="fas fa-info-circle"></i> 주문 기본 정보</h5>
                 </div>
@@ -483,7 +526,7 @@
                             {% endif %}
                             <tr>
                                 <th>총 주문 금액</th>
-                                <td class="fw-bold fs-5 text-primary">{{ order.total_order_amount|floatformat:0|intcomma }}원</td>
+                                <td class="fw-bold fs-5 order-total-payment">{{ order.total_order_amount|floatformat:0|intcomma }}원</td>
                             </tr>
                             <tr>
                                 <th>총 원가</th>
@@ -503,7 +546,7 @@
 
         <!-- 오른쪽: 고객 정보 -->
         <div class="col-md-6 mb-4">
-            <div class="card">
+            <div class="card order-detail-readable">
                 <div class="card-header bg-success text-white">
                     <h5 class="mb-0"><i class="fas fa-user"></i> 고객 정보</h5>
                 </div>
@@ -568,9 +611,9 @@
     </div>
 
     <!-- 주문 항목 -->
-    <div class="card mb-4">
+    <div class="card mb-4 order-detail-readable">
         <div class="card-header bg-dark text-white">
-            <h5 class="mb-0"><i class="fas fa-box"></i> 주문 항목 ({{ order_items.count }}개)</h5>
+            <h5 class="mb-0"><i class="fas fa-box"></i> 주문 항목 ({{ order_items|length }}개)</h5>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -587,58 +630,127 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in order_items %}
-                        <tr>
-                            <td>{{ forloop.counter }}</td>
-                            <td>
-                                {% if item.product_option and item.product_option.product.item_type == 'POST_PROCESSING' %}
-                                    후가공
-                                {% elif item.product_option and item.product_option.product.product_group %}
-                                    {{ item.product_option.product.product_group }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>
-                                <strong>{{ item.smartstore_product_name }}</strong>
-                            </td>
-                            <td>
-                                {{ item.smartstore_option_text }}
-                                {% if item.design_image_url %}
-                                    <br>
-                                    <a href="{{ item.design_image_url }}" target="_blank" class="btn btn-sm btn-outline-info">
-                                        <i class="fas fa-image"></i> 시안 보기
-                                    </a>
-                                {% endif %}
-                            </td>
-                            <td class="text-center fw-bold">{{ item.quantity }}개</td>
-                            <td class="text-end">{{ item.unit_price|floatformat:0|intcomma }}원</td>
-                            <td class="text-end fw-bold">{{ item.total_price|floatformat:0|intcomma }}원</td>
-                        </tr>
-                        {% empty %}
+                        {% if not clothing_order_items and not post_processing_order_items %}
                         <tr>
                             <td colspan="7" class="text-center text-muted py-4">
                                 주문 항목이 없습니다.
                             </td>
                         </tr>
-                        {% endfor %}
+                        {% else %}
+                            {% if clothing_order_items %}
+                            <tr class="order-section-row">
+                                <td colspan="7">의류</td>
+                            </tr>
+                            {% for item in clothing_order_items %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    {% if item.product_option and item.product_option.product.product_group %}
+                                        {{ item.product_option.product.product_group }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ item.smartstore_product_name }}</strong>
+                                </td>
+                                <td>
+                                    {{ item.smartstore_option_text }}
+                                    {% if item.design_image_url %}
+                                        <br>
+                                        <a href="{{ item.design_image_url }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-image"></i> 시안 보기
+                                        </a>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center fw-bold">{{ item.quantity }}개</td>
+                                <td class="text-end order-money-red">{{ item.unit_price|floatformat:0|intcomma }}원</td>
+                                <td class="text-end fw-bold order-money-red">{{ item.total_price|floatformat:0|intcomma }}원</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="table-light">
+                                <td colspan="6" class="text-end fw-bold">의류 소계</td>
+                                <td class="text-end fw-bold order-money-red">{{ order.clothing_items_subtotal|floatformat:0|intcomma }}원</td>
+                            </tr>
+                            {% endif %}
+
+                            {% if post_processing_order_items %}
+                            <tr class="order-section-row">
+                                <td colspan="7">후가공</td>
+                            </tr>
+                            {% for item in post_processing_order_items %}
+                            <tr>
+                                <td>{{ forloop.counter|add:clothing_items_count }}</td>
+                                <td>후가공</td>
+                                <td>
+                                    <strong>{{ item.smartstore_product_name }}</strong>
+                                </td>
+                                <td>
+                                    {{ item.smartstore_option_text }}
+                                    {% if item.design_image_url %}
+                                        <br>
+                                        <a href="{{ item.design_image_url }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-image"></i> 시안 보기
+                                        </a>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center fw-bold">{{ item.quantity }}개</td>
+                                <td class="text-end order-money-red">{{ item.unit_price|floatformat:0|intcomma }}원</td>
+                                <td class="text-end fw-bold order-money-red">{{ item.total_price|floatformat:0|intcomma }}원</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="table-light">
+                                <td colspan="6" class="text-end fw-bold">후가공 소계</td>
+                                <td class="text-end fw-bold order-money-red">{{ order.post_processing_items_subtotal|floatformat:0|intcomma }}원</td>
+                            </tr>
+                            {% endif %}
+
+                            {% if order.has_item_discounts %}
+                            {% if order.items.exists %}
+                            <tr class="table-light">
+                                <td colspan="6" class="text-end fw-bold">상품 합계 <span class="fw-normal text-muted small">(할인 전)</span></td>
+                                <td class="text-end fw-bold order-money-red">{{ order.items_gross_subtotal|floatformat:0|intcomma }}원</td>
+                            </tr>
+                            {% endif %}
+                            <tr class="order-section-row">
+                                <td colspan="7">할인</td>
+                            </tr>
+                            {% if order.clothing_discount_percent > 0 %}
+                            <tr class="order-discount-row">
+                                <td colspan="6" class="text-end text-muted">의류 할인 ({{ order.clothing_discount_percent|floatformat:2 }}%)</td>
+                                <td class="text-end text-danger fw-bold order-discount-amount">-{{ order.clothing_discount_amount|floatformat:0|intcomma }}원</td>
+                            </tr>
+                            {% endif %}
+                            {% if order.post_processing_discount_percent > 0 %}
+                            <tr class="order-discount-row">
+                                <td colspan="6" class="text-end text-muted">후가공 할인 ({{ order.post_processing_discount_percent|floatformat:2 }}%)</td>
+                                <td class="text-end text-danger fw-bold order-discount-amount">-{{ order.post_processing_discount_amount|floatformat:0|intcomma }}원</td>
+                            </tr>
+                            {% endif %}
+                            <tr class="table-light">
+                                <td colspan="6" class="text-end fw-bold">할인 적용 합계 <span class="fw-normal text-muted small">(상품)</span></td>
+                                <td class="text-end fw-bold order-money-red">{{ order.items_total_after_discounts|floatformat:0|intcomma }}원</td>
+                            </tr>
+                            {% endif %}
+
                         <tr>
                             <td>-</td>
                             <td>배송</td>
                             <td><strong>택배비</strong></td>
                             <td>-</td>
                             <td class="text-center">-</td>
-                            <td class="text-end">{{ order.shipping_cost|floatformat:0|intcomma }}원</td>
-                            <td class="text-end fw-bold">{{ order.shipping_cost|floatformat:0|intcomma }}원</td>
+                            <td class="text-end order-money-red">{{ order.shipping_cost|floatformat:0|intcomma }}원</td>
+                            <td class="text-end fw-bold order-money-red">{{ order.shipping_cost|floatformat:0|intcomma }}원</td>
                         </tr>
+                        {% endif %}
                     </tbody>
                     {% if order_items %}
                     <tfoot class="table-light">
                         <tr>
-                            <th colspan="4" class="text-center" style="color: #1a1a1a !important;">총계</th>
-                            <th class="text-center" style="color: #1a1a1a !important;">{{ physical_items_count }}개</th>
-                            <th class="text-end" style="color: #1a1a1a !important;">합계</th>
-                            <th class="text-end" style="color: #1a1a1a !important;">{{ order.total_order_amount|floatformat:0|intcomma }}원</th>
+                            <th colspan="4" class="text-center">총계</th>
+                            <th class="text-center">{{ physical_items_count }}개</th>
+                            <th class="text-end">합계</th>
+                            <th class="text-end order-total-payment">{{ order.total_order_amount|floatformat:0|intcomma }}원</th>
                         </tr>
                     </tfoot>
                     {% endif %}
@@ -648,7 +760,7 @@
     </div>
 
     <!-- 액션 버튼 -->
-    <div class="card">
+    <div class="card order-detail-action-card">
         <div class="card-header bg-warning">
             <h5 class="mb-0"><i class="fas fa-cog"></i> 주문 관리</h5>
         </div>

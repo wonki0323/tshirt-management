@@ -5,6 +5,7 @@ import re
 from datetime import datetime
 from django import forms
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from decimal import Decimal
 from .models import Order, OrderItem
@@ -110,6 +111,40 @@ class ManualOrderForm(forms.Form):
         }),
         help_text="체크하면 주문 목록에서 붉은색으로 강조됩니다."
     )
+
+    clothing_discount_percent = forms.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        initial=0,
+        required=False,
+        label="의류(제품) 할인율",
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'id': 'id_clothing_discount_percent',
+            'min': '0',
+            'max': '100',
+            'step': '0.01',
+        }),
+        help_text="0~100. 제품(의류) 줄 소계에 적용됩니다.",
+    )
+
+    post_processing_discount_percent = forms.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        initial=0,
+        required=False,
+        label="후가공 할인율",
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'id': 'id_post_processing_discount_percent',
+            'min': '0',
+            'max': '100',
+            'step': '0.01',
+        }),
+        help_text="0~100. 후가공 줄 소계에 적용됩니다.",
+    )
     
     # 제품 옵션 선택 (수량 입력 방식으로 변경되어 사용하지 않음, 하지만 템플릿 에러 방지를 위해 유지)
     # product_options = forms.ModelMultipleChoiceField(
@@ -148,6 +183,13 @@ class ManualOrderForm(forms.Form):
         # 고객명은 필수
         if not customer_name or not customer_name.strip():
             raise ValidationError('고객명은 필수 입력 항목입니다.')
+
+        for pct_field in ('clothing_discount_percent', 'post_processing_discount_percent'):
+            raw = cleaned_data.get(pct_field)
+            if raw is None or raw == '':
+                cleaned_data[pct_field] = Decimal('0')
+            else:
+                cleaned_data[pct_field] = Decimal(str(raw))
         
         # POST 데이터에서 수량이 입력된 제품 옵션 확인
         has_product_options = False
@@ -204,6 +246,8 @@ class ManualOrderForm(forms.Form):
             shipping_address=self.cleaned_data.get('shipping_address', '') or '',
             customer_memo=self.cleaned_data.get('customer_memo', '') or '',
             shipping_cost=self.cleaned_data.get('shipping_cost', Decimal('3500')),
+            clothing_discount_percent=self.cleaned_data.get('clothing_discount_percent', Decimal('0')),
+            post_processing_discount_percent=self.cleaned_data.get('post_processing_discount_percent', Decimal('0')),
             total_order_amount=self.cleaned_data.get('total_order_amount', Decimal('0')),
             payment_date=timezone.now(),  # 자동으로 현재 시각 설정
             # 수동 등록에서 선택한 발송 마감일 저장 (미선택 시 None)
@@ -260,7 +304,9 @@ class OrderUpdateForm(forms.ModelForm):
             'customer_name', 'customer_phone', 'shipping_address',
             'payment_date',
             'customer_memo', 'tracking_number',
-            'shipping_cost', 'total_order_amount', 'due_date', 'is_urgent', 'status'
+            'shipping_cost',
+            'clothing_discount_percent', 'post_processing_discount_percent',
+            'total_order_amount', 'due_date', 'is_urgent', 'status'
         ]
         widgets = {
             'customer_name': forms.TextInput(attrs={
@@ -287,6 +333,18 @@ class OrderUpdateForm(forms.ModelForm):
             }),
             'shipping_cost': forms.NumberInput(attrs={
                 'class': 'form-control'
+            }),
+            'clothing_discount_percent': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '0',
+                'max': '100',
+                'step': '0.01',
+            }),
+            'post_processing_discount_percent': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '0',
+                'max': '100',
+                'step': '0.01',
             }),
             'total_order_amount': forms.NumberInput(attrs={
                 'class': 'form-control'
