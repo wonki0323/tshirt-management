@@ -105,6 +105,9 @@ if 'sqlite' in DATABASES['default']['ENGINE']:
     # SQLite 연결 타임아웃 증가
     DATABASES['default']['timeout'] = 20
 
+# 제품 옵션 인라인 폼셋: 행마다 필드가 여러 개라 기본(1000) 초과 시 TooManyFieldsSent → 400
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
