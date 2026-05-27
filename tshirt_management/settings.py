@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'orders',
     'finance',
     'settings_app',
+    'popbill_api',
 ]
 
 MIDDLEWARE = [
@@ -169,6 +170,19 @@ NAVER_CLIENT_SECRET = env('NAVER_CLIENT_SECRET', default='')
 GOOGLE_DRIVE_CREDENTIALS_PATH = env('GOOGLE_DRIVE_CREDENTIALS_PATH', default='')
 GOOGLE_DRIVE_PARENT_FOLDER_ID = env('GOOGLE_DRIVE_PARENT_FOLDER_ID', default='')
 
+# Popbill API settings (단계 0 결정: 폐기. 잔재 코드만 유지)
+POPBILL_LINK_ID = env('POPBILL_LINK_ID', default='TESTER')
+POPBILL_SECRET_KEY = env('POPBILL_SECRET_KEY', default='SwWxqU+0TErBXy/9TVjIPEnI0VTUMMSQZtJf3Ed8q3T=')
+POPBILL_IS_TEST = env.bool('POPBILL_IS_TEST', default=True)
+POPBILL_CORP_NUM = env('POPBILL_CORP_NUM', default='')
+POPBILL_BANK_CODE = env('POPBILL_BANK_CODE', default='')
+POPBILL_ACCOUNT_NUMBER = env('POPBILL_ACCOUNT_NUMBER', default='')
+
+# Bankda 입금자동확인 REST API (인수인계 2026-05-15, 통합 2026-05-25)
+BANKDA_ACCESS_TOKEN = env('BANKDA_ACCESS_TOKEN', default='')
+BANKDA_ACCOUNT_NUM = env('BANKDA_ACCOUNT_NUM', default='')
+BANKDA_IS_TEST = env('BANKDA_IS_TEST', default='n')
+
 # Logging configuration
 LOGGING = {
     'version': 1,
@@ -222,6 +236,10 @@ if CLOUDINARY_STORAGE['CLOUD_NAME'] and CLOUDINARY_STORAGE['API_KEY']:
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 else:
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+
+# Nginx reverse proxy 표준 (data.naxer.shop·naxer-main 본 이전)
+# 본 이전 단계 2 결정 (2026-05-25)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # 보안 설정 (프로덕션 환경)
 if not DEBUG:

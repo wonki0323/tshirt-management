@@ -1,0 +1,227 @@
+{% load humanize %}
+<style>
+    .popbill-panel { margin-bottom: 20px; }
+    .popbill-panel .panel-toggle {
+        cursor: pointer;
+        padding: 10px 16px;
+        background: var(--bg-elev-2, #101621);
+        border: 1px solid var(--border, #202833);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .popbill-panel .panel-toggle:hover { background: #131a24; }
+    .popbill-panel .panel-toggle h5 { margin: 0; font-size: 0.9rem; font-weight: 500; }
+    .popbill-panel .panel-body {
+        border: 1px solid var(--border, #202833);
+        border-top: none;
+        background: var(--bg-elev, #0b0f14);
+        display: none;
+    }
+    .popbill-panel .panel-body.show { display: block; }
+    .popbill-panel .sub-section { padding: 12px 16px; }
+    .popbill-panel .sub-section + .sub-section { border-top: 1px solid var(--border, #202833); }
+    .popbill-panel .sub-title { font-size: 0.82rem; font-weight: 500; margin-bottom: 8px; color: #d7dbe2; }
+    .popbill-panel .dep-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px 0;
+        font-size: 0.82rem;
+        border-bottom: 1px solid #1a2030;
+    }
+    .popbill-panel .dep-row:last-child { border-bottom: none; }
+    .popbill-panel .dep-amount { color: #22c55e; font-weight: 500; }
+    .popbill-panel .dep-unmatched { border-left: 3px solid #eab308; padding-left: 8px; }
+    .popbill-panel .dep-matched { border-left: 3px solid #22c55e; padding-left: 8px; }
+    .popbill-panel .quick-btn {
+        padding: 2px 8px;
+        font-size: 0.75rem;
+        border-radius: 0;
+    }
+    .popbill-panel .badge-count {
+        background: #eab308;
+        color: #000;
+        font-size: 0.72rem;
+        padding: 3px 7px;
+        border-radius: 0;
+        margin-left: 6px;
+    }
+    .popbill-panel .receipt-btn {
+        padding: 2px 8px;
+        font-size: 0.75rem;
+    }
+</style>
+
+<div class="popbill-panel">
+    <div class="panel-toggle" onclick="togglePopbillPanel()">
+        <h5>
+            <i class="fas fa-money-check-alt me-2"></i>입금확인 / 현금영수증
+            {% if popbill_unmatched_count %}<span class="badge-count">미매칭 {{ popbill_unmatched_count }}건</span>{% endif %}
+        </h5>
+        <div class="d-flex align-items-center gap-2">
+            <form method="post" action="{% url 'fetch_deposits' %}" class="d-inline" onclick="event.stopPropagation()">
+                {% csrf_token %}
+                <input type="hidden" name="days" value="1">
+                <button type="submit" class="btn btn-primary quick-btn">
+                    <i class="fas fa-sync-alt me-1"></i>입금 조회
+                </button>
+            </form>
+            <i class="fas fa-chevron-down" id="popbillChevron" style="transition:transform 0.2s;"></i>
+        </div>
+    </div>
+
+    <div class="panel-body" id="popbillPanelBody">
+        <div class="row g-0">
+            <!-- 좌: 미매칭 입금 -->
+            <div class="col-lg-4 sub-section">
+                <div class="sub-title"><i class="fas fa-exclamation-circle me-1" style="color:#eab308;"></i>미매칭 입금</div>
+                {% for deposit in popbill_unmatched %}
+                <div class="dep-row dep-unmatched">
+                    <div>
+                        <strong>{{ deposit.depositor_name }}</strong>
+                        <span class="dep-amount ms-2">{{ deposit.amount|intcomma }}원</span>
+                        <small class="text-muted ms-1">{{ deposit.transaction_date|date:"m/d H:i" }}</small>
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-outline-primary quick-btn"
+                                onclick="openPanelMatch({{ deposit.pk }}, '{{ deposit.amount }}', '{{ deposit.depositor_name }}')">
+                            <i class="fas fa-link"></i>
+                        </button>
+                        <form method="post" action="{% url 'ignore_deposit' deposit.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button class="btn btn-outline-danger quick-btn" onclick="return confirm('무시?')"><i class="fas fa-times"></i></button>
+                        </form>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-muted" style="font-size:0.8rem;">미매칭 입금 없음</div>
+                {% endfor %}
+            </div>
+
+            <!-- 중: 최근 매칭된 입금 -->
+            <div class="col-lg-4 sub-section">
+                <div class="sub-title"><i class="fas fa-check-circle me-1" style="color:#22c55e;"></i>최근 입금 확인</div>
+                {% for deposit in popbill_recent_matched %}
+                <div class="dep-row dep-matched">
+                    <div>
+                        <strong>{{ deposit.depositor_name }}</strong>
+                        <span class="dep-amount ms-2">{{ deposit.amount|intcomma }}원</span>
+                    </div>
+                    <div>
+                        {% if deposit.confirmed_at %}
+                            <span class="text-muted" style="font-size:0.75rem;"><i class="fas fa-check-double"></i> 확인됨</span>
+                        {% else %}
+                            <form method="post" action="{% url 'confirm_deposit' deposit.pk %}" class="d-inline">
+                                {% csrf_token %}
+                                <button class="btn btn-primary quick-btn"><i class="fas fa-check me-1"></i>확인</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-muted" style="font-size:0.8rem;">매칭된 입금 없음</div>
+                {% endfor %}
+            </div>
+
+            <!-- 우: 현금영수증 빠른 발급 -->
+            <div class="col-lg-4 sub-section">
+                <div class="sub-title"><i class="fas fa-receipt me-1"></i>현금영수증 발급</div>
+                {% for order in popbill_receipt_orders %}
+                <div class="dep-row">
+                    <div>
+                        <strong>{{ order.customer_name }}</strong>
+                        <span class="ms-2" style="font-size:0.8rem;">{{ order.total_order_amount|intcomma }}원</span>
+                    </div>
+                    <a href="{% url 'issue_receipt_form' order.pk %}" class="btn btn-outline-success receipt-btn">
+                        <i class="fas fa-receipt me-1"></i>발급
+                    </a>
+                </div>
+                {% empty %}
+                <div class="text-muted" style="font-size:0.8rem;">결제 대기 주문 없음</div>
+                {% endfor %}
+                {% if popbill_receipt_orders %}
+                <div class="mt-2">
+                    <a href="{% url 'receipt_history' %}" style="color:#93c5fd; font-size:0.78rem;">발급 이력 보기 →</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 수동 매칭 모달 (패널용) -->
+<div class="modal fade" id="panelMatchModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-link me-2"></i>주문 매칭</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="panelMatchInfo" style="font-size:0.85rem;"></p>
+                <div id="panelMatchOrderList" style="max-height:300px; overflow-y:auto;"></div>
+                <form id="panelMatchForm" method="post" action="">
+                    {% csrf_token %}
+                    <input type="hidden" name="order_id" id="panelMatchOrderId">
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePopbillPanel() {
+    const body = document.getElementById('popbillPanelBody');
+    const chevron = document.getElementById('popbillChevron');
+    body.classList.toggle('show');
+    chevron.style.transform = body.classList.contains('show') ? 'rotate(180deg)' : '';
+    localStorage.setItem('popbillPanelOpen', body.classList.contains('show'));
+}
+
+// 이전 상태 복원
+document.addEventListener('DOMContentLoaded', function() {
+    if (localStorage.getItem('popbillPanelOpen') === 'true') {
+        document.getElementById('popbillPanelBody').classList.add('show');
+        document.getElementById('popbillChevron').style.transform = 'rotate(180deg)';
+    }
+});
+
+const panelMatchModal = new bootstrap.Modal(document.getElementById('panelMatchModal'));
+
+async function openPanelMatch(depositPk, amount, depositorName) {
+    document.getElementById('panelMatchInfo').innerHTML =
+        `<strong>${depositorName}</strong> / <span style="color:#22c55e;font-weight:500;">${Number(amount).toLocaleString()}원</span>`;
+    document.getElementById('panelMatchForm').action = `/popbill/deposits/${depositPk}/match/`;
+    document.getElementById('panelMatchOrderList').innerHTML = '<div class="text-muted">조회 중...</div>';
+    panelMatchModal.show();
+
+    try {
+        const resp = await fetch(`/popbill/deposits/matching-orders/?amount=${amount}`);
+        const data = await resp.json();
+        const orders = data.orders || [];
+
+        if (orders.length === 0) {
+            document.getElementById('panelMatchOrderList').innerHTML =
+                '<div class="text-muted py-3 text-center">매칭 가능한 주문 없음</div>';
+            return;
+        }
+
+        document.getElementById('panelMatchOrderList').innerHTML = orders.map(o => {
+            const cls = o.exact_match ? 'dep-row dep-matched' : 'dep-row';
+            const badge = o.exact_match ? ' <span class="badge bg-success" style="font-size:0.68rem;">금액일치</span>' : '';
+            return `<div class="${cls}" style="cursor:pointer;" onclick="selectPanelOrder(${o.id})">
+                <strong>${o.customer_name}</strong>${badge}
+                <span class="float-end">${Number(o.amount).toLocaleString()}원 <small class="text-muted">(${o.date})</small></span>
+            </div>`;
+        }).join('');
+    } catch(e) {
+        document.getElementById('panelMatchOrderList').innerHTML = '<div class="text-danger">조회 실패</div>';
+    }
+}
+
+function selectPanelOrder(orderId) {
+    document.getElementById('panelMatchOrderId').value = orderId;
+    document.getElementById('panelMatchForm').submit();
+}
+</script>

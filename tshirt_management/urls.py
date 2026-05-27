@@ -21,6 +21,7 @@ from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
 from . import views
+from popbill_api import bankda_views
 
 def redirect_to_login(request):
     return redirect('/login/')
@@ -34,6 +35,16 @@ urlpatterns = [
     path('products/', include('products.urls')),
     path('finance/', include('finance.urls')),
     path('settings/', include('settings_app.urls')),
+    path('popbill/', include('popbill_api.urls')),
+
+    # 뱅크다 자동입금확인 webhook (방식 A, 2026-05-25) — 외부 호출이라 root 경로
+    path('bankda/unconfirmed-orders/', bankda_views.unconfirmed_orders_list, name='bankda_unconfirmed_orders'),
+    path('bankda/order-detail/', bankda_views.order_detail, name='bankda_order_detail'),
+    path('bankda/payment-confirm/', bankda_views.payment_confirm, name='bankda_payment_confirm'),
+
+    # 운영자용 — 잘못 자동매칭된 입금 되돌리기 (2026-05-27)
+    path('bankda/rollback/<int:pk>/', bankda_views.rollback_deposit, name='bankda_rollback'),
+
     path('admin/', admin.site.urls),
 ]
 

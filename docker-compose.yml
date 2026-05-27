@@ -1,0 +1,44 @@
+# Django 티셔츠 관리 시스템 — 로컬 Docker 환경
+# 단계 1: 운영자 PC에서 빈 PG로 Django 동작 확인
+# 단계 3~6: naxer-main에서 운영 데이터(pg_dump) 복원 후 사용
+
+services:
+  db:
+    image: postgres:17-bookworm
+    container_name: tshirt-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tshirt_management}
+      POSTGRES_USER: ${POSTGRES_USER:-tshirt_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tshirt_local_pass}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tshirt_admin} -d ${POSTGRES_DB:-tshirt_management}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tshirt-web
+    env_file:
+      - .env.docker
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tshirt_admin}:${POSTGRES_PASSWORD:-tshirt_local_pass}@db:5432/${POSTGRES_DB:-tshirt_management}
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - mediadata:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  mediadata:

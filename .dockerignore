@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual envs (절대 이미지에 포함 금지 — 외부 의존성이 호스트 경로로 박혀있음)
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+tshirt_management_env/
+
+# Django 런타임 산출물 (collectstatic는 빌드 안에서 재실행)
+staticfiles/
+static_root/
+
+# 로컬 SQLite·로그 (Postgres 컨테이너 별도)
+db.sqlite3
+db.sqlite3-journal
+db.sqlite3-shm
+db.sqlite3-wal
+*.sqlite
+*.log
+debug.log
+
+# 사용자 업로드 (compose volume으로 따로 마운트)
+media/
+uploads/
+
+# 자격증명
+.env
+.env.local
+.env.docker
+.env.*.bak*
+oauth_tokens/
+*.pickle
+
+# DB 덤프
+*.sql
+*.dump
+
+# IDE / OS
+.git/
+.gitignore
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# 문서·임시
+*.bak
+*.tmp
+*.md
+세션_인수인계_*.md
+로컬_실행_안내.md
+
+# Docker 자기 자신
+Dockerfile
+docker-compose.yml
+.dockerignore

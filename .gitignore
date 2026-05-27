@@ -24,6 +24,8 @@ static_root/
 # 환경 변수
 .env
 .env.local
+.env.docker
+.env.docker.bak*
 
 # IDE
 .vscode/

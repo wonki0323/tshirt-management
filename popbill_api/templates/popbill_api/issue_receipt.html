@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}현금영수증 발급 - {{ order.customer_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="mb-3">
+                <a href="{% url 'popbill_dashboard' %}" style="color:#93c5fd; font-size:0.85rem;">
+                    <i class="fas fa-arrow-left me-1"></i>돌아가기
+                </a>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>현금영수증 발급</h5>
+                </div>
+                <div class="card-body">
+                    <!-- 주문 정보 -->
+                    <div class="mb-4 p-3" style="background:var(--bg-elev-2); border:1px solid var(--border);">
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">고객명</small>
+                                <div><strong>{{ order.customer_name }}</strong></div>
+                            </div>
+                            <div class="col-6 text-end">
+                                <small class="text-muted">결제 금액</small>
+                                <div><strong style="color:#22c55e;">{{ order.total_order_amount|intcomma }}원</strong></div>
+                            </div>
+                        </div>
+                        {% if order.customer_phone %}
+                        <div class="mt-2">
+                            <small class="text-muted">연락처</small>
+                            <div>{{ order.customer_phone }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if existing_receipt %}
+                    <div class="alert alert-info py-2" style="font-size:0.82rem;">
+                        <i class="fas fa-info-circle me-1"></i>
+                        이미 발급된 현금영수증이 있습니다.
+                        ({{ existing_receipt.issued_at|date:"Y-m-d H:i" }} / {{ existing_receipt.get_identity_type_display }}: {{ existing_receipt.identity_number }})
+                    </div>
+                    {% endif %}
+
+                    {% if messages %}
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} py-2" style="font-size:0.82rem;">{{ message }}</div>
+                    {% endfor %}
+                    {% endif %}
+
+                    <!-- 발급 폼 -->
+                    <form method="post" action="{% url 'issue_receipt' order.pk %}">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label">거래 유형</label>
+                            <select name="trade_type" class="form-select">
+                                <option value="EXPENDITURE_PROOF" selected>지출증빙용 (사업자)</option>
+                                <option value="INCOME_DEDUCTION">소득공제용 (개인)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">식별 유형</label>
+                            <select name="identity_type" id="identityType" class="form-select" onchange="updatePlaceholder()">
+                                <option value="BIZ_NO" selected>사업자번호</option>
+                                <option value="PHONE">휴대폰번호</option>
+                                <option value="CARD">카드번호</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">식별번호</label>
+                            <input type="text" name="identity_number" id="identityNumber"
+                                   class="form-control" placeholder="000-00-00000"
+                                   value="{{ order.customer_phone }}" required>
+                            <small class="text-muted">하이픈(-) 포함/미포함 모두 가능</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">발급 금액</label>
+                            <input type="number" name="amount" class="form-control"
+                                   value="{{ order.total_order_amount|stringformat:'d' }}">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100"
+                                onclick="return confirm('현금영수증을 발급하시겠습니까?')">
+                            <i class="fas fa-paper-plane me-1"></i>현금영수증 발급
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updatePlaceholder() {
+    const type = document.getElementById('identityType').value;
+    const input = document.getElementById('identityNumber');
+    if (type === 'BIZ_NO') {
+        input.placeholder = '000-00-00000';
+    } else if (type === 'PHONE') {
+        input.placeholder = '010-0000-0000';
+        {% if order.customer_phone %}
+        input.value = '{{ order.customer_phone }}';
+        {% endif %}
+    } else {
+        input.placeholder = '카드번호 입력';
+    }
+}
+</script>
+{% endblock %}

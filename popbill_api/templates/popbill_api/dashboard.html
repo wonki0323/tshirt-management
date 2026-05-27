@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}입금확인 / 현금영수증{% endblock %}
+
+{% block extra_css %}
+<style>
+    .match-exact { background-color: #0d2818 !important; border-left: 3px solid #22c55e; }
+    .match-auto { background-color: #1a1a0d !important; border-left: 3px solid #eab308; }
+    .status-badge { font-size: 0.72rem; padding: 4px 8px; }
+    .deposit-amount { font-weight: 500; font-size: 0.95rem; color: #22c55e; }
+    .section-title { font-size: 1rem; font-weight: 500; margin-bottom: 12px; }
+    .btn-fetch { padding: 6px 14px; font-size: 0.82rem; }
+    .order-match-item { cursor: pointer; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+    .order-match-item:hover { background-color: #131a24; }
+    .order-match-item.exact { background-color: #0d2818; }
+    .quick-action { padding: 4px 10px; font-size: 0.78rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="fas fa-money-check-alt me-2"></i>입금확인 / 현금영수증</h4>
+        <div class="d-flex gap-2">
+            <form method="post" action="{% url 'fetch_deposits' %}" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="days" value="1">
+                <button type="submit" class="btn btn-primary btn-fetch">
+                    <i class="fas fa-sync-alt me-1"></i>오늘 입금 조회
+                </button>
+            </form>
+            <form method="post" action="{% url 'fetch_deposits' %}" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="days" value="3">
+                <button type="submit" class="btn btn-outline-secondary btn-fetch">
+                    <i class="fas fa-sync-alt me-1"></i>3일치 조회
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2" role="alert" style="font-size:0.82rem;">
+        {{ message }}
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" style="padding:8px;"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <!-- 좌측: 입금 내역 -->
+        <div class="col-lg-7">
+            <!-- 미매칭 입금 (주의 필요) -->
+            {% if unmatched_deposits %}
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span class="section-title mb-0">
+                        <i class="fas fa-exclamation-circle me-1" style="color:#eab308;"></i>
+                        미매칭 입금 <span class="badge bg-warning text-dark ms-1">{{ unmatched_deposits.count }}</span>
+                    </span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>시간</th>
+                                <th>입금자</th>
+                                <th class="text-end">금액</th>
+                                <th>매칭</th>
+                                <th>처리</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for deposit in unmatched_deposits %}
+                            <tr>
+                                <td>{{ deposit.transaction_date|date:"m/d H:i" }}</td>
+                                <td>{{ deposit.depositor_name }}</td>
+                                <td class="text-end deposit-amount">{{ deposit.amount|intcomma }}원</td>
+                                <td>
+                                    <button type="button" class="btn btn-outline-primary quick-action"
+                                            onclick="openMatchModal({{ deposit.pk }}, '{{ deposit.amount }}', '{{ deposit.depositor_name }}')">
+                                        <i class="fas fa-link me-1"></i>주문 연결
+                                    </button>
+                                </td>
+                                <td>
+                                    <form method="post" action="{% url 'ignore_deposit' deposit.pk %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-danger quick-action"
+                                                onclick="return confirm('이 입금을 무시 처리하시겠습니까?')">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 최근 입금 내역 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="section-title mb-0">
+                        <i class="fas fa-list me-1"></i>최근 입금 내역
+                    </span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>시간</th>
+                                <th>입금자</th>
+                                <th class="text-end">금액</th>
+                                <th>상태</th>
+                                <th>매칭 주문</th>
+                                <th>처리</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for deposit in recent_deposits %}
+                            <tr class="{% if deposit.match_status == 'AUTO_MATCHED' %}match-auto{% endif %}">
+                                <td>{{ deposit.transaction_date|date:"m/d H:i" }}</td>
+                                <td>{{ deposit.depositor_name }}</td>
+                                <td class="text-end deposit-amount">{{ deposit.amount|intcomma }}원</td>
+                                <td>
+                                    {% if deposit.match_status == 'UNMATCHED' %}
+                                        <span class="badge bg-warning text-dark status-badge">미매칭</span>
+                                    {% elif deposit.match_status == 'AUTO_MATCHED' %}
+                                        <span class="badge bg-info text-dark status-badge">자동매칭</span>
+                                    {% elif deposit.match_status == 'MANUAL_MATCHED' %}
+                                        <span class="badge bg-success status-badge">수동매칭</span>
+                                    {% elif deposit.match_status == 'IGNORED' %}
+                                        <span class="badge bg-secondary status-badge">무시</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if deposit.matched_order %}
+                                        <a href="{% url 'order_detail' deposit.matched_order.pk %}" style="color:#93c5fd;">
+                                            {{ deposit.matched_order.customer_name }}
+                                        </a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if deposit.match_status == 'AUTO_MATCHED' and not deposit.confirmed_at %}
+                                        <form method="post" action="{% url 'confirm_deposit' deposit.pk %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-primary quick-action">
+                                                <i class="fas fa-check me-1"></i>확인
+                                            </button>
+                                        </form>
+                                    {% elif deposit.confirmed_at %}
+                                        <span style="color:#6b7280; font-size:0.78rem;">
+                                            <i class="fas fa-check-double"></i> {{ deposit.confirmed_at|date:"m/d H:i" }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    입금 내역이 없습니다. 상단의 "오늘 입금 조회" 버튼을 클릭하세요.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 우측: 결제 대기 주문 + 현금영수증 -->
+        <div class="col-lg-5">
+            <!-- 결제 대기 주문 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="section-title mb-0">
+                        <i class="fas fa-clock me-1"></i>결제 대기 주문
+                        <span class="badge bg-light text-dark ms-1">{{ consulting_orders.count }}</span>
+                    </span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>고객명</th>
+                                <th class="text-end">금액</th>
+                                <th>영수증</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in consulting_orders %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'order_detail' order.pk %}" style="color:#93c5fd;">
+                                        {{ order.customer_name }}
+                                    </a>
+                                </td>
+                                <td class="text-end">{{ order.total_order_amount|intcomma }}원</td>
+                                <td>
+                                    <a href="{% url 'issue_receipt_form' order.pk %}"
+                                       class="btn btn-outline-success quick-action">
+                                        <i class="fas fa-receipt"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-3">결제 대기 주문 없음</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 최근 현금영수증 -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span class="section-title mb-0">
+                        <i class="fas fa-receipt me-1"></i>최근 현금영수증
+                    </span>
+                    <a href="{% url 'receipt_history' %}" class="btn btn-outline-secondary quick-action">전체 이력</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>고객</th>
+                                <th class="text-end">금액</th>
+                                <th>유형</th>
+                                <th>상태</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for receipt in recent_receipts %}
+                            <tr>
+                                <td>{{ receipt.order.customer_name }}</td>
+                                <td class="text-end">{{ receipt.amount|intcomma }}원</td>
+                                <td>{{ receipt.get_identity_type_display }}</td>
+                                <td>
+                                    {% if receipt.issue_status == 'ISSUED' %}
+                                        <span class="badge bg-success status-badge">발급완료</span>
+                                    {% elif receipt.issue_status == 'PENDING' %}
+                                        <span class="badge bg-warning text-dark status-badge">대기</span>
+                                    {% elif receipt.issue_status == 'FAILED' %}
+                                        <span class="badge bg-danger status-badge">실패</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">발급 이력 없음</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 수동 매칭 모달 -->
+<div class="modal fade" id="matchModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-link me-2"></i>주문 매칭</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="matchInfo" style="font-size:0.85rem;"></p>
+                <div id="matchOrderList" style="max-height:300px; overflow-y:auto;"></div>
+                <form id="matchForm" method="post" action="">
+                    {% csrf_token %}
+                    <input type="hidden" name="order_id" id="matchOrderId">
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const matchModal = new bootstrap.Modal(document.getElementById('matchModal'));
+
+async function openMatchModal(depositPk, amount, depositorName) {
+    document.getElementById('matchInfo').innerHTML =
+        `<strong>${depositorName}</strong> / <span class="deposit-amount">${Number(amount).toLocaleString()}원</span>`;
+    document.getElementById('matchForm').action = `/popbill/deposits/${depositPk}/match/`;
+    document.getElementById('matchOrderList').innerHTML = '<div class="text-muted">조회 중...</div>';
+    matchModal.show();
+
+    try {
+        const resp = await fetch(`{% url 'get_matching_orders' %}?amount=${amount}`);
+        const data = await resp.json();
+        const orders = data.orders || [];
+
+        if (orders.length === 0) {
+            document.getElementById('matchOrderList').innerHTML =
+                '<div class="text-muted py-3 text-center">매칭 가능한 주문이 없습니다.</div>';
+            return;
+        }
+
+        const html = orders.map(o => {
+            const cls = o.exact_match ? 'order-match-item exact' : 'order-match-item';
+            const badge = o.exact_match ? '<span class="badge bg-success ms-2" style="font-size:0.7rem;">금액 일치</span>' : '';
+            return `<div class="${cls}" onclick="selectOrder(${o.id})">
+                <strong>${o.customer_name}</strong>${badge}
+                <span class="float-end">${Number(o.amount).toLocaleString()}원 <small class="text-muted">(${o.date})</small></span>
+            </div>`;
+        }).join('');
+
+        document.getElementById('matchOrderList').innerHTML = html;
+    } catch(e) {
+        document.getElementById('matchOrderList').innerHTML =
+            '<div class="text-danger">조회 실패</div>';
+    }
+}
+
+function selectOrder(orderId) {
+    document.getElementById('matchOrderId').value = orderId;
+    document.getElementById('matchForm').submit();
+}
+</script>
+{% endblock %}

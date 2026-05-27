@@ -213,7 +213,25 @@ class OrderListView(LoginRequiredMixin, ListView):
         context['calendar_orders_json'] = json.dumps(orders_data)
         context['current_year'] = year
         context['current_month'] = month
-        
+
+        # 팝빌 패널 데이터
+        try:
+            from popbill_api.models import Deposit
+            context['popbill_unmatched'] = Deposit.objects.filter(
+                match_status=Deposit.MatchStatus.UNMATCHED
+            )[:10]
+            context['popbill_unmatched_count'] = Deposit.objects.filter(
+                match_status=Deposit.MatchStatus.UNMATCHED
+            ).count()
+            context['popbill_recent_matched'] = Deposit.objects.filter(
+                match_status__in=[Deposit.MatchStatus.AUTO_MATCHED, Deposit.MatchStatus.MANUAL_MATCHED]
+            )[:5]
+            context['popbill_receipt_orders'] = Order.objects.filter(
+                status=Status.CONSULTING
+            )[:10]
+        except Exception:
+            pass
+
         return context
 
 
