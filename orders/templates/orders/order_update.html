@@ -146,6 +146,18 @@
                     </div>
 
                     <div class="col-md-6 mb-3">
+                        <label for="{{ form.deposit_name.id_for_label }}" class="form-label">
+                            {{ form.deposit_name.label }}
+                            <small class="text-info ms-1">(뱅크다 자동매치)</small>
+                        </label>
+                        {{ form.deposit_name }}
+                        {% if form.deposit_name.errors %}
+                            <div class="text-danger small">{{ form.deposit_name.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">{{ form.deposit_name.help_text }}</div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
                         <label for="{{ form.payment_date.id_for_label }}" class="form-label">
                             결제일시
                         </label>
