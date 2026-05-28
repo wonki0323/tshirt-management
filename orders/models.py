@@ -45,6 +45,13 @@ class Order(models.Model):
         default='',
         verbose_name="연락처"
     )
+    deposit_name = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        verbose_name="입금자명",
+        help_text="송금 시 사용할 입금자명. 뱅크다 자동매치 기준 (정확 일치 필수). 비워두면 자동매치 미작동·운영자 수동 처리"
+    )
     shipping_address = models.TextField(
         verbose_name="배송 주소"
     )

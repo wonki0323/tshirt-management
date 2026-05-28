@@ -74,10 +74,13 @@ def _serialize_order(order):
         {'product_name': item.smartstore_product_name}
         for item in order.items.all()
     ]
+    # 뱅크다 자동매치 조건: 적요(송금자명) = 입금예정자명 1:1 정확 일치 필수.
+    # deposit_name 있으면 그걸 사용 (자동매치 가능) / 없으면 customer_name fallback (자동매치 미작동, 수동 처리)
+    deposit_name = (order.deposit_name or '').strip() or order.customer_name
     return {
         'order_id': order.smartstore_order_id,
-        'buyer_name': order.customer_name,
-        'billing_name': order.customer_name,
+        'buyer_name': deposit_name,
+        'billing_name': deposit_name,
         'bank_account_no': _bank_account_no(),
         'bank_code_name': DEFAULT_BANK_CODE_NAME,
         'order_price_amount': int(order.total_order_amount),

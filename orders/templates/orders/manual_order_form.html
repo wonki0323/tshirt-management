@@ -159,6 +159,19 @@
                                     {% endif %}
                                 </div>
                             </div>
+                            <div class="col-md-12">
+                                <div class="mb-3">
+                                    <label for="id_deposit_name" class="form-label">
+                                        {{ form.deposit_name.label }}
+                                        <span class="badge bg-info ms-1">뱅크다 자동매치</span>
+                                    </label>
+                                    {{ form.deposit_name }}
+                                    {% if form.deposit_name.errors %}
+                                        <div class="text-danger small">{{ form.deposit_name.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="form-text">{{ form.deposit_name.help_text }}</div>
+                                </div>
+                            </div>
                             <div class="col-12">
                                 <div class="mb-3">
                                     <label for="id_shipping_address" class="form-label">

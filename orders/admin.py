@@ -77,7 +77,7 @@ class OrderAdmin(admin.ModelAdmin):
         'display_profit'
     ]
     list_filter = ['status', 'payment_date']
-    search_fields = ['smartstore_order_id', 'customer_name', 'customer_phone', 'customer_memo']
+    search_fields = ['smartstore_order_id', 'customer_name', 'customer_phone', 'deposit_name', 'customer_memo']
     ordering = ['-payment_date']
     inlines = [OrderItemInline, OrderThumbnailInline, OrderCompletionPhotoInline]
     readonly_fields = ['display_total_cost', 'display_profit']
@@ -87,7 +87,7 @@ class OrderAdmin(admin.ModelAdmin):
             'fields': ('smartstore_order_id', 'status', 'payment_date')
         }),
         ('고객 정보', {
-            'fields': ('customer_name', 'customer_phone', 'shipping_address', 'customer_memo')
+            'fields': ('customer_name', 'customer_phone', 'deposit_name', 'shipping_address', 'customer_memo')
         }),
         ('금액 정보', {
             'fields': ('shipping_cost', 'total_order_amount', 'display_total_cost', 'display_profit')

@@ -38,7 +38,19 @@ class ManualOrderForm(forms.Form):
             'id': 'id_customer_phone'
         })
     )
-    
+
+    deposit_name = forms.CharField(
+        max_length=50,
+        label="입금자명",
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '뱅크다 자동매치용 (송금자 본인 이름 정확히)',
+            'id': 'id_deposit_name'
+        }),
+        help_text="고객이 송금 시 사용할 입금자명. 정확 일치 시 자동매치 작동. 비워두면 운영자 수동 처리"
+    )
+
     shipping_address = forms.CharField(
         label="배송 주소",
         required=False,
@@ -243,6 +255,7 @@ class ManualOrderForm(forms.Form):
             smartstore_order_id=manual_order_id,
             customer_name=final_customer_name,
             customer_phone=customer_phone or '',
+            deposit_name=(self.cleaned_data.get('deposit_name', '') or '').strip(),
             shipping_address=self.cleaned_data.get('shipping_address', '') or '',
             customer_memo=self.cleaned_data.get('customer_memo', '') or '',
             shipping_cost=self.cleaned_data.get('shipping_cost', Decimal('3500')),
@@ -301,7 +314,7 @@ class OrderUpdateForm(forms.ModelForm):
     class Meta:
         model = Order
         fields = [
-            'customer_name', 'customer_phone', 'shipping_address',
+            'customer_name', 'customer_phone', 'deposit_name', 'shipping_address',
             'payment_date',
             'customer_memo', 'tracking_number',
             'shipping_cost',
@@ -316,6 +329,10 @@ class OrderUpdateForm(forms.ModelForm):
             'customer_phone': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': '010-1234-5678'
+            }),
+            'deposit_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '입금자명 (뱅크다 자동매치용)'
             }),
             'shipping_address': forms.Textarea(attrs={
                 'class': 'form-control',
