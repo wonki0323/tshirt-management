@@ -88,6 +88,89 @@
             font-size: 0.78rem;
         }
         .future-slot i { margin-right: 6px; }
+
+        /* 칸반 위젯 (단계 1a-1) — 박스+동그라미 미니멀 (2026-06-01 운영자 피드백) */
+        .kanban-board {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            padding: 20px 8px 12px 8px;
+        }
+        .kanban-col {
+            position: relative;
+            flex: 1 0 200px;
+            min-width: 200px;
+            min-height: 260px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+        }
+        .kanban-col-header {
+            position: absolute;
+            top: -11px;
+            left: 14px;
+            background: var(--bg);
+            padding: 1px 10px;
+            border: 1px solid var(--border);
+            font-size: 0.76rem;
+            font-weight: 500;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            z-index: 1;
+        }
+        .kanban-col-header .badge {
+            font-size: 0.65rem;
+            font-weight: 400;
+        }
+        .kanban-col-body {
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            gap: 12px;
+            padding: 22px 14px 14px;
+            height: 100%;
+            min-height: 100%;
+        }
+        .kanban-col-body.drag-over {
+            background: rgba(96, 165, 250, 0.08);
+            outline: 2px dashed #60a5fa;
+            outline-offset: -2px;
+        }
+        .kanban-col-body.kanban-disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        .kanban-card {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: var(--bg-elev-2);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            cursor: grab;
+            font-size: 0.76rem;
+            color: var(--text);
+            line-height: 1.15;
+            padding: 4px;
+            overflow: hidden;
+        }
+        .kanban-card:hover {
+            border-color: #93c5fd;
+        }
+        .kanban-card:active { cursor: grabbing; }
+        .kanban-card.dragging { opacity: 0.4; }
+        .kanban-empty-hint {
+            color: #6b7280;
+            font-size: 0.72rem;
+            text-align: center;
+            padding: 16px 4px;
+            font-style: italic;
+            width: 100%;
+        }
         a { color: #93c5fd; text-decoration: none; }
         a:hover { color: #bdd7ff; }
     </style>
@@ -107,6 +190,72 @@
     <div class="alert alert-{{ message.tags }} mb-0">{{ message }}</div>
     {% endfor %}
     {% endif %}
+
+    <!-- 칸반 컨트롤 모니터 (단계 1a-1) -->
+    <div class="section">
+        <div class="section-title">
+            <i class="fas fa-clipboard-list me-1"></i>상담 모니터
+            <small class="text-muted ms-2" style="text-transform:none;">드래그로 상태 변경 / 보류 토글</small>
+        </div>
+        <div class="kanban-board">
+            <div class="kanban-col" data-col="waiting">
+                <div class="kanban-col-header">
+                    대기중 <span class="badge bg-secondary">{{ kanban_data.waiting|length }}</span>
+                </div>
+                <div class="kanban-col-body kanban-disabled" data-target="waiting">
+                    <div class="kanban-empty-hint">ktalk 통합 후 활성화</div>
+                </div>
+            </div>
+            <div class="kanban-col" data-col="consulting">
+                <div class="kanban-col-header">
+                    상담중 <span class="badge bg-info text-dark">{{ kanban_data.consulting|length }}</span>
+                </div>
+                <div class="kanban-col-body" data-target="consulting" data-status="CONSULTING">
+                    {% for o in kanban_data.consulting %}
+                    <div class="kanban-card" draggable="true" data-order-id="{{ o.id }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    {% empty %}
+                    <div class="kanban-empty-hint">없음</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="kanban-col" data-col="producing">
+                <div class="kanban-col-header">
+                    제작중 <span class="badge bg-success">{{ kanban_data.producing|length }}</span>
+                </div>
+                <div class="kanban-col-body" data-target="producing" data-status="PRODUCED">
+                    {% for o in kanban_data.producing %}
+                    <div class="kanban-card" draggable="true" data-order-id="{{ o.id }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    {% empty %}
+                    <div class="kanban-empty-hint">없음</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="kanban-col" data-col="completed">
+                <div class="kanban-col-header">
+                    완료 <span class="badge bg-warning text-dark">{{ kanban_data.completed|length }}</span>
+                </div>
+                <div class="kanban-col-body" data-target="completed" data-status="COMPLETED">
+                    {% for o in kanban_data.completed %}
+                    <div class="kanban-card" draggable="true" data-order-id="{{ o.id }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    {% empty %}
+                    <div class="kanban-empty-hint">없음</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="kanban-col" data-col="on_hold">
+                <div class="kanban-col-header">
+                    보류 <span class="badge bg-dark">{{ kanban_data.on_hold|length }}</span>
+                </div>
+                <div class="kanban-col-body" data-target="on_hold">
+                    {% for o in kanban_data.on_hold %}
+                    <div class="kanban-card" draggable="true" data-order-id="{{ o.id }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    {% empty %}
+                    <div class="kanban-empty-hint">없음</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- 미매칭 입금 -->
     <div class="section">
@@ -203,9 +352,8 @@
     </div>
 
     <!-- 향후 확장 슬롯 -->
-    <div class="future-slot"><i class="fas fa-plus-circle"></i>카톡 상담 모니터링 (예정)</div>
-    <div class="future-slot"><i class="fas fa-plus-circle"></i>발송 처리 (예정)</div>
-    <div class="future-slot"><i class="fas fa-plus-circle"></i>알림톡 발송 (예정)</div>
+    <div class="future-slot"><i class="fas fa-plus-circle"></i>알림톡 발송 (단계 1c 예정)</div>
+    <div class="future-slot"><i class="fas fa-plus-circle"></i>카톡 비즈니스 완료 자동 동기화 (단계 1a-3 예정)</div>
 
     <!-- 수동 매칭 모달 -->
     <div class="modal fade" id="cpMatchModal" tabindex="-1">
@@ -266,6 +414,78 @@
         document.getElementById('cpMatchOrderId').value = id;
         document.getElementById('cpMatchForm').submit();
     }
+
+    // ─── 칸반 drag-drop (단계 1a-1) ───
+    function getCookieKb(name) {
+        let value = null;
+        document.cookie.split(';').forEach(c => {
+            const [k, v] = c.trim().split('=');
+            if (k === name) value = decodeURIComponent(v);
+        });
+        return value;
+    }
+
+    document.querySelectorAll('.kanban-card').forEach(card => {
+        card.addEventListener('dragstart', function(e) {
+            e.dataTransfer.setData('text/plain', this.dataset.orderId);
+            e.dataTransfer.effectAllowed = 'move';
+            this.classList.add('dragging');
+        });
+        card.addEventListener('dragend', function() {
+            this.classList.remove('dragging');
+        });
+    });
+
+    document.querySelectorAll('.kanban-col-body').forEach(body => {
+        if (body.classList.contains('kanban-disabled')) return;
+        body.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            this.classList.add('drag-over');
+        });
+        body.addEventListener('dragleave', function() {
+            this.classList.remove('drag-over');
+        });
+        body.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            const orderId = e.dataTransfer.getData('text/plain');
+            if (!orderId) return;
+
+            const target = this.dataset.target;
+            const status = this.dataset.status || '';
+
+            let payload = {};
+            if (target === 'on_hold') {
+                payload.is_on_hold = true;
+            } else if (status) {
+                payload.status = status;
+                payload.is_on_hold = false;
+            } else {
+                return;
+            }
+
+            fetch(`/orders/${orderId}/kanban-update/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookieKb('csrftoken'),
+                },
+                body: JSON.stringify(payload),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('변경 실패: ' + (data.error || ''));
+                }
+            })
+            .catch(err => {
+                alert('통신 오류: ' + err.message);
+            });
+        });
+    });
     </script>
 </body>
 </html>

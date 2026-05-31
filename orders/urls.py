@@ -21,4 +21,6 @@ urlpatterns = [
     path('<int:pk>/move-to-accounting/', views.move_to_accounting, name='move_to_accounting'),
     path('sales-status/', views.sales_status, name='sales_status'),
     path('<int:pk>/update-due-date/', views.update_order_due_date, name='update_order_due_date'),
+    path('<int:pk>/update-shipping-info/', views.update_order_shipping_info, name='update_order_shipping_info'),
+    path('<int:pk>/kanban-update/', views.update_order_kanban_status, name='update_order_kanban_status'),
 ]

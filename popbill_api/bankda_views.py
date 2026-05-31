@@ -19,6 +19,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from orders.models import Order, Status
+from orders.views import _get_due_date_after_business_days
 
 logger = logging.getLogger(__name__)
 
@@ -215,9 +216,11 @@ def payment_confirm(request):
             )
 
             # Order.status NEW → CONSULTING 자동 이동
+            # 마감일은 수동 결제(orders/views.py:337)와 동일하게 영업일 5일로 설정
             if order.status == Status.NEW:
                 order.status = Status.CONSULTING
-                order.save(update_fields=['status'])
+                order.due_date = _get_due_date_after_business_days(timezone.localdate(), 5)
+                order.save(update_fields=['status', 'due_date'])
 
         orders_resp.append({'order_id': order_id, 'description': 'OK'})
 

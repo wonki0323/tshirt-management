@@ -5,6 +5,35 @@ import re
 from orders.models import Order
 
 
+_EMOJI_PATTERN = re.compile(
+    "["
+    "\U0001F600-\U0001F64F"  # emoticons
+    "\U0001F300-\U0001F5FF"  # symbols & pictographs
+    "\U0001F680-\U0001F6FF"  # transport
+    "\U0001F1E0-\U0001F1FF"  # flags
+    "\U00002600-\U000026FF"  # misc symbols
+    "\U00002700-\U000027BF"  # dingbats
+    "\U0001F900-\U0001F9FF"  # supplemental
+    "\U0001FA70-\U0001FAFF"  # extended pictographs
+    "‍"                 # zero-width joiner
+    "️"                 # variation selector
+    "]+",
+    flags=re.UNICODE,
+)
+
+
+def normalize_kakao_name(name):
+    """카톡 대화명 정규화 — 이모티콘·특수기호 제거 + 공백 정리.
+
+    ktalk 매칭 시 운영자가 생략한 이모티콘 차이를 흡수하기 위한 헬퍼.
+    Order.kakao_chat_name property에서 사용.
+    """
+    if not name:
+        return ''
+    cleaned = _EMOJI_PATTERN.sub('', name)
+    return ' '.join(cleaned.split())
+
+
 def generate_customer_id(customer_name, customer_phone):
     """
     고객명과 연락처를 기반으로 고유한 고객 ID를 생성합니다.

@@ -19,13 +19,14 @@ class ManualOrderForm(forms.Form):
     # 고객 정보 (이름만 필수)
     customer_name = forms.CharField(
         max_length=100,
-        label="고객명",
+        label="고객명 (카톡 대화명, 닉네임)",
         required=True,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': '고객명을 입력하세요 (필수)',
+            'placeholder': '예: 혜나, 지장사  (카톡 대화명만도 OK)',
             'id': 'id_customer_name'
-        })
+        }),
+        help_text="카톡 대화명을 먼저 적고, 콤마 뒤에 알아보기 쉬운 닉네임(선택). ktalk 자동 매칭 기준 = 콤마 앞 부분"
     )
     
     customer_phone = forms.CharField(
@@ -324,7 +325,7 @@ class OrderUpdateForm(forms.ModelForm):
         widgets = {
             'customer_name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': '고객명'
+                'placeholder': '예: 혜나, 지장사  (카톡 대화명, 닉네임)'
             }),
             'customer_phone': forms.TextInput(attrs={
                 'class': 'form-control',

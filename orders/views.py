@@ -1429,3 +1429,81 @@ def update_order_due_date(request, pk):
         
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@require_POST
+def update_order_kanban_status(request, pk):
+    """컨트롤 패널 칸반 드래그로 주문 status 또는 보류 갱신 (AJAX)"""
+    import json
+    from django.http import JsonResponse
+
+    try:
+        order = get_object_or_404(Order, pk=pk)
+        data = json.loads(request.body)
+
+        new_status = (data.get('status') or '').strip()
+        is_on_hold_raw = data.get('is_on_hold')
+
+        update_fields = []
+
+        if new_status:
+            valid = {value for value, _ in Status.choices}
+            if new_status not in valid:
+                return JsonResponse({'success': False, 'error': '유효하지 않은 상태값.'})
+            order.status = new_status
+            update_fields.append('status')
+
+        if is_on_hold_raw is not None:
+            order.is_on_hold = bool(is_on_hold_raw)
+            update_fields.append('is_on_hold')
+
+        if not update_fields:
+            return JsonResponse({'success': False, 'error': '변경 내용이 없습니다.'})
+
+        order.save(update_fields=update_fields)
+
+        return JsonResponse({
+            'success': True,
+            'message': '주문이 갱신되었습니다.',
+            'status': order.status,
+            'is_on_hold': order.is_on_hold,
+        })
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@require_POST
+def update_order_shipping_info(request, pk):
+    """주문 배송정보(주소·연락처·입금자명) 업데이트 (AJAX) — 주문 목록 팝업에서 호출"""
+    import json
+    from django.http import JsonResponse
+
+    try:
+        order = get_object_or_404(Order, pk=pk)
+
+        data = json.loads(request.body)
+        shipping_address = (data.get('shipping_address') or '').strip()
+        customer_phone = (data.get('customer_phone') or '').strip()
+        deposit_name = (data.get('deposit_name') or '').strip()
+
+        if not shipping_address:
+            return JsonResponse({'success': False, 'error': '배송 주소는 필수입니다.'})
+
+        order.shipping_address = shipping_address
+        order.customer_phone = customer_phone
+        order.deposit_name = deposit_name
+        order.save(update_fields=['shipping_address', 'customer_phone', 'deposit_name'])
+
+        return JsonResponse({
+            'success': True,
+            'message': '배송정보가 저장되었습니다.',
+            'shipping_address': shipping_address,
+            'customer_phone': customer_phone,
+            'deposit_name': deposit_name,
+        })
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})

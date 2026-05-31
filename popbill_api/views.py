@@ -228,11 +228,35 @@ def control_panel(request):
     consulting_orders = Order.objects.filter(status=Status.CONSULTING).order_by('-payment_date')[:15]
     recent_receipts = CashReceipt.objects.filter(issue_status=CashReceipt.IssueStatus.ISSUED).order_by('-issued_at')[:5]
 
+    # 칸반 데이터 (단계 1a-1) — 5칸, 자사몰 status 그룹화 + 보류 별도
+    active_orders = (
+        Order.objects
+        .exclude(status__in=[Status.ARCHIVED, Status.CANCELED])
+        .order_by('-payment_date')
+    )
+    kanban_data = {
+        'waiting': [],     # 1a-2(ktalk DB 통합) 후 활성화
+        'consulting': [],  # NEW + CONSULTING
+        'producing': [],   # PRODUCED
+        'completed': [],   # COMPLETED + SETTLED
+        'on_hold': [],     # is_on_hold=True (모든 status)
+    }
+    for o in active_orders:
+        if o.is_on_hold:
+            kanban_data['on_hold'].append(o)
+        elif o.status in [Status.NEW, Status.CONSULTING]:
+            kanban_data['consulting'].append(o)
+        elif o.status == Status.PRODUCED:
+            kanban_data['producing'].append(o)
+        elif o.status in [Status.COMPLETED, Status.SETTLED]:
+            kanban_data['completed'].append(o)
+
     context = {
         'unmatched_deposits': unmatched_deposits,
         'unmatched_count': unmatched_deposits.count(),
         'recent_matched': recent_matched,
         'consulting_orders': consulting_orders,
         'recent_receipts': recent_receipts,
+        'kanban_data': kanban_data,
     }
     return render(request, 'popbill_api/control_panel.html', context)

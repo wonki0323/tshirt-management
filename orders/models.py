@@ -133,6 +133,11 @@ class Order(models.Model):
         verbose_name="긴급 주문",
         help_text="긴급 처리 대상 주문 여부"
     )
+    is_on_hold = models.BooleanField(
+        default=False,
+        verbose_name="보류",
+        help_text="컨트롤 패널 칸반에서 보류 칸으로 드래그된 주문. 해제 시 원래 status 유지"
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일시")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="수정일시")
 
@@ -154,6 +159,17 @@ class Order(models.Model):
     def profit(self):
         """주문의 순이익 계산 (총 결제금액 - 총 원가)"""
         return self.total_order_amount - self.total_cost
+
+    @property
+    def kakao_chat_name(self):
+        """카톡 대화명 추출 — ktalk 매칭 키 (콤마 앞 부분 + 이모티콘 normalize).
+
+        운영자 입력 규칙: customer_name = "카톡대화명, 닉네임" 또는 "카톡대화명".
+        예: "혜나, 지장사" → "혜나" / "혜나 ✨" → "혜나"
+        """
+        from utils.customer_utils import normalize_kakao_name
+        base = (self.customer_name or '').split(',')[0]
+        return normalize_kakao_name(base)
 
     def _items_with_product(self):
         return self.items.select_related('product_option__product').all()
