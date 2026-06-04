@@ -563,7 +563,13 @@
                             </tr>
                             <tr>
                                 <th>배송지</th>
-                                <td>{{ order.shipping_address|linebreaks|default:"-" }}</td>
+                                <td>
+                                    <div>{{ order.shipping_address|linebreaks|default:"-" }}</div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary mt-2"
+                                            id="autoAddressBtn" data-order-pk="{{ order.pk }}">
+                                        <i class="fas fa-magic"></i> 카톡에서 주소 자동 등록
+                                    </button>
+                                </td>
                             </tr>
                             <tr>
                                 <th>후가공</th>
@@ -1547,6 +1553,203 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+});
+</script>
+
+<!-- 주소 자동 등록 미리보기 모달 -->
+<div class="modal fade" id="autoAddressModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="fas fa-magic"></i> 카톡 주소 자동 등록</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="autoAddrLoading" class="text-center py-4">
+          <div class="spinner-border text-primary" role="status"></div>
+          <div class="mt-2 text-muted">카톡 대화에서 주소를 찾는 중… (데몬이 켜져 있어야 해요)</div>
+        </div>
+        <div id="autoAddrError" class="alert alert-danger d-none"></div>
+        <div id="autoAddrForm" class="d-none">
+          <div id="autoAddrNotes" class="alert alert-info py-2 small d-none"></div>
+          <div class="mb-2">
+            <label class="form-label mb-1">배송 주소 <span id="addrConf" class="badge bg-secondary"></span></label>
+            <input type="text" class="form-control" id="autoAddrAddress">
+            <div class="form-text" id="autoAddrJuso"></div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label mb-1">연락처 <span id="phoneConf" class="badge bg-secondary"></span></label>
+            <input type="text" class="form-control" id="autoAddrPhone">
+          </div>
+          <div class="mb-2">
+            <label class="form-label mb-1">입금자명 <span id="depositConf" class="badge bg-secondary"></span></label>
+            <input type="text" class="form-control" id="autoAddrDeposit">
+          </div>
+          <div class="alert alert-warning py-2 small mb-0">
+            <i class="fas fa-exclamation-triangle"></i> 기존 값을 <b>덮어씁니다</b>. 확인 후 저장하세요.
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+        <button type="button" class="btn btn-primary d-none" id="autoAddrSaveBtn">
+          <i class="fas fa-save"></i> 이대로 저장
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btn = document.getElementById('autoAddressBtn');
+    if (!btn) return;
+
+    const modalEl = document.getElementById('autoAddressModal');
+    const modal = new bootstrap.Modal(modalEl);
+    const loading = document.getElementById('autoAddrLoading');
+    const errBox = document.getElementById('autoAddrError');
+    const formBox = document.getElementById('autoAddrForm');
+    const saveBtn = document.getElementById('autoAddrSaveBtn');
+    const notesBox = document.getElementById('autoAddrNotes');
+
+    const elAddr = document.getElementById('autoAddrAddress');
+    const elPhone = document.getElementById('autoAddrPhone');
+    const elDeposit = document.getElementById('autoAddrDeposit');
+    const elJuso = document.getElementById('autoAddrJuso');
+
+    let pollTimer = null;
+    const orderPk = btn.dataset.orderPk;
+
+    function showError(msg) {
+        loading.classList.add('d-none');
+        formBox.classList.add('d-none');
+        saveBtn.classList.add('d-none');
+        errBox.textContent = msg;
+        errBox.classList.remove('d-none');
+    }
+
+    function confBadge(elId, level) {
+        const el = document.getElementById(elId);
+        const map = {high: ['bg-success','높음'], medium: ['bg-warning text-dark','보통'], low: ['bg-danger','낮음']};
+        const [cls, label] = map[level] || ['bg-secondary','?'];
+        el.className = 'badge ' + cls;
+        el.textContent = label;
+    }
+
+    function fillForm(result) {
+        loading.classList.add('d-none');
+        errBox.classList.add('d-none');
+
+        const ex = result.extracted || {};
+        const norm = result.normalized_address;
+        const conf = ex.confidence || {};
+
+        // 행안부 정규화 성공 시 도로명+상세 조합, 아니면 LLM 추출 원본
+        let addr = '';
+        if (norm && norm.road_address) {
+            addr = norm.road_address;
+            const detail = (ex.address_detail_part || '').trim();
+            if (detail) addr += ' ' + detail;
+            elJuso.textContent = '행안부 정규화됨' + (norm.zip_code ? ' (우편 ' + norm.zip_code + ')' : '');
+            elJuso.className = 'form-text text-success';
+        } else {
+            addr = ((ex.address_road_part || '') + ' ' + (ex.address_detail_part || '')).trim();
+            elJuso.textContent = '⚠ 행안부 정규화 실패 — 추출 원본. 직접 확인하세요.';
+            elJuso.className = 'form-text text-danger';
+        }
+        elAddr.value = addr;
+        elPhone.value = ex.phone || '';
+        elDeposit.value = ex.deposit_name || '';
+
+        confBadge('addrConf', conf.address);
+        confBadge('phoneConf', conf.phone);
+        confBadge('depositConf', conf.deposit_name);
+
+        if (ex.notes) {
+            notesBox.textContent = ex.notes;
+            notesBox.classList.remove('d-none');
+        } else {
+            notesBox.classList.add('d-none');
+        }
+
+        formBox.classList.remove('d-none');
+        saveBtn.classList.remove('d-none');
+    }
+
+    function pollStatus(requestId) {
+        const url = `/orders/${orderPk}/auto-register-address/status/${requestId}/`;
+        pollTimer = setInterval(async () => {
+            try {
+                const r = await fetch(url);
+                const d = await r.json();
+                if (!d.success) { clearInterval(pollTimer); showError(d.error || '상태 조회 실패'); return; }
+                if (d.status === 'COMPLETED') {
+                    clearInterval(pollTimer);
+                    if (d.result && d.result.matched && d.result.extracted) {
+                        fillForm(d.result);
+                    } else {
+                        showError((d.result && d.result.error) || '대화에서 주소를 찾지 못했어요.');
+                    }
+                } else if (d.status === 'FAILED') {
+                    clearInterval(pollTimer);
+                    showError(d.error || '처리 실패');
+                }
+            } catch (e) {
+                clearInterval(pollTimer);
+                showError('통신 오류: ' + e);
+            }
+        }, 1500);
+
+        // 90초 타임아웃
+        setTimeout(() => {
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null;
+                if (formBox.classList.contains('d-none')) showError('시간 초과 — 데몬이 켜져 있는지 확인하세요.'); }
+        }, 90000);
+    }
+
+    btn.addEventListener('click', async () => {
+        loading.classList.remove('d-none');
+        errBox.classList.add('d-none');
+        formBox.classList.add('d-none');
+        saveBtn.classList.add('d-none');
+        notesBox.classList.add('d-none');
+        modal.show();
+
+        try {
+            const r = await fetch(`/orders/${orderPk}/auto-register-address/request/`, {
+                method: 'POST',
+                headers: {'X-CSRFToken': getCookie('csrftoken')},
+            });
+            const d = await r.json();
+            if (!d.success) { showError(d.error || '요청 생성 실패'); return; }
+            pollStatus(d.request_id);
+        } catch (e) {
+            showError('통신 오류: ' + e);
+        }
+    });
+
+    saveBtn.addEventListener('click', async () => {
+        const addr = elAddr.value.trim();
+        if (!addr) { alert('배송 주소는 비울 수 없어요.'); return; }
+        saveBtn.disabled = true;
+        try {
+            const r = await fetch(`/orders/${orderPk}/update-shipping-info/`, {
+                method: 'POST',
+                headers: {'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    shipping_address: addr,
+                    customer_phone: elPhone.value.trim(),
+                    deposit_name: elDeposit.value.trim(),
+                }),
+            });
+            const d = await r.json();
+            if (d.success) { location.reload(); }
+            else { alert('저장 실패: ' + (d.error || '')); saveBtn.disabled = false; }
+        } catch (e) {
+            alert('통신 오류: ' + e); saveBtn.disabled = false;
+        }
+    });
 });
 </script>
 {% endblock %}

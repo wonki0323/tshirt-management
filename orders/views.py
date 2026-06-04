@@ -2,7 +2,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, DetailView
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
 from django.db.models.functions import TruncMonth
 from django.db.models import Count, Max
@@ -1507,3 +1508,306 @@ def update_order_shipping_info(request, pk):
 
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+
+# ───────────────────────────────────────────────────────────────────────
+# 주소 자동 등록 — ERP ↔ ktalk 데몬 폴링 브릿지
+# ───────────────────────────────────────────────────────────────────────
+#
+# 방향: ktalk(운영자 PC)이 ERP(서버)에 폴링. 외부 통로 불필요.
+# 흐름:
+#   1. [운영자] 버튼 → POST request → PENDING 행 생성, request_id 반환
+#   2. [프론트] GET status/<id> 주기 폴링 → COMPLETED면 미리보기 모달
+#   3. [ktalk] GET poll (API key) → PENDING 1건 PROCESSING 전환해서 가져감
+#   4. [ktalk] POST result (API key) → 결과 저장, COMPLETED/FAILED
+#   5. [운영자] 모달 확인 → 기존 update_order_shipping_info로 저장
+
+
+def _check_ktalk_api_key(request):
+    """ktalk 전용 endpoint 인증. 헤더 X-Ktalk-Key 검증."""
+    import os
+    expected = os.environ.get('KTALK_API_KEY', '')
+    provided = request.headers.get('X-Ktalk-Key', '')
+    return bool(expected) and provided == expected
+
+
+@login_required
+@require_POST
+def address_auto_register_request(request, pk):
+    """[운영자] 주소 자동 등록 요청 생성 → PENDING 행 만들고 request_id 반환."""
+    import json
+    from django.http import JsonResponse
+    from .models import AddressExtractionRequest
+
+    try:
+        order = get_object_or_404(Order, pk=pk)
+        kakao_chat_name = order.kakao_chat_name
+        if not kakao_chat_name:
+            return JsonResponse({
+                'success': False,
+                'error': '이 주문은 카톡 매칭 키가 비어있어요. 고객명을 확인하세요.',
+            })
+
+        # 기존 미완료 요청 정리 — 같은 주문에 PENDING/PROCESSING 쌓이지 않게
+        AddressExtractionRequest.objects.filter(
+            order=order,
+            status__in=['PENDING', 'PROCESSING'],
+        ).update(status='FAILED', error='새 요청으로 대체됨')
+
+        req = AddressExtractionRequest.objects.create(
+            order=order,
+            kakao_chat_name=kakao_chat_name,
+            status='PENDING',
+        )
+        return JsonResponse({
+            'success': True,
+            'request_id': req.id,
+            'kakao_chat_name': kakao_chat_name,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+def address_auto_register_status(request, pk, request_id):
+    """[프론트 폴링] 요청 처리 상태 확인. COMPLETED면 결과 JSON 동봉."""
+    import json
+    from django.http import JsonResponse
+    from .models import AddressExtractionRequest
+
+    try:
+        req = get_object_or_404(
+            AddressExtractionRequest, pk=request_id, order_id=pk
+        )
+        payload = {'success': True, 'status': req.status}
+        if req.status == 'COMPLETED':
+            payload['result'] = json.loads(req.result_json or '{}')
+        elif req.status == 'FAILED':
+            payload['error'] = req.error or '처리 실패'
+        return JsonResponse(payload)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def address_extraction_poll(request):
+    """[ktalk] PENDING 요청 1건을 PROCESSING으로 전환해서 가져감 (API key 인증)."""
+    from django.http import JsonResponse
+    from django.db import transaction
+    from .models import AddressExtractionRequest
+
+    if not _check_ktalk_api_key(request):
+        return JsonResponse({'error': 'unauthorized'}, status=401)
+
+    try:
+        with transaction.atomic():
+            req = (
+                AddressExtractionRequest.objects
+                .select_for_update(skip_locked=True)
+                .filter(status='PENDING')
+                .order_by('created_at')
+                .first()
+            )
+            if not req:
+                return JsonResponse({'has_task': False})
+            req.status = 'PROCESSING'
+            req.save(update_fields=['status', 'updated_at'])
+
+        return JsonResponse({
+            'has_task': True,
+            'request_id': req.id,
+            'kakao_chat_name': req.kakao_chat_name,
+            'limit': 20,
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_POST
+def address_extraction_result(request):
+    """[ktalk] 추출 결과 제출 → COMPLETED/FAILED 전환 (API key 인증).
+
+    body: {"request_id": int, "result": {...}}  또는  {"request_id": int, "error": str}
+    """
+    import json
+    from django.http import JsonResponse
+    from .models import AddressExtractionRequest
+
+    if not _check_ktalk_api_key(request):
+        return JsonResponse({'error': 'unauthorized'}, status=401)
+
+    try:
+        data = json.loads(request.body)
+        request_id = data.get('request_id')
+        req = get_object_or_404(AddressExtractionRequest, pk=request_id)
+
+        if data.get('error'):
+            req.status = 'FAILED'
+            req.error = str(data['error'])[:2000]
+        else:
+            req.status = 'COMPLETED'
+            req.result_json = json.dumps(data.get('result') or {}, ensure_ascii=False)
+        req.save(update_fields=['status', 'result_json', 'error', 'updated_at'])
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ───────────────────────────────────────────────────────────────────────
+# 발송결과 통보 — 송장번호+완료사진 고객 카톡 발송 (ERP ↔ ktalk 폴링)
+# ───────────────────────────────────────────────────────────────────────
+
+
+def _absolute_media_url(request, url):
+    """완료사진 url을 ktalk이 다운로드 가능한 절대 URL로.
+
+    Cloudinary면 이미 https 절대경로. 로컬 스토리지면 /media/... 상대경로 →
+    요청 호스트 기준 절대 URL로 변환.
+    """
+    if not url:
+        return ''
+    if url.startswith('http://') or url.startswith('https://'):
+        return url
+    return request.build_absolute_uri(url)
+
+
+@login_required
+@require_POST
+def ship_notify_request(request, pk):
+    """[운영자] 발송결과 통보 요청 생성 → PENDING 행 + 사진 URL 스냅샷."""
+    import json
+    from django.http import JsonResponse
+    from .models import ShipNotifyRequest
+
+    try:
+        order = get_object_or_404(Order, pk=pk)
+        kakao_chat_name = order.kakao_chat_name
+        if not kakao_chat_name:
+            return JsonResponse({
+                'success': False,
+                'error': '이 주문은 카톡 매칭 키가 비어있어요. 고객명을 확인하세요.',
+            })
+        if not order.tracking_number:
+            return JsonResponse({
+                'success': False,
+                'error': '송장번호가 없어요. 먼저 송장번호를 입력하세요.',
+            })
+
+        photo_urls = []
+        for photo in order.completion_photos.all().order_by('order_number'):
+            raw = photo.image.url if photo.image else photo.google_drive_image_url
+            abs_url = _absolute_media_url(request, raw)
+            if abs_url:
+                photo_urls.append(abs_url)
+
+        # 같은 주문 미완료 통보 요청 정리
+        ShipNotifyRequest.objects.filter(
+            order=order, status__in=['PENDING', 'PROCESSING'],
+        ).update(status='FAILED', error='새 요청으로 대체됨')
+
+        req = ShipNotifyRequest.objects.create(
+            order=order,
+            kakao_chat_name=kakao_chat_name,
+            tracking_number=order.tracking_number,
+            photo_urls_json=json.dumps(photo_urls, ensure_ascii=False),
+        )
+        return JsonResponse({
+            'success': True,
+            'request_id': req.id,
+            'kakao_chat_name': kakao_chat_name,
+            'photo_count': len(photo_urls),
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+def ship_notify_status(request, pk, request_id):
+    """[프론트 폴링] 통보 처리 상태 확인."""
+    from django.http import JsonResponse
+    from .models import ShipNotifyRequest
+
+    try:
+        req = get_object_or_404(ShipNotifyRequest, pk=request_id, order_id=pk)
+        payload = {'success': True, 'status': req.status}
+        if req.status == 'FAILED':
+            payload['error'] = req.error or '통보 실패'
+        return JsonResponse(payload)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def ship_notify_poll(request):
+    """[ktalk] PENDING 통보 1건을 PROCESSING으로 전환해 가져감 (API key 인증)."""
+    import json
+    from django.http import JsonResponse
+    from django.db import transaction
+    from .models import ShipNotifyRequest
+
+    if not _check_ktalk_api_key(request):
+        return JsonResponse({'error': 'unauthorized'}, status=401)
+
+    try:
+        with transaction.atomic():
+            req = (
+                ShipNotifyRequest.objects
+                .select_for_update(skip_locked=True)
+                .filter(status='PENDING')
+                .order_by('created_at')
+                .first()
+            )
+            if not req:
+                return JsonResponse({'has_task': False})
+            req.status = 'PROCESSING'
+            req.save(update_fields=['status', 'updated_at'])
+
+        return JsonResponse({
+            'has_task': True,
+            'request_id': req.id,
+            'kakao_chat_name': req.kakao_chat_name,
+            'tracking_number': req.tracking_number,
+            'photo_urls': json.loads(req.photo_urls_json or '[]'),
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_POST
+def ship_notify_result(request):
+    """[ktalk] 통보 결과 제출 → COMPLETED/FAILED (API key 인증).
+
+    COMPLETED면 주문을 정산목록(ARCHIVED)으로 자동 이동.
+    body: {"request_id": int}  또는  {"request_id": int, "error": str}
+    """
+    import json
+    from django.http import JsonResponse
+    from .models import ShipNotifyRequest
+
+    if not _check_ktalk_api_key(request):
+        return JsonResponse({'error': 'unauthorized'}, status=401)
+
+    try:
+        data = json.loads(request.body)
+        request_id = data.get('request_id')
+        req = get_object_or_404(ShipNotifyRequest, pk=request_id)
+
+        if data.get('error'):
+            req.status = 'FAILED'
+            req.error = str(data['error'])[:2000]
+            req.save(update_fields=['status', 'error', 'updated_at'])
+        else:
+            req.status = 'COMPLETED'
+            req.save(update_fields=['status', 'updated_at'])
+            # 통보 성공 → 정산목록으로 자동 이동
+            order = req.order
+            if order.status == Status.SETTLED:
+                order.status = Status.ARCHIVED
+                order.save(update_fields=['status', 'updated_at'])
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

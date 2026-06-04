@@ -22,5 +22,13 @@ urlpatterns = [
     path('sales-status/', views.sales_status, name='sales_status'),
     path('<int:pk>/update-due-date/', views.update_order_due_date, name='update_order_due_date'),
     path('<int:pk>/update-shipping-info/', views.update_order_shipping_info, name='update_order_shipping_info'),
+    path('<int:pk>/auto-register-address/request/', views.address_auto_register_request, name='address_auto_register_request'),
+    path('<int:pk>/auto-register-address/status/<int:request_id>/', views.address_auto_register_status, name='address_auto_register_status'),
+    path('ktalk/address-extraction/poll/', views.address_extraction_poll, name='address_extraction_poll'),
+    path('ktalk/address-extraction/result/', views.address_extraction_result, name='address_extraction_result'),
+    path('<int:pk>/ship-notify/request/', views.ship_notify_request, name='ship_notify_request'),
+    path('<int:pk>/ship-notify/status/<int:request_id>/', views.ship_notify_status, name='ship_notify_status'),
+    path('ktalk/ship-notify/poll/', views.ship_notify_poll, name='ship_notify_poll'),
+    path('ktalk/ship-notify/result/', views.ship_notify_result, name='ship_notify_result'),
     path('<int:pk>/kanban-update/', views.update_order_kanban_status, name='update_order_kanban_status'),
 ]

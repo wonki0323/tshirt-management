@@ -390,6 +390,115 @@ class OrderThumbnail(models.Model):
         return None
 
 
+class AddressExtractionRequest(models.Model):
+    """카톡 대화에서 주소·연락처·입금자명 자동 추출 요청 큐.
+
+    ERP(서버) ↔ ktalk 데몬(운영자 PC) 폴링 브릿지.
+    - ERP: 버튼 클릭 시 PENDING 행 생성, 프론트는 이 행을 폴링
+    - ktalk: PENDING 행을 가져가 PROCESSING → 처리 후 result_json 채우고 COMPLETED/FAILED
+    """
+    class RequestStatus(models.TextChoices):
+        PENDING = 'PENDING', '대기'
+        PROCESSING = 'PROCESSING', '처리중'
+        COMPLETED = 'COMPLETED', '완료'
+        FAILED = 'FAILED', '실패'
+
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name='address_extraction_requests',
+        verbose_name="주문"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=RequestStatus.choices,
+        default=RequestStatus.PENDING,
+        verbose_name="요청 상태"
+    )
+    kakao_chat_name = models.CharField(
+        max_length=100,
+        verbose_name="카톡 대화명 (요청 시점 스냅샷)"
+    )
+    result_json = models.TextField(
+        blank=True,
+        default='',
+        verbose_name="추출 결과 JSON",
+        help_text="ktalk 데몬이 채우는 extract_and_normalize 결과"
+    )
+    error = models.TextField(
+        blank=True,
+        default='',
+        verbose_name="오류 메시지"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일시")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="수정일시")
+
+    class Meta:
+        verbose_name = "주소 추출 요청"
+        verbose_name_plural = "주소 추출 요청"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.order_id} - {self.kakao_chat_name} - {self.status}"
+
+
+class ShipNotifyRequest(models.Model):
+    """발송결과(송장번호+완료사진) 고객 카톡 통보 요청 큐.
+
+    ERP(서버) ↔ ktalk 데몬(운영자 PC) 폴링 브릿지.
+    - ERP: 결과보기 모달에서 "고객 통보" 클릭 시 PENDING 행 생성
+    - ktalk: PENDING 행을 가져가 PROCESSING → 방 열고 사진 발송 + 송장 메시지 발송
+      → COMPLETED/FAILED. ERP는 COMPLETED 시 자동 정산목록(ARCHIVED) 이동.
+    """
+    class RequestStatus(models.TextChoices):
+        PENDING = 'PENDING', '대기'
+        PROCESSING = 'PROCESSING', '처리중'
+        COMPLETED = 'COMPLETED', '완료'
+        FAILED = 'FAILED', '실패'
+
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name='ship_notify_requests',
+        verbose_name="주문"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=RequestStatus.choices,
+        default=RequestStatus.PENDING,
+        verbose_name="요청 상태"
+    )
+    kakao_chat_name = models.CharField(
+        max_length=100,
+        verbose_name="카톡 대화명 (요청 시점 스냅샷)"
+    )
+    tracking_number = models.CharField(
+        max_length=100,
+        verbose_name="송장번호 (요청 시점 스냅샷)"
+    )
+    photo_urls_json = models.TextField(
+        blank=True,
+        default='[]',
+        verbose_name="완료사진 URL 리스트 JSON",
+        help_text="ktalk이 다운로드해 발송할 완료사진 URL들"
+    )
+    error = models.TextField(
+        blank=True,
+        default='',
+        verbose_name="오류 메시지"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일시")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="수정일시")
+
+    class Meta:
+        verbose_name = "발송결과 통보 요청"
+        verbose_name_plural = "발송결과 통보 요청"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.order_id} - {self.kakao_chat_name} - {self.status}"
+
+
 class OrderCompletionPhoto(models.Model):
     """제작 완료 사진 (여러 장 가능)"""
     order = models.ForeignKey(

@@ -1493,13 +1493,20 @@ function displayViewCompletionModal(data, customerName, orderStatus) {
                             ${trackingHTML}
                         </div>
                     </div>
-                    <div class="modal-footer d-flex justify-content-between">
+                    <div class="modal-footer d-flex justify-content-between align-items-center">
                         <button type="button" class="btn btn-secondary" onclick="closeViewCompletionModal()">닫기</button>
+                        <div class="d-flex align-items-center gap-2">
                         ${effectiveStatus === 'SETTLED' ? `
+                            <span id="shipNotifyMsg" class="text-muted small"></span>
+                            <button type="button" class="btn btn-success" id="shipNotifyBtn"
+                                    onclick="shipNotify(${data.order_id})">
+                                <i class="fas fa-paper-plane"></i> 고객 통보 후 넘기기
+                            </button>
                             <button type="button" class="btn btn-dark" onclick="moveToAccounting(${data.order_id})">
-                                넘기기
+                                넘기기만
                             </button>
                         ` : `<span></span>`}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1535,6 +1542,51 @@ function moveToAccounting(orderId) {
 
     document.body.appendChild(form);
     form.submit();
+}
+
+// 발송결과 통보: 사진+송장 고객 카톡 발송 → 성공 시 자동 정산목록 이동
+function shipNotify(orderId) {
+    if (!confirm('이 고객에게 완료사진과 송장번호를 카톡으로 발송합니다.\n발송 후 자동으로 정산목록으로 넘어갑니다. 진행할까요?')) {
+        return;
+    }
+    const btn = document.getElementById('shipNotifyBtn');
+    const msg = document.getElementById('shipNotifyMsg');
+    if (btn) { btn.disabled = true; }
+    if (msg) { msg.textContent = '통보 요청 중…'; msg.className = 'text-info small'; }
+
+    let pollTimer = null;
+    function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+    function fail(text) {
+        stopPoll();
+        if (msg) { msg.textContent = text; msg.className = 'text-danger small'; }
+        if (btn) { btn.disabled = false; }
+    }
+
+    fetch(`/orders/${orderId}/ship-notify/request/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (!d.success) { fail(d.error || '요청 실패'); return; }
+        if (msg) { msg.textContent = `발송 중… (사진 ${d.photo_count}장, 데몬이 켜져 있어야 해요)`; }
+        const statusUrl = `/orders/${orderId}/ship-notify/status/${d.request_id}/`;
+        pollTimer = setInterval(() => {
+            fetch(statusUrl).then(r => r.json()).then(s => {
+                if (!s.success) { fail(s.error || '상태 조회 실패'); return; }
+                if (s.status === 'COMPLETED') {
+                    stopPoll();
+                    if (msg) { msg.textContent = '✅ 통보 완료 — 정산목록으로 이동합니다'; msg.className = 'text-success small'; }
+                    setTimeout(() => location.reload(), 1200);
+                } else if (s.status === 'FAILED') {
+                    fail('❌ ' + (s.error || '통보 실패'));
+                }
+            }).catch(e => fail('통신 오류: ' + e));
+        }, 2000);
+        // 3분 타임아웃
+        setTimeout(() => { if (pollTimer) fail('시간 초과 — 데몬 상태를 확인하세요'); }, 180000);
+    })
+    .catch(e => fail('통신 오류: ' + e));
 }
 
 // 완료사진 보기 모달 닫기
