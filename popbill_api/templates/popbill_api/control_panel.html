@@ -92,7 +92,8 @@
         /* 칸반 위젯 (단계 1a-1) — 박스+동그라미 미니멀 (2026-06-01 운영자 피드백) */
         .kanban-board {
             display: flex;
-            gap: 16px;
+            align-items: flex-start;   /* 칸마다 독립 높이 (적은 칸은 낮게) */
+            gap: 12px;
             overflow-x: auto;
             padding: 20px 8px 12px 8px;
         }
@@ -100,7 +101,7 @@
             position: relative;
             flex: 1 1 0;           /* flex-grow는 인라인 style로 칸별(카드 수 비례) 지정 */
             min-width: 88px;
-            min-height: clamp(220px, 52vh, 620px);   /* 최소 높이는 화면 반응, 카드 많으면 더 늘어남(스크롤 X) */
+            min-height: 96px;      /* 컴팩트 — 카드 수만큼만 높이 차지 (적은 칸은 낮게, 많으면 늘어남) */
             border: 1px solid var(--border);
             background: var(--bg);
         }
