@@ -144,6 +144,7 @@
             opacity: 0.5;
         }
         .kanban-card {
+            position: relative;    /* unread 배지 기준 */
             flex: none;
             width: clamp(38px, 3.4vw, 60px);   /* 화면 비례 (칸 폭과 무관, 칸 좁아도 원 유지) */
             aspect-ratio: 1;       /* 항상 정원 유지 */
@@ -167,6 +168,24 @@
             overflow: hidden;
             text-overflow: ellipsis;
             max-width: 100%;
+        }
+        .kc-unread {
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            min-width: 15px;
+            height: 15px;
+            padding: 0 3px;
+            border-radius: 8px;
+            background: #ef4444;
+            color: #fff;
+            font-size: 0.52rem;
+            font-weight: 700;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 0 1.5px var(--bg);
         }
         .kanban-card:hover {
             border-color: #93c5fd;

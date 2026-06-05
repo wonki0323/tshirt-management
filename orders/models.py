@@ -576,6 +576,9 @@ class KakaoConsultCard(models.Model):
         max_length=20, choices=State.choices, default=State.WAITING,
         verbose_name="카톡 상태"
     )
+    unread_count = models.IntegerField(
+        default=0, verbose_name="안 읽은 메시지 수"
+    )
     last_message_at = models.CharField(
         max_length=40, blank=True, default='',
         verbose_name="마지막 카톡 활동",

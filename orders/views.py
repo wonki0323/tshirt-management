@@ -1569,14 +1569,14 @@ def kakao_kanban_sync(request):
             state = c.get('state') or KakaoConsultCard.State.WAITING
             if state not in (KakaoConsultCard.State.WAITING, KakaoConsultCard.State.CONSULTING):
                 state = KakaoConsultCard.State.WAITING
-            last_at = (c.get('last_message_at') or '').strip()
+            unread = int(c.get('unread', 0) or 0)
 
             KakaoConsultCard.objects.update_or_create(
                 customer_id=cid,
                 defaults={
                     'display_name': name,
                     'state': state,
-                    'last_message_at': last_at,
+                    'unread_count': unread,
                 },
             )
             synced += 1
