@@ -21,6 +21,7 @@ from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
 from . import views
+from . import hermes_views
 from popbill_api import bankda_views
 
 def redirect_to_login(request):
@@ -44,6 +45,9 @@ urlpatterns = [
 
     # 운영자용 — 잘못 자동매칭된 입금 되돌리기 (2026-05-27)
     path('bankda/rollback/<int:pk>/', bankda_views.rollback_deposit, name='bankda_rollback'),
+
+    # hermes 에이전트 읽기 전용 게이트웨이 (2026-06-06) — 외부 호출이라 root 경로
+    path('hermes/query/', hermes_views.hermes_query, name='hermes_query'),
 
     path('admin/', admin.site.urls),
 ]
