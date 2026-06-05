@@ -257,14 +257,9 @@ def control_panel(request):
         elif o.status == Status.SETTLED:
             kanban_data['notified'].append(o)
 
-    # 칸 폭을 카드 수에 비례 (공간 효율) — 적은 칸 좁게(1열), 많은 칸 넓게(3열)
-    def _cols(n):
-        if n <= 2:
-            return 1
-        if n <= 6:
-            return 2
-        return 3
-    kanban_cols = {k: _cols(len(v)) for k, v in kanban_data.items()}
+    # 칸 폭 가중치를 카드 수에 비례 (÷3) — 많은 칸일수록 가로로 넓게 펼쳐 세로를 짧게
+    import math
+    kanban_cols = {k: max(1, math.ceil(len(v) / 3)) for k, v in kanban_data.items()}
     kanban_cols['waiting'] = 1  # ktalk 통합 전까지 비활성 (좁게)
 
     context = {
