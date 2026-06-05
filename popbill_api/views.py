@@ -228,7 +228,7 @@ def control_panel(request):
     consulting_orders = Order.objects.filter(status=Status.CONSULTING).order_by('-payment_date')[:15]
     recent_receipts = CashReceipt.objects.filter(issue_status=CashReceipt.IssueStatus.ISSUED).order_by('-issued_at')[:5]
 
-    # 칸반 데이터 (단계 1a-1) — 5칸, 자사몰 status 그룹화 + 보류 별도
+    # 칸반 데이터 — 7칸, 자사몰 status 정식 세분화 + 보류 별도
     active_orders = (
         Order.objects
         .exclude(status__in=[Status.ARCHIVED, Status.CANCELED])
@@ -236,9 +236,11 @@ def control_panel(request):
     )
     kanban_data = {
         'waiting': [],     # 1a-2(ktalk DB 통합) 후 활성화
-        'consulting': [],  # NEW + CONSULTING
-        'producing': [],   # PRODUCED
-        'completed': [],   # COMPLETED + SETTLED
+        'consulting': [],  # NEW(등록) + CONSULTING(결제)
+        'prep': [],        # PREP(제작준비)
+        'producing': [],   # PRODUCED(제작중)
+        'shipped': [],     # COMPLETED(발송)
+        'notified': [],    # SETTLED(결과통보)
         'on_hold': [],     # is_on_hold=True (모든 status)
     }
     for o in active_orders:
@@ -246,12 +248,14 @@ def control_panel(request):
             kanban_data['on_hold'].append(o)
         elif o.status in [Status.NEW, Status.CONSULTING]:
             kanban_data['consulting'].append(o)
-        elif o.status in [Status.PREP, Status.PRODUCED]:
-            # 제작준비 단계는 칸반에서 임시로 제작중 그룹에 포함
-            # (정식 칸반 세분화는 후속 작업 — decision_log 2026-06-05 order-stage-subdivide)
+        elif o.status == Status.PREP:
+            kanban_data['prep'].append(o)
+        elif o.status == Status.PRODUCED:
             kanban_data['producing'].append(o)
-        elif o.status in [Status.COMPLETED, Status.SETTLED]:
-            kanban_data['completed'].append(o)
+        elif o.status == Status.COMPLETED:
+            kanban_data['shipped'].append(o)
+        elif o.status == Status.SETTLED:
+            kanban_data['notified'].append(o)
 
     context = {
         'unmatched_deposits': unmatched_deposits,

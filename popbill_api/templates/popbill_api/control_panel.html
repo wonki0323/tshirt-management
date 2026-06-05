@@ -98,8 +98,8 @@
         }
         .kanban-col {
             position: relative;
-            flex: 1 0 200px;
-            min-width: 200px;
+            flex: 1 1 160px;
+            min-width: 150px;
             min-height: 260px;
             border: 1px solid var(--border);
             background: var(--bg);
@@ -218,6 +218,18 @@
                     {% endfor %}
                 </div>
             </div>
+            <div class="kanban-col" data-col="prep">
+                <div class="kanban-col-header">
+                    제작준비 <span class="badge bg-primary">{{ kanban_data.prep|length }}</span>
+                </div>
+                <div class="kanban-col-body" data-target="prep" data-status="PREP">
+                    {% for o in kanban_data.prep %}
+                    <div class="kanban-card" draggable="true" data-order-id="{{ o.id }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    {% empty %}
+                    <div class="kanban-empty-hint">없음</div>
+                    {% endfor %}
+                </div>
+            </div>
             <div class="kanban-col" data-col="producing">
                 <div class="kanban-col-header">
                     제작중 <span class="badge bg-success">{{ kanban_data.producing|length }}</span>
@@ -230,12 +242,24 @@
                     {% endfor %}
                 </div>
             </div>
-            <div class="kanban-col" data-col="completed">
+            <div class="kanban-col" data-col="shipped">
                 <div class="kanban-col-header">
-                    완료 <span class="badge bg-warning text-dark">{{ kanban_data.completed|length }}</span>
+                    발송 <span class="badge bg-warning text-dark">{{ kanban_data.shipped|length }}</span>
                 </div>
-                <div class="kanban-col-body" data-target="completed" data-status="COMPLETED">
-                    {% for o in kanban_data.completed %}
+                <div class="kanban-col-body" data-target="shipped" data-status="COMPLETED">
+                    {% for o in kanban_data.shipped %}
+                    <div class="kanban-card" draggable="true" data-order-id="{{ o.id }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    {% empty %}
+                    <div class="kanban-empty-hint">없음</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="kanban-col" data-col="notified">
+                <div class="kanban-col-header">
+                    결과통보 <span class="badge bg-secondary">{{ kanban_data.notified|length }}</span>
+                </div>
+                <div class="kanban-col-body" data-target="notified" data-status="SETTLED">
+                    {% for o in kanban_data.notified %}
                     <div class="kanban-card" draggable="true" data-order-id="{{ o.id }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
