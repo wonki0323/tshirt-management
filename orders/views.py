@@ -1560,6 +1560,13 @@ def kakao_kanban_sync(request):
     try:
         data = json.loads(request.body)
         customers = data.get('customers', [])
+        # 주문 매칭용 — 활성 주문의 kakao_chat_name(property) → Order
+        active_orders = Order.objects.exclude(status__in=['ARCHIVED', 'CANCELED'])
+        name_to_order = {}
+        for o in active_orders:
+            n = o.kakao_chat_name
+            if n:
+                name_to_order.setdefault(n, o)
         synced = 0
         for c in customers:
             cid = (c.get('customer_id') or '').strip()
@@ -1579,10 +1586,54 @@ def kakao_kanban_sync(request):
                     'unread_count': unread,
                 },
             )
+            # 주문 매칭 → kakao_customer_id 저장 (주문 카드 클릭 시 카톡창)
+            matched = name_to_order.get(name)
+            if matched and matched.kakao_customer_id != cid:
+                matched.kakao_customer_id = cid
+                matched.save(update_fields=['kakao_customer_id'])
             synced += 1
         return JsonResponse({'success': True, 'synced': synced})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def kakao_open_request(request):
+    """[운영자] 칸반 카드 클릭 → 카톡창 열기 요청 큐 적재 (단계 1a-2 ②)."""
+    import json
+    from django.http import JsonResponse
+    from .models import KakaoOpenRequest
+
+    try:
+        data = json.loads(request.body)
+        cid = (data.get('customer_id') or '').strip()
+        if not cid:
+            return JsonResponse({'success': False, 'error': 'customer_id 없음'})
+        # 같은 고객 미처리 요청 정리 (중복 누적 방지)
+        KakaoOpenRequest.objects.filter(customer_id=cid, status='PENDING').delete()
+        KakaoOpenRequest.objects.create(customer_id=cid, status='PENDING')
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def kakao_open_poll(request):
+    """[ktalk] 카톡창 열기 요청 1건 가져가기 (PENDING → DONE)."""
+    from django.http import JsonResponse
+    from .models import KakaoOpenRequest
+
+    if not _check_ktalk_api_key(request):
+        return JsonResponse({'success': False, 'error': '인증 실패'}, status=401)
+
+    req = KakaoOpenRequest.objects.filter(status='PENDING').order_by('created_at').first()
+    if not req:
+        return JsonResponse({'has_task': False})
+    req.status = 'DONE'
+    req.save(update_fields=['status'])
+    return JsonResponse({'has_task': True, 'customer_id': req.customer_id})
 
 
 @login_required

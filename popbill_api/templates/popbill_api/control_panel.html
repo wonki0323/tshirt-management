@@ -169,6 +169,13 @@
             text-overflow: ellipsis;
             max-width: 100%;
         }
+        .kanban-card.kc-opening { animation: kcPulse 0.7s ease-in-out infinite; }
+        @keyframes kcPulse { 0%,100%{ opacity:1; } 50%{ opacity:0.35; } }
+        .kanban-card.kc-unmatched {   /* 카톡 매칭 안 된 주문 — 주황 점선 */
+            border-color: #f59e0b;
+            border-style: dashed;
+            opacity: 0.78;
+        }
         .kc-unread {
             position: absolute;
             top: -3px;
@@ -284,7 +291,8 @@
     <div class="section">
         <div class="section-title">
             <i class="fas fa-clipboard-list me-1"></i>상담 모니터
-            <small class="text-muted ms-2" style="text-transform:none;">카드 클릭: 주문상세(새 탭) / 드래그: 단계 이동·보류 토글</small>
+            <button type="button" onclick="location.reload()" class="btn btn-sm btn-outline-info ms-2 py-0" style="font-size:0.72rem; vertical-align:middle;"><i class="fas fa-sync-alt"></i> 새로고침</button>
+            <small class="text-muted ms-2" style="text-transform:none;">카드 클릭: 카톡창 / 우클릭: 메뉴 / 드래그: 단계 이동 · <span style="color:#f59e0b;">주황 점선</span>=카톡 매칭 안 됨</small>
         </div>
         <div class="kanban-board">
             <div class="kanban-col" data-col="waiting" style="flex-grow: {{ kanban_cols.waiting }};">
@@ -562,10 +570,21 @@
             // 드래그 직후 발생하는 click 무시 (드래그 ≠ 클릭)
             setTimeout(() => { dragging = false; }, 0);
         });
-        // 좌클릭 = 카톡창 열기 (예정 — 카톡 연동 1a-2 시 연결)
+        // 좌클릭 = 카톡창 열기 (카톡 카드: customer_id, 주문 카드: 매칭된 kakao_customer_id)
         card.addEventListener('click', function() {
             if (dragging) return;
-            // TODO(1a-2): 해당 고객 카톡창 열기
+            const cid = this.dataset.kakaoId || this.dataset.kakaoCustomerId;
+            if (!cid) return;
+            this.classList.add('kc-opening');
+            const el = this;
+            fetch('/orders/ktalk/kanban/open/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookieKb('csrftoken') },
+                body: JSON.stringify({ customer_id: cid }),
+            }).then(r => r.json()).then(d => {
+                setTimeout(() => el.classList.remove('kc-opening'), 3500);
+                if (!d.success) alert(d.error || '카톡창 열기 요청 실패');
+            }).catch(err => { el.classList.remove('kc-opening'); alert('통신 오류: ' + err.message); });
         });
         // 우클릭 = 컨텍스트 메뉴 (카톡 카드는 주문이 없어 1a-2b에서 별도 메뉴)
         card.addEventListener('contextmenu', function(e) {

@@ -33,6 +33,11 @@ class Order(models.Model):
         default=Status.NEW,
         verbose_name="주문 상태"
     )
+    kakao_customer_id = models.CharField(
+        max_length=64, blank=True, default='',
+        verbose_name="카톡 고유 ID",
+        help_text="ktalk 매칭으로 연결된 카톡 customer_id (카톡창 열기용). 빈값=매칭 실패"
+    )
     payment_date = models.DateTimeField(
         default=timezone.now,
         verbose_name="결제일시"
@@ -602,3 +607,23 @@ class KakaoConsultCard(models.Model):
 
     def __str__(self):
         return f"{self.display_name} ({self.get_state_display()})"
+
+
+class KakaoOpenRequest(models.Model):
+    """카톡창 열기 요청 큐 (단계 1a-2 ②). 칸반 카드 클릭 → ktalk이 폴링해 open_chat_by_id 실행.
+    방향: 운영자 클릭(ERP) → ktalk poll → 카톡창 열림 (~5초).
+    """
+    customer_id = models.CharField(max_length=64, verbose_name="카톡 고유 ID")
+    status = models.CharField(
+        max_length=20, default='PENDING',
+        verbose_name="처리 상태", help_text="PENDING → DONE"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="요청일시")
+
+    class Meta:
+        verbose_name = "카톡창 열기 요청"
+        verbose_name_plural = "카톡창 열기 요청"
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"open {self.customer_id} ({self.status})"
