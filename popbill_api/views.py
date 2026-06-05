@@ -246,7 +246,9 @@ def control_panel(request):
             kanban_data['on_hold'].append(o)
         elif o.status in [Status.NEW, Status.CONSULTING]:
             kanban_data['consulting'].append(o)
-        elif o.status == Status.PRODUCED:
+        elif o.status in [Status.PREP, Status.PRODUCED]:
+            # 제작준비 단계는 칸반에서 임시로 제작중 그룹에 포함
+            # (정식 칸반 세분화는 후속 작업 — decision_log 2026-06-05 order-stage-subdivide)
             kanban_data['producing'].append(o)
         elif o.status in [Status.COMPLETED, Status.SETTLED]:
             kanban_data['completed'].append(o)

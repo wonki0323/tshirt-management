@@ -784,10 +784,16 @@
                             <i class="fas fa-won-sign"></i> 결제
                         </button>
                     {% elif order.status == 'CONSULTING' %}
-                        <button type="button" class="btn btn-info btn-lg status-change-btn" 
-                                data-order-id="{{ order.id }}" 
-                                data-next-status="PRODUCED">
+                        <button type="button" class="btn btn-info btn-lg status-change-btn"
+                                data-order-id="{{ order.id }}" data-next-status="PREP">
                             <i class="fas fa-boxes"></i> 재고확보
+                        </button>
+                    {% elif order.status == 'PREP' %}
+                        <button type="button" class="btn btn-primary btn-lg status-change-btn"
+                                data-order-id="{{ order.id }}"
+                                data-next-status="PRODUCED"
+                                title="제작 파일 준비 완료 → 제작중으로">
+                            <i class="fas fa-arrow-right"></i> 넘기기 (제작중)
                         </button>
                     {% elif order.status == 'PRODUCED' %}
                         <button type="button" class="btn btn-secondary btn-lg status-change-btn" 

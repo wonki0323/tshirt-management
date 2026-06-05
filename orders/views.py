@@ -322,13 +322,14 @@ def change_order_status(request):
 
     allowed_transitions = {
         Status.NEW: {Status.CONSULTING},
-        Status.CONSULTING: {Status.PRODUCED},
+        Status.CONSULTING: {Status.PREP},     # 재고확보
+        Status.PREP: {Status.PRODUCED},       # 넘기기 (파일 준비 완료)
         Status.PRODUCED: {Status.COMPLETED},
     }
     if next_status not in allowed_transitions.get(order.status, set()):
         messages.error(request, '현재 상태에서 해당 단계로 변경할 수 없습니다.')
         return redirect(request.META.get('HTTP_REFERER', '/orders/'))
-    
+
     # 상태 변경 로직
     if order.status == Status.NEW:
         if next_status == Status.CONSULTING:
@@ -343,32 +344,35 @@ def change_order_status(request):
             )
 
     elif order.status == Status.CONSULTING:
-        if next_status == Status.PRODUCED:
-            # 결제 -> 제작중 (옷주문 단계 생략)
-            # 재고 차감 시도
+        if next_status == Status.PREP:
+            # 결제 -> 제작준비 (재고확보): 재고 차감 + 확정일
             stock_errors = []
             for item in order.items.all():
                 if item.product_option:
                     success = item.product_option.decrease_stock(item.quantity)
                     if not success:
                         stock_errors.append(f"{item.product_option.product.name} - {item.product_option.option_detail}")
-            
+
             if stock_errors:
                 messages.error(request, f'재고가 부족한 상품이 있습니다: {", ".join(stock_errors)}')
                 return redirect(request.META.get('HTTP_REFERER', '/orders/'))
-            
-            order.status = Status.PRODUCED
+
+            order.status = Status.PREP
             order.confirmed_date = timezone.now()
-            # 마감일은 결제 단계에서만 설정한다. 재고확보 단계에서는 변경하지 않는다.
-            due_date_text = order.due_date.strftime("%Y-%m-%d") if order.due_date else '미설정'
-            messages.success(request, f'주문 {order.smartstore_order_id}를 제작중 단계로 변경했습니다. (재고 차감 완료, 마감일: {due_date_text})')
-    
+            messages.success(request, f'주문 {order.smartstore_order_id}를 제작준비 단계로 변경했습니다. (재고 차감 완료)')
+
+    elif order.status == Status.PREP:
+        if next_status == Status.PRODUCED:
+            # 제작준비 -> 제작중 (넘기기): 제작 파일 준비 완료 신호, 순수 단계 전진
+            order.status = Status.PRODUCED
+            messages.success(request, f'주문 {order.smartstore_order_id}를 제작중 단계로 변경했습니다.')
+
     elif order.status == Status.PRODUCED:
         if next_status == Status.COMPLETED:
             # 제작중 -> 발송
             order.status = Status.COMPLETED
             messages.success(request, f'주문 {order.smartstore_order_id}를 발송 단계로 변경했습니다.')
-    
+
     order.save()
     return redirect(request.META.get('HTTP_REFERER', '/orders/'))
 

@@ -10,6 +10,8 @@ class Status(models.TextChoices):
     """주문 처리 워크플로우 상태"""
     NEW = 'NEW', '등록'
     CONSULTING = 'CONSULTING', '결제'
+    # 결제→제작중 사이 단계. 재고확보 시 진입, 넘기기(파일 준비 완료)로 제작중 전진
+    PREP = 'PREP', '제작준비'
     PRODUCED = 'PRODUCED', '제작중'
     COMPLETED = 'COMPLETED', '발송'
     SETTLED = 'SETTLED', '결과통보'
