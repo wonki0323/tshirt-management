@@ -272,8 +272,12 @@
                 <div class="kanban-col-header">
                     대기중 <span class="badge bg-secondary">{{ kanban_data.waiting|length }}</span>
                 </div>
-                <div class="kanban-col-body kanban-disabled" data-target="waiting">
-                    <div class="kanban-empty-hint">ktalk 통합 후 활성화</div>
+                <div class="kanban-col-body" data-target="waiting">
+                    {% for o in kanban_data.waiting %}
+                    {% include "popbill_api/_kanban_card.html" %}
+                    {% empty %}
+                    <div class="kanban-empty-hint">새 카톡 문의 대기 중</div>
+                    {% endfor %}
                 </div>
             </div>
             <div class="kanban-col" data-col="consulting" style="flex-grow: {{ kanban_cols.consulting }};">
@@ -282,7 +286,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="consulting" data-status="CONSULTING">
                     {% for o in kanban_data.consulting %}
-                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}" title="{{ o.kakao_chat_name }}"><span class="kc-name">{{ o.kakao_chat_name|truncatechars:3 }}</span></div>
+                    {% include "popbill_api/_kanban_card.html" %}
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -294,7 +298,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="prep" data-status="PREP">
                     {% for o in kanban_data.prep %}
-                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}" title="{{ o.kakao_chat_name }}"><span class="kc-name">{{ o.kakao_chat_name|truncatechars:3 }}</span></div>
+                    {% include "popbill_api/_kanban_card.html" %}
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -306,7 +310,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="producing" data-status="PRODUCED">
                     {% for o in kanban_data.producing %}
-                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}" title="{{ o.kakao_chat_name }}"><span class="kc-name">{{ o.kakao_chat_name|truncatechars:3 }}</span></div>
+                    {% include "popbill_api/_kanban_card.html" %}
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -318,7 +322,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="shipped" data-status="COMPLETED">
                     {% for o in kanban_data.shipped %}
-                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}" title="{{ o.kakao_chat_name }}"><span class="kc-name">{{ o.kakao_chat_name|truncatechars:3 }}</span></div>
+                    {% include "popbill_api/_kanban_card.html" %}
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -330,7 +334,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="notified" data-status="SETTLED">
                     {% for o in kanban_data.notified %}
-                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}" title="{{ o.kakao_chat_name }}"><span class="kc-name">{{ o.kakao_chat_name|truncatechars:3 }}</span></div>
+                    {% include "popbill_api/_kanban_card.html" %}
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -342,7 +346,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="on_hold">
                     {% for o in kanban_data.on_hold %}
-                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}" title="{{ o.kakao_chat_name }}"><span class="kc-name">{{ o.kakao_chat_name|truncatechars:3 }}</span></div>
+                    {% include "popbill_api/_kanban_card.html" %}
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -544,9 +548,10 @@
             if (dragging) return;
             // TODO(1a-2): 해당 고객 카톡창 열기
         });
-        // 우클릭 = 컨텍스트 메뉴
+        // 우클릭 = 컨텍스트 메뉴 (카톡 카드는 주문이 없어 1a-2b에서 별도 메뉴)
         card.addEventListener('contextmenu', function(e) {
             e.preventDefault();
+            if (this.classList.contains('kakao-card')) return;
             openKanbanCtxMenu(e, this);
         });
     });

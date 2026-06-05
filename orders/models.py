@@ -546,7 +546,7 @@ class OrderCompletionPhoto(models.Model):
     def __str__(self):
         display_name = self.filename or (os.path.basename(self.image.name) if self.image else 'No Image')
         return f"{self.order.smartstore_order_id} - 완료사진 {self.order_number}"
-    
+
     @property
     def image_url(self):
         """Google Drive URL이 있으면 우선 사용, 없으면 로컬 이미지 URL 반환"""
@@ -555,3 +555,47 @@ class OrderCompletionPhoto(models.Model):
         elif self.image:
             return self.image.url
         return None
+
+
+class KakaoConsultCard(models.Model):
+    """카톡 상담 고객 카드 (단계 1a-2). ktalk 데몬이 폴링으로 push.
+    칸반 '대기중'·'상담중' 칸에 표시. 매칭키 display_name ↔ Order.kakao_chat_name —
+    주문 생기면 order 연결되어 칸반에서 제외.
+    """
+    class State(models.TextChoices):
+        WAITING = 'WAITING', '대기중'         # 고객 문의만, 가게 미응대
+        CONSULTING = 'CONSULTING', '상담중'   # 가게가 카톡 응대 시작(shop 메시지)
+
+    customer_id = models.CharField(
+        max_length=64, unique=True, verbose_name="카톡 고유 ID"
+    )
+    display_name = models.CharField(
+        max_length=100, verbose_name="카톡 대화명"
+    )
+    state = models.CharField(
+        max_length=20, choices=State.choices, default=State.WAITING,
+        verbose_name="카톡 상태"
+    )
+    last_message_at = models.CharField(
+        max_length=40, blank=True, default='',
+        verbose_name="마지막 카톡 활동",
+        help_text="ktalk ingested_at 스냅샷 (재방문 판정용)"
+    )
+    order = models.ForeignKey(
+        'Order', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='kakao_cards', verbose_name="연동 주문"
+    )
+    dismissed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="상담완료/숨김 시각",
+        help_text="1a-2b: 상담완료 처리 시각. 이후 새 메시지 오면 재등장"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일시")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="수정일시")
+
+    class Meta:
+        verbose_name = "카톡 상담 카드"
+        verbose_name_plural = "카톡 상담 카드"
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"{self.display_name} ({self.get_state_display()})"

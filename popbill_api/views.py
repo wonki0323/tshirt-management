@@ -257,10 +257,20 @@ def control_panel(request):
         elif o.status == Status.SETTLED:
             kanban_data['notified'].append(o)
 
+    # 카톡 상담 카드 (단계 1a-2) — ktalk이 push한 카톡 고객. 주문 미매칭 + dismissed 아님만
+    from orders.models import KakaoConsultCard
+    matched_names = {o.kakao_chat_name for o in active_orders if o.kakao_chat_name}
+    for card in KakaoConsultCard.objects.filter(dismissed_at__isnull=True, order__isnull=True):
+        if card.display_name and card.display_name in matched_names:
+            continue  # 이미 주문 있음 → 주문 카드로 표시되므로 중복 제외
+        if card.state == KakaoConsultCard.State.WAITING:
+            kanban_data['waiting'].append(card)
+        else:
+            kanban_data['consulting'].append(card)
+
     # 칸 폭 가중치를 카드 수에 비례 (÷3) — 많은 칸일수록 가로로 넓게 펼쳐 세로를 짧게
     import math
     kanban_cols = {k: max(1, math.ceil(len(v) / 3)) for k, v in kanban_data.items()}
-    kanban_cols['waiting'] = 1  # ktalk 통합 전까지 비활성 (좁게)
 
     context = {
         'unmatched_deposits': unmatched_deposits,

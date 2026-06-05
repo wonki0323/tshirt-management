@@ -1541,6 +1541,50 @@ def _check_ktalk_api_key(request):
     return bool(expected) and provided == expected
 
 
+@csrf_exempt
+@require_http_methods(["POST"])
+def kakao_kanban_sync(request):
+    """[ktalk] 카톡 신규/활동 고객을 push → 칸반 대기중·상담중 카드 갱신 (단계 1a-2).
+
+    body: {"customers": [{"customer_id", "display_name",
+                          "state"(WAITING|CONSULTING), "last_message_at"}]}
+    데몬이 cutoff 이후 활동 고객을 판정해 보냄. ERP는 upsert만.
+    """
+    import json
+    from django.http import JsonResponse
+    from .models import KakaoConsultCard
+
+    if not _check_ktalk_api_key(request):
+        return JsonResponse({'success': False, 'error': '인증 실패'}, status=401)
+
+    try:
+        data = json.loads(request.body)
+        customers = data.get('customers', [])
+        synced = 0
+        for c in customers:
+            cid = (c.get('customer_id') or '').strip()
+            if not cid:
+                continue
+            name = (c.get('display_name') or '').strip()
+            state = c.get('state') or KakaoConsultCard.State.WAITING
+            if state not in (KakaoConsultCard.State.WAITING, KakaoConsultCard.State.CONSULTING):
+                state = KakaoConsultCard.State.WAITING
+            last_at = (c.get('last_message_at') or '').strip()
+
+            KakaoConsultCard.objects.update_or_create(
+                customer_id=cid,
+                defaults={
+                    'display_name': name,
+                    'state': state,
+                    'last_message_at': last_at,
+                },
+            )
+            synced += 1
+        return JsonResponse({'success': True, 'synced': synced})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
 @login_required
 @require_POST
 def address_auto_register_request(request, pk):
