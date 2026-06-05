@@ -98,8 +98,8 @@
         }
         .kanban-col {
             position: relative;
-            flex: 1 1 120px;
-            min-width: 110px;
+            flex: 1 1 0;           /* flex-grow는 인라인 style로 칸별(카드 수 비례) 지정 */
+            min-width: 88px;
             min-height: clamp(220px, 52vh, 620px);   /* 최소 높이는 화면 반응, 카드 많으면 더 늘어남(스크롤 X) */
             border: 1px solid var(--border);
             background: var(--bg);
@@ -142,9 +142,8 @@
             opacity: 0.5;
         }
         .kanban-card {
-            flex: 1 1 28%;        /* 칸 폭 비례 ~3열, min/max로 범위 제한 (반응형) */
-            max-width: 64px;       /* 화면 크면 여기까지만 커짐 */
-            min-width: 32px;       /* 창 작으면 여기까지 작아짐 */
+            flex: none;
+            width: clamp(38px, 3.4vw, 60px);   /* 화면 비례 (칸 폭과 무관, 칸 좁아도 원 유지) */
             aspect-ratio: 1;       /* 항상 정원 유지 */
             border-radius: 50%;
             background: var(--bg-elev-2);
@@ -267,7 +266,7 @@
             <small class="text-muted ms-2" style="text-transform:none;">카드 클릭: 주문상세(새 탭) / 드래그: 단계 이동·보류 토글</small>
         </div>
         <div class="kanban-board">
-            <div class="kanban-col" data-col="waiting">
+            <div class="kanban-col" data-col="waiting" style="flex-grow: {{ kanban_cols.waiting }};">
                 <div class="kanban-col-header">
                     대기중 <span class="badge bg-secondary">{{ kanban_data.waiting|length }}</span>
                 </div>
@@ -275,7 +274,7 @@
                     <div class="kanban-empty-hint">ktalk 통합 후 활성화</div>
                 </div>
             </div>
-            <div class="kanban-col" data-col="consulting">
+            <div class="kanban-col" data-col="consulting" style="flex-grow: {{ kanban_cols.consulting }};">
                 <div class="kanban-col-header">
                     상담중 <span class="badge bg-info text-dark">{{ kanban_data.consulting|length }}</span>
                 </div>
@@ -287,7 +286,7 @@
                     {% endfor %}
                 </div>
             </div>
-            <div class="kanban-col" data-col="prep">
+            <div class="kanban-col" data-col="prep" style="flex-grow: {{ kanban_cols.prep }};">
                 <div class="kanban-col-header">
                     제작준비 <span class="badge bg-primary">{{ kanban_data.prep|length }}</span>
                 </div>
@@ -299,7 +298,7 @@
                     {% endfor %}
                 </div>
             </div>
-            <div class="kanban-col" data-col="producing">
+            <div class="kanban-col" data-col="producing" style="flex-grow: {{ kanban_cols.producing }};">
                 <div class="kanban-col-header">
                     제작중 <span class="badge bg-success">{{ kanban_data.producing|length }}</span>
                 </div>
@@ -311,7 +310,7 @@
                     {% endfor %}
                 </div>
             </div>
-            <div class="kanban-col" data-col="shipped">
+            <div class="kanban-col" data-col="shipped" style="flex-grow: {{ kanban_cols.shipped }};">
                 <div class="kanban-col-header">
                     발송 <span class="badge bg-warning text-dark">{{ kanban_data.shipped|length }}</span>
                 </div>
@@ -323,7 +322,7 @@
                     {% endfor %}
                 </div>
             </div>
-            <div class="kanban-col" data-col="notified">
+            <div class="kanban-col" data-col="notified" style="flex-grow: {{ kanban_cols.notified }};">
                 <div class="kanban-col-header">
                     결과통보 <span class="badge bg-secondary">{{ kanban_data.notified|length }}</span>
                 </div>
@@ -335,7 +334,7 @@
                     {% endfor %}
                 </div>
             </div>
-            <div class="kanban-col" data-col="on_hold">
+            <div class="kanban-col" data-col="on_hold" style="flex-grow: {{ kanban_cols.on_hold }};">
                 <div class="kanban-col-header">
                     보류 <span class="badge bg-dark">{{ kanban_data.on_hold|length }}</span>
                 </div>
