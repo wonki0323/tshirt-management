@@ -652,7 +652,7 @@
         if (existingModal) existingModal.remove();
 
         const modalHTML = `
-            <div class="modal fade show" id="shippingInfoModal" tabindex="-1" style="display: block; background: rgba(0,0,0,0.5);">
+            <div class="modal fade show" id="shippingInfoModal" tabindex="-1" style="display: block; background: rgba(0,0,0,0.5);" onclick="if(event.target===this)closeShippingInfoModal()">
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
