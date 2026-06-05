@@ -194,6 +194,35 @@
             white-space: nowrap;
         }
         .kanban-ctxmenu button:hover { background: rgba(96, 165, 250, 0.12); }
+        /* 주소·입금자 수정 모달 — 컨트롤 패널 다크 테마로 통일 (시인성) */
+        #shippingInfoModal .modal-content {
+            background: var(--bg-elev-2);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        #shippingInfoModal .modal-header,
+        #shippingInfoModal .modal-footer {
+            border-color: var(--border);
+        }
+        #shippingInfoModal .modal-title,
+        #shippingInfoModal .form-label,
+        #shippingInfoModal strong {
+            color: var(--text);
+        }
+        #shippingInfoModal .text-muted { color: #9aa4b2 !important; }
+        #shippingInfoModal .form-control {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        #shippingInfoModal .form-control::placeholder { color: #6b7280; }
+        #shippingInfoModal .form-control:focus {
+            background: var(--bg);
+            color: var(--text);
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 0.2rem rgba(59,130,246,0.25);
+        }
+        #shippingInfoModal .btn-close { filter: invert(1) grayscale(1) brightness(1.4); }
         .kanban-empty-hint {
             color: #6b7280;
             font-size: 0.72rem;
