@@ -98,9 +98,9 @@
         }
         .kanban-col {
             position: relative;
-            flex: 1 1 160px;
-            min-width: 150px;
-            min-height: 260px;
+            flex: 1 1 120px;
+            min-width: 110px;
+            min-height: 240px;
             border: 1px solid var(--border);
             background: var(--bg);
         }
@@ -127,8 +127,9 @@
             display: flex;
             flex-wrap: wrap;
             align-content: flex-start;
-            gap: 12px;
-            padding: 22px 14px 14px;
+            justify-content: center;
+            gap: 6px;
+            padding: 20px 8px 10px;
             height: 100%;
             min-height: 100%;
         }
@@ -142,8 +143,10 @@
             opacity: 0.5;
         }
         .kanban-card {
-            width: 64px;
-            height: 64px;
+            flex: 1 1 28%;        /* 칸 폭 비례 3열, 아래 min/max로 범위 제한 (반응형) */
+            max-width: 48px;
+            min-width: 30px;
+            aspect-ratio: 1;       /* 항상 정원 유지 */
             border-radius: 50%;
             background: var(--bg-elev-2);
             border: 1px solid var(--border);
@@ -152,10 +155,10 @@
             justify-content: center;
             text-align: center;
             cursor: grab;
-            font-size: 0.76rem;
+            font-size: 0.55rem;
             color: var(--text);
-            line-height: 1.15;
-            padding: 4px;
+            line-height: 1.05;
+            padding: 2px;
             overflow: hidden;
         }
         .kanban-card:hover {
@@ -272,7 +275,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="consulting" data-status="CONSULTING">
                     {% for o in kanban_data.consulting %}
-                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}" title="{{ o.kakao_chat_name }}">{{ o.kakao_chat_name|truncatechars:3 }}</div>
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -284,7 +287,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="prep" data-status="PREP">
                     {% for o in kanban_data.prep %}
-                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}" title="{{ o.kakao_chat_name }}">{{ o.kakao_chat_name|truncatechars:3 }}</div>
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -296,7 +299,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="producing" data-status="PRODUCED">
                     {% for o in kanban_data.producing %}
-                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}" title="{{ o.kakao_chat_name }}">{{ o.kakao_chat_name|truncatechars:3 }}</div>
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -308,7 +311,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="shipped" data-status="COMPLETED">
                     {% for o in kanban_data.shipped %}
-                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}" title="{{ o.kakao_chat_name }}">{{ o.kakao_chat_name|truncatechars:3 }}</div>
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -320,7 +323,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="notified" data-status="SETTLED">
                     {% for o in kanban_data.notified %}
-                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}" title="{{ o.kakao_chat_name }}">{{ o.kakao_chat_name|truncatechars:3 }}</div>
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -332,7 +335,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="on_hold">
                     {% for o in kanban_data.on_hold %}
-                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}" title="{{ o.kakao_chat_name }}">{{ o.kakao_chat_name|truncatechars:3 }}</div>
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
