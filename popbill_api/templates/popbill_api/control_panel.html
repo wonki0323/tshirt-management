@@ -163,6 +163,37 @@
         }
         .kanban-card:active { cursor: grabbing; }
         .kanban-card.dragging { opacity: 0.4; }
+        .kanban-card.urgent {
+            border-color: #dc2626;
+            border-width: 2px;
+            background: rgba(220, 38, 38, 0.15);
+            color: #fca5a5;
+            font-weight: 600;
+        }
+        .kanban-ctxmenu {
+            position: fixed;
+            z-index: 9999;
+            display: none;
+            min-width: 168px;
+            background: var(--bg-elev-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+            padding: 4px 0;
+        }
+        .kanban-ctxmenu button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 8px 14px;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 0.84rem;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .kanban-ctxmenu button:hover { background: rgba(96, 165, 250, 0.12); }
         .kanban-empty-hint {
             color: #6b7280;
             font-size: 0.72rem;
@@ -212,7 +243,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="consulting" data-status="CONSULTING">
                     {% for o in kanban_data.consulting %}
-                    <div class="kanban-card" draggable="true" data-order-id="{{ o.id }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -224,7 +255,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="prep" data-status="PREP">
                     {% for o in kanban_data.prep %}
-                    <div class="kanban-card" draggable="true" data-order-id="{{ o.id }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -236,7 +267,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="producing" data-status="PRODUCED">
                     {% for o in kanban_data.producing %}
-                    <div class="kanban-card" draggable="true" data-order-id="{{ o.id }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -248,7 +279,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="shipped" data-status="COMPLETED">
                     {% for o in kanban_data.shipped %}
-                    <div class="kanban-card" draggable="true" data-order-id="{{ o.id }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -260,7 +291,7 @@
                 </div>
                 <div class="kanban-col-body" data-target="notified" data-status="SETTLED">
                     {% for o in kanban_data.notified %}
-                    <div class="kanban-card" draggable="true" data-order-id="{{ o.id }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
@@ -272,13 +303,20 @@
                 </div>
                 <div class="kanban-col-body" data-target="on_hold">
                     {% for o in kanban_data.on_hold %}
-                    <div class="kanban-card" draggable="true" data-order-id="{{ o.id }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
+                    <div class="kanban-card{% if o.is_urgent %} urgent{% endif %}" draggable="true" data-order-id="{{ o.id }}" data-customer-name="{{ o.customer_name|escape }}" data-shipping-address="{{ o.shipping_address|escape }}" data-customer-phone="{{ o.customer_phone|escape }}" data-deposit-name="{{ o.deposit_name|escape }}" data-is-urgent="{{ o.is_urgent|yesno:'1,0' }}">{{ o.kakao_chat_name|truncatechars:5 }}</div>
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
                     {% endfor %}
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- 칸반 카드 우클릭 컨텍스트 메뉴 -->
+    <div class="kanban-ctxmenu" id="kanbanCtxMenu">
+        <button type="button" data-act="detail"><i class="fas fa-clipboard-list me-2"></i>주문상세 보기</button>
+        <button type="button" data-act="urgent"><i class="fas fa-exclamation-triangle me-2"></i><span id="ctxUrgentLabel">긴급 설정</span></button>
+        <button type="button" data-act="shipping"><i class="fas fa-map-marker-alt me-2"></i>주소·입금자 수정</button>
     </div>
 
     <!-- 미매칭 입금 -->
@@ -462,11 +500,69 @@
             // 드래그 직후 발생하는 click 무시 (드래그 ≠ 클릭)
             setTimeout(() => { dragging = false; }, 0);
         });
-        // 카드 클릭 → 해당 주문 상세를 새 탭으로
+        // 좌클릭 = 카톡창 열기 (예정 — 카톡 연동 1a-2 시 연결)
         card.addEventListener('click', function() {
             if (dragging) return;
-            const orderId = this.dataset.orderId;
-            if (orderId) window.open(`/orders/${orderId}/`, '_blank');
+            // TODO(1a-2): 해당 고객 카톡창 열기
+        });
+        // 우클릭 = 컨텍스트 메뉴
+        card.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            openKanbanCtxMenu(e, this);
+        });
+    });
+
+    // ─── 칸반 카드 우클릭 컨텍스트 메뉴 ───
+    const ctxMenu = document.getElementById('kanbanCtxMenu');
+    let ctxCard = null;
+
+    function openKanbanCtxMenu(e, card) {
+        ctxCard = card;
+        const isUrgent = card.dataset.isUrgent === '1';
+        document.getElementById('ctxUrgentLabel').textContent = isUrgent ? '긴급 해제' : '긴급 설정';
+        ctxMenu.style.display = 'block';
+        const mw = ctxMenu.offsetWidth, mh = ctxMenu.offsetHeight;
+        let x = e.clientX, y = e.clientY;
+        if (x + mw > window.innerWidth) x = window.innerWidth - mw - 4;
+        if (y + mh > window.innerHeight) y = window.innerHeight - mh - 4;
+        ctxMenu.style.left = x + 'px';
+        ctxMenu.style.top = y + 'px';
+    }
+    function closeKanbanCtxMenu() {
+        if (ctxMenu) ctxMenu.style.display = 'none';
+        ctxCard = null;
+    }
+    document.addEventListener('click', closeKanbanCtxMenu);
+    document.addEventListener('scroll', closeKanbanCtxMenu, true);
+
+    if (ctxMenu) ctxMenu.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (!ctxCard) return;
+            const orderId = ctxCard.dataset.orderId;
+            const act = this.dataset.act;
+            if (act === 'detail') {
+                window.open(`/orders/${orderId}/`, '_blank');
+            } else if (act === 'urgent') {
+                const newUrgent = ctxCard.dataset.isUrgent !== '1';
+                fetch(`/orders/${orderId}/kanban-update/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookieKb('csrftoken') },
+                    body: JSON.stringify({ is_urgent: newUrgent }),
+                })
+                .then(r => r.json())
+                .then(d => { if (d.success) location.reload(); else alert(d.error || '긴급 설정 실패'); })
+                .catch(err => alert('통신 오류: ' + err.message));
+            } else if (act === 'shipping') {
+                showShippingInfoModal(
+                    orderId,
+                    ctxCard.dataset.customerName || '',
+                    ctxCard.dataset.shippingAddress || '',
+                    ctxCard.dataset.customerPhone || '',
+                    ctxCard.dataset.depositName || ''
+                );
+            }
+            closeKanbanCtxMenu();
         });
     });
 
@@ -520,6 +616,121 @@
             });
         });
     });
+
+    // ─── 주소·연락처·입금자 수정 모달 (칸반 우클릭에서 호출) ───
+    function showShippingInfoModal(orderId, customerName, shippingAddress, customerPhone, depositName) {
+        const existingModal = document.getElementById('shippingInfoModal');
+        if (existingModal) existingModal.remove();
+
+        const modalHTML = `
+            <div class="modal fade show" id="shippingInfoModal" tabindex="-1" style="display: block; background: rgba(0,0,0,0.5);">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="fas fa-map-marker-alt me-2"></i>주소·연락처 등록 / 수정</h5>
+                            <button type="button" class="btn-close" onclick="closeShippingInfoModal()"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">고객명</label>
+                                <div><strong>${customerName}</strong></div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">배송 주소 <span class="text-danger">*</span></label>
+                                <div class="mb-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="modalAddressSearchBtn">
+                                        <i class="fas fa-search me-1"></i>우편번호·주소 검색
+                                    </button>
+                                </div>
+                                <textarea class="form-control" id="shippingAddressInput" rows="3" placeholder="(우편번호) 도로명/지번 주소 + 상세 주소"></textarea>
+                                <small class="text-muted">검색 결과가 자동으로 채워집니다. 상세 주소(동·호수)는 직접 입력하세요.</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">연락처</label>
+                                <input type="text" class="form-control" id="customerPhoneInput" placeholder="010-0000-0000">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">입금자명</label>
+                                <input type="text" class="form-control" id="depositNameInput" placeholder="송금자명 (뱅크다 자동매치 기준)">
+                                <small class="text-muted">고객이 송금할 때 표시될 이름. 정확해야 자동매치 작동 (대소문자·공백 포함).</small>
+                            </div>
+                            <div id="shippingInfoMessage"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" onclick="closeShippingInfoModal()">취소</button>
+                            <button type="button" class="btn btn-primary" id="saveShippingInfoBtn">
+                                <i class="fas fa-save me-1"></i>저장
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        document.body.classList.add('modal-open');
+
+        document.getElementById('shippingAddressInput').value = shippingAddress;
+        document.getElementById('customerPhoneInput').value = customerPhone;
+        document.getElementById('depositNameInput').value = depositName;
+
+        document.getElementById('modalAddressSearchBtn').addEventListener('click', function() {
+            new daum.Postcode({
+                oncomplete: function(data) {
+                    const baseAddr = data.roadAddress || data.jibunAddress;
+                    const addrField = document.getElementById('shippingAddressInput');
+                    addrField.value = `(${data.zonecode}) ${baseAddr}\n`;
+                    addrField.focus();
+                    addrField.setSelectionRange(addrField.value.length, addrField.value.length);
+                }
+            }).open();
+        });
+
+        const saveBtn = document.getElementById('saveShippingInfoBtn');
+        saveBtn.addEventListener('click', function() {
+            const payload = {
+                shipping_address: document.getElementById('shippingAddressInput').value.trim(),
+                customer_phone: document.getElementById('customerPhoneInput').value.trim(),
+                deposit_name: document.getElementById('depositNameInput').value.trim(),
+            };
+            const msgBox = document.getElementById('shippingInfoMessage');
+            if (!payload.shipping_address) {
+                msgBox.innerHTML = '<div class="alert alert-danger py-2 mb-0">배송 주소는 필수입니다.</div>';
+                return;
+            }
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>저장 중...';
+            msgBox.innerHTML = '';
+            fetch(`/orders/${orderId}/update-shipping-info/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookieKb('csrftoken') },
+                body: JSON.stringify(payload),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    closeShippingInfoModal();
+                    location.reload();
+                } else {
+                    msgBox.innerHTML = `<div class="alert alert-danger py-2 mb-0">${data.error || '저장 실패'}</div>`;
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>저장';
+                }
+            })
+            .catch(err => {
+                msgBox.innerHTML = `<div class="alert alert-danger py-2 mb-0">통신 오류: ${err.message}</div>`;
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>저장';
+            });
+        });
+    }
+
+    window.closeShippingInfoModal = function() {
+        const modal = document.getElementById('shippingInfoModal');
+        if (modal) modal.remove();
+        document.body.classList.remove('modal-open');
+    };
     </script>
+    <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 </body>
 </html>

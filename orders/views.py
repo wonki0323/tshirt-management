@@ -1449,6 +1449,7 @@ def update_order_kanban_status(request, pk):
 
         new_status = (data.get('status') or '').strip()
         is_on_hold_raw = data.get('is_on_hold')
+        is_urgent_raw = data.get('is_urgent')
 
         update_fields = []
 
@@ -1463,6 +1464,10 @@ def update_order_kanban_status(request, pk):
             order.is_on_hold = bool(is_on_hold_raw)
             update_fields.append('is_on_hold')
 
+        if is_urgent_raw is not None:
+            order.is_urgent = bool(is_urgent_raw)
+            update_fields.append('is_urgent')
+
         if not update_fields:
             return JsonResponse({'success': False, 'error': '변경 내용이 없습니다.'})
 
@@ -1473,6 +1478,7 @@ def update_order_kanban_status(request, pk):
             'message': '주문이 갱신되었습니다.',
             'status': order.status,
             'is_on_hold': order.is_on_hold,
+            'is_urgent': order.is_urgent,
         })
 
     except Exception as e:
