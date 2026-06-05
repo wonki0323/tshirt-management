@@ -195,7 +195,7 @@
     <div class="section">
         <div class="section-title">
             <i class="fas fa-clipboard-list me-1"></i>상담 모니터
-            <small class="text-muted ms-2" style="text-transform:none;">드래그로 상태 변경 / 보류 토글</small>
+            <small class="text-muted ms-2" style="text-transform:none;">카드 클릭: 주문상세(새 탭) / 드래그: 단계 이동·보류 토글</small>
         </div>
         <div class="kanban-board">
             <div class="kanban-col" data-col="waiting">
@@ -450,13 +450,23 @@
     }
 
     document.querySelectorAll('.kanban-card').forEach(card => {
+        let dragging = false;
         card.addEventListener('dragstart', function(e) {
+            dragging = true;
             e.dataTransfer.setData('text/plain', this.dataset.orderId);
             e.dataTransfer.effectAllowed = 'move';
             this.classList.add('dragging');
         });
         card.addEventListener('dragend', function() {
             this.classList.remove('dragging');
+            // 드래그 직후 발생하는 click 무시 (드래그 ≠ 클릭)
+            setTimeout(() => { dragging = false; }, 0);
+        });
+        // 카드 클릭 → 해당 주문 상세를 새 탭으로
+        card.addEventListener('click', function() {
+            if (dragging) return;
+            const orderId = this.dataset.orderId;
+            if (orderId) window.open(`/orders/${orderId}/`, '_blank');
         });
     });
 
