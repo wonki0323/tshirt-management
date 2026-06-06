@@ -577,13 +577,34 @@
             if (!cid) return;
             this.classList.add('kc-opening');
             const el = this;
+            const cidForPoll = cid;
             fetch('/orders/ktalk/kanban/open/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookieKb('csrftoken') },
-                body: JSON.stringify({ customer_id: cid }),
+                body: JSON.stringify({ customer_id: cidForPoll }),
             }).then(r => r.json()).then(d => {
-                setTimeout(() => el.classList.remove('kc-opening'), 3500);
-                if (!d.success) alert(d.error || '카톡창 열기 요청 실패');
+                if (!d.success) { el.classList.remove('kc-opening'); alert(d.error || '카톡창 열기 요청 실패'); return; }
+                // ktalk이 요청을 집어갈 때까지(PENDING 소멸) '여는 중' 피드백 유지.
+                // 고정 타임아웃 대신 실제 데몬 픽업 시점에 맞춤 + 데몬 정지 시 무응답 감지.
+                const started = Date.now();
+                const TIMEOUT_MS = 25000;
+                const tick = () => {
+                    fetch(`/orders/ktalk/kanban/open/status/?customer_id=${encodeURIComponent(cidForPoll)}`)
+                        .then(r => r.json()).then(s => {
+                            if (!s.pending) {
+                                // ktalk 픽업 완료 → 카톡창 렌더 시간(~1.5s) 후 피드백 종료
+                                setTimeout(() => el.classList.remove('kc-opening'), 1500);
+                                return;
+                            }
+                            if (Date.now() - started > TIMEOUT_MS) {
+                                el.classList.remove('kc-opening');
+                                alert('카톡창이 안 열렸어요. ktalk 데몬이 꺼져있거나 응답이 없어요 — 데몬 상태를 확인하세요.');
+                                return;
+                            }
+                            setTimeout(tick, 700);
+                        }).catch(() => { setTimeout(tick, 1000); });
+                };
+                setTimeout(tick, 500);
             }).catch(err => { el.classList.remove('kc-opening'); alert('통신 오류: ' + err.message); });
         });
         // 우클릭 = 컨텍스트 메뉴 (카톡 카드는 주문이 없어 1a-2b에서 별도 메뉴)

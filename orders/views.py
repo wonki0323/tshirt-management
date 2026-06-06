@@ -1637,6 +1637,27 @@ def kakao_open_poll(request):
 
 
 @login_required
+@require_http_methods(["GET"])
+def kakao_open_status(request):
+    """[운영자] 카톡창 열기 요청이 아직 ktalk에 안 집힌(PENDING) 상태인지 조회.
+
+    프론트(칸반)가 카드 클릭 후 이 엔드포인트를 폴링 — pending=true 동안 '여는 중'
+    피드백 유지, ktalk이 집어가(PENDING→DONE) pending=false 되면 피드백 종료.
+    고정 타임아웃 대신 실제 데몬 픽업 시점에 맞춤 + 데몬 정지 시 응답 없음 감지.
+    """
+    from django.http import JsonResponse
+    from .models import KakaoOpenRequest
+
+    cid = (request.GET.get('customer_id') or '').strip()
+    if not cid:
+        return JsonResponse({'success': False, 'error': 'customer_id 없음'}, status=400)
+    pending = KakaoOpenRequest.objects.filter(
+        customer_id=cid, status='PENDING'
+    ).exists()
+    return JsonResponse({'success': True, 'pending': pending})
+
+
+@login_required
 @require_POST
 def address_auto_register_request(request, pk):
     """[운영자] 주소 자동 등록 요청 생성 → PENDING 행 만들고 request_id 반환."""

@@ -27,6 +27,7 @@ urlpatterns = [
     path('ktalk/kanban/sync/', views.kakao_kanban_sync, name='kakao_kanban_sync'),
     path('ktalk/kanban/open/', views.kakao_open_request, name='kakao_open_request'),
     path('ktalk/kanban/open/poll/', views.kakao_open_poll, name='kakao_open_poll'),
+    path('ktalk/kanban/open/status/', views.kakao_open_status, name='kakao_open_status'),
     path('ktalk/address-extraction/poll/', views.address_extraction_poll, name='address_extraction_poll'),
     path('ktalk/address-extraction/result/', views.address_extraction_result, name='address_extraction_result'),
     path('<int:pk>/ship-notify/request/', views.ship_notify_request, name='ship_notify_request'),
