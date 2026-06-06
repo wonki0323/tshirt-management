@@ -231,31 +231,35 @@ def control_panel(request):
     # 칸반 데이터 — 7칸, 자사몰 status 정식 세분화 + 보류 별도
     active_orders = (
         Order.objects
-        .exclude(status__in=[Status.ARCHIVED, Status.CANCELED])
+        .exclude(status=Status.ARCHIVED)  # CANCELED 포함(주문취소 칸 표시), ARCHIVED(정산목록)만 제외
         .order_by('-payment_date')
     )
+    # 칸반 9칸 — 대기중·상담중(카톡 카드) + 등록·결제·제작준비·제작중·발송·결과통보·주문취소(주문 status)
+    # 보류(on_hold) 칸 폐지: is_on_hold 주문은 각자 status 칸에 표시됨
     kanban_data = {
-        'waiting': [],     # 1a-2(ktalk DB 통합) 후 활성화
-        'consulting': [],  # NEW(등록) + CONSULTING(결제)
+        'waiting': [],     # 카톡 WAITING (주문 미생성)
+        'consulting': [],  # 카톡 CONSULTING (주문 미생성)
+        'registered': [],  # NEW(등록)
+        'payment': [],     # CONSULTING(결제)
         'prep': [],        # PREP(제작준비)
         'producing': [],   # PRODUCED(제작중)
         'shipped': [],     # COMPLETED(발송)
         'notified': [],    # SETTLED(결과통보)
-        'on_hold': [],     # is_on_hold=True (모든 status)
+        'canceled': [],    # CANCELED(주문취소)
+    }
+    _status_to_col = {
+        Status.NEW: 'registered',
+        Status.CONSULTING: 'payment',
+        Status.PREP: 'prep',
+        Status.PRODUCED: 'producing',
+        Status.COMPLETED: 'shipped',
+        Status.SETTLED: 'notified',
+        Status.CANCELED: 'canceled',
     }
     for o in active_orders:
-        if o.is_on_hold:
-            kanban_data['on_hold'].append(o)
-        elif o.status in [Status.NEW, Status.CONSULTING]:
-            kanban_data['consulting'].append(o)
-        elif o.status == Status.PREP:
-            kanban_data['prep'].append(o)
-        elif o.status == Status.PRODUCED:
-            kanban_data['producing'].append(o)
-        elif o.status == Status.COMPLETED:
-            kanban_data['shipped'].append(o)
-        elif o.status == Status.SETTLED:
-            kanban_data['notified'].append(o)
+        col = _status_to_col.get(o.status)
+        if col:
+            kanban_data[col].append(o)
 
     # 카톡 상담 카드 (단계 1a-2) — ktalk이 push한 카톡 고객. 주문 미매칭 + dismissed 아님만
     from orders.models import KakaoConsultCard

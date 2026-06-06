@@ -311,8 +311,32 @@
                 <div class="kanban-col-header">
                     상담중 <span class="badge bg-info text-dark">{{ kanban_data.consulting|length }}</span>
                 </div>
-                <div class="kanban-col-body" data-target="consulting" data-status="CONSULTING">
+                <div class="kanban-col-body" data-target="consulting">
                     {% for o in kanban_data.consulting %}
+                    {% include "popbill_api/_kanban_card.html" %}
+                    {% empty %}
+                    <div class="kanban-empty-hint">없음</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="kanban-col" data-col="registered" style="flex-grow: {{ kanban_cols.registered }};">
+                <div class="kanban-col-header">
+                    등록 <span class="badge bg-light text-dark">{{ kanban_data.registered|length }}</span>
+                </div>
+                <div class="kanban-col-body" data-target="registered" data-status="NEW">
+                    {% for o in kanban_data.registered %}
+                    {% include "popbill_api/_kanban_card.html" %}
+                    {% empty %}
+                    <div class="kanban-empty-hint">없음</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="kanban-col" data-col="payment" style="flex-grow: {{ kanban_cols.payment }};">
+                <div class="kanban-col-header">
+                    결제 <span class="badge bg-info text-dark">{{ kanban_data.payment|length }}</span>
+                </div>
+                <div class="kanban-col-body" data-target="payment" data-status="CONSULTING">
+                    {% for o in kanban_data.payment %}
                     {% include "popbill_api/_kanban_card.html" %}
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
@@ -367,12 +391,12 @@
                     {% endfor %}
                 </div>
             </div>
-            <div class="kanban-col" data-col="on_hold" style="flex-grow: {{ kanban_cols.on_hold }};">
+            <div class="kanban-col" data-col="canceled" style="flex-grow: {{ kanban_cols.canceled }};">
                 <div class="kanban-col-header">
-                    보류 <span class="badge bg-dark">{{ kanban_data.on_hold|length }}</span>
+                    주문취소 <span class="badge bg-danger">{{ kanban_data.canceled|length }}</span>
                 </div>
-                <div class="kanban-col-body" data-target="on_hold">
-                    {% for o in kanban_data.on_hold %}
+                <div class="kanban-col-body" data-target="canceled">
+                    {% for o in kanban_data.canceled %}
                     {% include "popbill_api/_kanban_card.html" %}
                     {% empty %}
                     <div class="kanban-empty-hint">없음</div>
