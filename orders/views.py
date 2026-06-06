@@ -1659,6 +1659,32 @@ def kakao_open_status(request):
 
 @login_required
 @require_POST
+def kakao_card_dismiss(request):
+    """[운영자] 휴지통 드래그 → 카톡 상담 카드 상담완료 처리(dismissed_at=now) + 칸반 숨김.
+
+    이후 해당 고객이 새 카톡 메시지를 보내면(동기화 시 last_message_at > dismissed_at)
+    대기중에 재등장. 카드 자체는 보존(이력) — 삭제가 아니라 숨김.
+    """
+    import json
+    from django.http import JsonResponse
+    from django.utils import timezone
+    from .models import KakaoConsultCard
+
+    try:
+        data = json.loads(request.body)
+        cid = (data.get('customer_id') or '').strip()
+        if not cid:
+            return JsonResponse({'success': False, 'error': 'customer_id 없음'})
+        updated = KakaoConsultCard.objects.filter(
+            customer_id=cid, dismissed_at__isnull=True
+        ).update(dismissed_at=timezone.now())
+        return JsonResponse({'success': True, 'dismissed': updated})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
 def address_auto_register_request(request, pk):
     """[운영자] 주소 자동 등록 요청 생성 → PENDING 행 만들고 request_id 반환."""
     import json

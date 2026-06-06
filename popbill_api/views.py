@@ -231,11 +231,11 @@ def control_panel(request):
     # 칸반 데이터 — 7칸, 자사몰 status 정식 세분화 + 보류 별도
     active_orders = (
         Order.objects
-        .exclude(status=Status.ARCHIVED)  # CANCELED 포함(주문취소 칸 표시), ARCHIVED(정산목록)만 제외
+        .exclude(status__in=[Status.ARCHIVED, Status.CANCELED])  # 정산목록·주문취소 제외
         .order_by('-payment_date')
     )
-    # 칸반 9칸 — 대기중·상담중(카톡 카드) + 등록·결제·제작준비·제작중·발송·결과통보·주문취소(주문 status)
-    # 보류(on_hold) 칸 폐지: is_on_hold 주문은 각자 status 칸에 표시됨
+    # 칸반 8칸 — 대기중·상담중(카톡 카드) + 등록·결제·제작준비·제작중·발송·결과통보(주문 status)
+    # 보류(on_hold)·주문취소 칸 없음: is_on_hold 주문은 각자 status 칸에 표시
     kanban_data = {
         'waiting': [],     # 카톡 WAITING (주문 미생성)
         'consulting': [],  # 카톡 CONSULTING (주문 미생성)
@@ -245,7 +245,6 @@ def control_panel(request):
         'producing': [],   # PRODUCED(제작중)
         'shipped': [],     # COMPLETED(발송)
         'notified': [],    # SETTLED(결과통보)
-        'canceled': [],    # CANCELED(주문취소)
     }
     _status_to_col = {
         Status.NEW: 'registered',
@@ -254,7 +253,6 @@ def control_panel(request):
         Status.PRODUCED: 'producing',
         Status.COMPLETED: 'shipped',
         Status.SETTLED: 'notified',
-        Status.CANCELED: 'canceled',
     }
     for o in active_orders:
         col = _status_to_col.get(o.status)

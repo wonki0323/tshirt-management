@@ -143,6 +143,31 @@
             cursor: not-allowed;
             opacity: 0.5;
         }
+        /* 휴지통 — 대기중·상담중 아래 2칸 분량 */
+        .kanban-trash-row {
+            display: flex;
+            margin-top: 10px;
+        }
+        .kanban-trash {
+            flex: 0 0 24%;
+            min-width: 220px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            color: #94a3b8;
+            background: #f8fafc;
+            transition: all 0.15s;
+        }
+        .kanban-trash i { font-size: 1.4rem; }
+        .kanban-trash-label { line-height: 1.2; }
+        .kanban-trash.drag-over {
+            border-color: #ef4444;
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.08);
+        }
         .kanban-card {
             position: relative;    /* unread 배지 기준 */
             flex: none;
@@ -391,17 +416,12 @@
                     {% endfor %}
                 </div>
             </div>
-            <div class="kanban-col" data-col="canceled" style="flex-grow: {{ kanban_cols.canceled }};">
-                <div class="kanban-col-header">
-                    주문취소 <span class="badge bg-danger">{{ kanban_data.canceled|length }}</span>
-                </div>
-                <div class="kanban-col-body" data-target="canceled">
-                    {% for o in kanban_data.canceled %}
-                    {% include "popbill_api/_kanban_card.html" %}
-                    {% empty %}
-                    <div class="kanban-empty-hint">없음</div>
-                    {% endfor %}
-                </div>
+        </div>
+        <!-- 휴지통 — 대기중·상담중 아래, 카톡 카드 드래그 → 상담완료 + 칸반 제거 (다시 카톡하면 대기중 재등장) -->
+        <div class="kanban-trash-row">
+            <div id="kanbanTrash" class="kanban-trash">
+                <i class="fas fa-trash-alt"></i>
+                <span class="kanban-trash-label">휴지통<br><small>카톡 카드를 끌어다 놓으면 <b>상담완료</b> 처리</small></span>
             </div>
         </div>
     </div>
@@ -585,7 +605,9 @@
         let dragging = false;
         card.addEventListener('dragstart', function(e) {
             dragging = true;
-            e.dataTransfer.setData('text/plain', this.dataset.orderId);
+            // 카톡 카드는 'kakao:<id>', 주문 카드는 order_id 그대로 — 드롭 측에서 구분
+            const payload = this.dataset.kakaoId ? ('kakao:' + this.dataset.kakaoId) : this.dataset.orderId;
+            e.dataTransfer.setData('text/plain', payload);
             e.dataTransfer.effectAllowed = 'move';
             this.classList.add('dragging');
         });
@@ -707,7 +729,7 @@
             e.preventDefault();
             this.classList.remove('drag-over');
             const orderId = e.dataTransfer.getData('text/plain');
-            if (!orderId) return;
+            if (!orderId || orderId.indexOf('kakao:') === 0) return;  // 카톡 카드는 주문 상태변경 대상 아님
 
             const target = this.dataset.target;
             const status = this.dataset.status || '';
@@ -743,6 +765,38 @@
             });
         });
     });
+
+    // ─── 휴지통 드롭 — 카톡 카드만 상담완료(dismiss) + 칸반 제거 ───
+    (function() {
+        const trash = document.getElementById('kanbanTrash');
+        if (!trash) return;
+        trash.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            this.classList.add('drag-over');
+        });
+        trash.addEventListener('dragleave', function() {
+            this.classList.remove('drag-over');
+        });
+        trash.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            const data = e.dataTransfer.getData('text/plain');
+            if (!data || data.indexOf('kakao:') !== 0) return;  // 카톡 카드만 대상
+            const cid = data.slice(6);
+            fetch('/orders/ktalk/kanban/dismiss/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookieKb('csrftoken') },
+                body: JSON.stringify({ customer_id: cid }),
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) location.reload();
+                else alert('상담완료 처리 실패: ' + (d.error || ''));
+            })
+            .catch(err => alert('통신 오류: ' + err.message));
+        });
+    })();
 
     // ─── 주소·연락처·입금자 수정 모달 (칸반 우클릭에서 호출) ───
     function showShippingInfoModal(orderId, customerName, shippingAddress, customerPhone, depositName) {
