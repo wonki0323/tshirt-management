@@ -290,6 +290,21 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
         context['next_order'] = Order.objects.filter(
             payment_date__gt=order.payment_date
         ).order_by('payment_date').first()
+
+        # 제이 카톡 주소 자동등록: 최근 완료 요청의 결과/근거를 주문상세에 표시
+        try:
+            import json
+            latest_addr_req = order.address_extraction_requests.filter(
+                status='COMPLETED'
+            ).order_by('-updated_at').first()
+            if latest_addr_req and latest_addr_req.result_json:
+                latest_addr_result = json.loads(latest_addr_req.result_json or '{}')
+                context['latest_auto_address_request'] = latest_addr_req
+                context['latest_auto_address_result'] = latest_addr_result
+                context['latest_auto_address_evidence'] = latest_addr_result.get('evidence') or {}
+        except Exception:
+            # 화면 렌더링은 주소자동등록 근거 파싱 실패와 독립적으로 살아야 함
+            pass
         
         return context
 
@@ -1541,6 +1556,43 @@ def _check_ktalk_api_key(request):
     return bool(expected) and provided == expected
 
 
+def _address_result_to_shipping_fields(result):
+    """address_extraction_result payload → Order 배송 필드 후보.
+
+    normalized_address.road_address가 있으면 우선하고, 없으면 LLM 원본 road/detail을 조합한다.
+    """
+    ex = (result or {}).get('extracted') or {}
+    norm = (result or {}).get('normalized_address') or {}
+    if norm.get('road_address'):
+        address = str(norm.get('road_address') or '').strip()
+        detail = str(ex.get('address_detail_part') or '').strip()
+        if detail:
+            address = f'{address} {detail}'.strip()
+    else:
+        address = f"{ex.get('address_road_part') or ''} {ex.get('address_detail_part') or ''}".strip()
+    return {
+        'shipping_address': address,
+        'customer_phone': str(ex.get('phone') or '').strip(),
+        'deposit_name': str(ex.get('deposit_name') or '').strip(),
+    }
+
+
+def _is_high_confidence_address_result(result):
+    """완전자동 등록 허용선. 애매하면 자동 DB 반영하지 않고 근거만 남긴다."""
+    if not (result or {}).get('matched'):
+        return False, 'matched=false'
+    fields = _address_result_to_shipping_fields(result)
+    if not fields['shipping_address']:
+        return False, '배송 주소 후보 없음'
+    ex = (result or {}).get('extracted') or {}
+    conf = ex.get('confidence') or {}
+    if conf.get('address') != 'high':
+        return False, '주소 확실도 high 아님'
+    if fields['customer_phone'] and conf.get('phone') not in ('high', None, ''):
+        return False, '연락처 확실도 high 아님'
+    return True, ''
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def kakao_kanban_sync(request):
@@ -1769,8 +1821,12 @@ def address_extraction_poll(request):
         return JsonResponse({
             'has_task': True,
             'request_id': req.id,
+            'order_id': req.order_id,
+            'customer_name': req.order.customer_name,
             'kakao_chat_name': req.kakao_chat_name,
             'limit': 20,
+            'auto_apply': True,
+            'evidence_required': True,
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
@@ -1795,14 +1851,43 @@ def address_extraction_result(request):
         request_id = data.get('request_id')
         req = get_object_or_404(AddressExtractionRequest, pk=request_id)
 
+        auto_applied = False
+        auto_apply_reason = ''
+        applied_fields = {}
+
         if data.get('error'):
             req.status = 'FAILED'
             req.error = str(data['error'])[:2000]
         else:
+            result = data.get('result') or {}
+            should_apply, auto_apply_reason = _is_high_confidence_address_result(result)
+            if should_apply:
+                applied_fields = _address_result_to_shipping_fields(result)
+                order = req.order
+                order.shipping_address = applied_fields['shipping_address']
+                order.customer_phone = applied_fields['customer_phone']
+                order.deposit_name = applied_fields['deposit_name']
+                order.save(update_fields=[
+                    'shipping_address', 'customer_phone', 'deposit_name', 'updated_at'
+                ])
+                auto_applied = True
+                auto_apply_reason = 'high confidence 자동 등록 완료'
+
+            result['auto_apply'] = {
+                'attempted': True,
+                'applied': auto_applied,
+                'reason': auto_apply_reason,
+                'fields': applied_fields,
+            }
             req.status = 'COMPLETED'
-            req.result_json = json.dumps(data.get('result') or {}, ensure_ascii=False)
+            req.result_json = json.dumps(result, ensure_ascii=False)
+            req.error = ''
         req.save(update_fields=['status', 'result_json', 'error', 'updated_at'])
-        return JsonResponse({'success': True})
+        return JsonResponse({
+            'success': True,
+            'auto_applied': auto_applied,
+            'auto_apply_reason': auto_apply_reason,
+        })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 

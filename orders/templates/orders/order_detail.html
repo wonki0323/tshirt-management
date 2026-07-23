@@ -565,6 +565,44 @@
                                 <th>배송지</th>
                                 <td>
                                     <div>{{ order.shipping_address|linebreaks|default:"-" }}</div>
+                                    {% if latest_auto_address_result %}
+                                    <div class="card border-primary mt-2 auto-address-evidence-card">
+                                        <div class="card-header py-1 px-2 bg-light small fw-bold">
+                                            <i class="fas fa-robot"></i> 제이 자동등록 근거
+                                            {% if latest_auto_address_result.auto_apply.applied %}
+                                                <span class="badge bg-success ms-1">자동등록 완료</span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark ms-1">자동등록 보류</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="card-body py-2 px-2 small">
+                                            <div class="text-muted mb-1">
+                                                요청 #{{ latest_auto_address_request.id }} · {{ latest_auto_address_request.updated_at|date:"Y-m-d H:i" }}
+                                                {% if latest_auto_address_result.auto_apply.reason %}
+                                                    · {{ latest_auto_address_result.auto_apply.reason }}
+                                                {% endif %}
+                                            </div>
+                                            {% if latest_auto_address_result.extracted.notes %}
+                                                <div class="alert alert-info py-1 px-2 mb-2">{{ latest_auto_address_result.extracted.notes }}</div>
+                                            {% endif %}
+                                            {% if latest_auto_address_evidence.messages %}
+                                                <div class="fw-bold mb-1">카톡 원문 근거</div>
+                                                <ul class="mb-2 ps-3">
+                                                    {% for msg in latest_auto_address_evidence.messages %}
+                                                        <li>{{ msg }}</li>
+                                                    {% endfor %}
+                                                </ul>
+                                            {% endif %}
+                                            {% if latest_auto_address_evidence.screenshot_url %}
+                                                <a href="{{ latest_auto_address_evidence.screenshot_url }}" target="_blank" rel="noopener">
+                                                    <img src="{{ latest_auto_address_evidence.screenshot_url }}" class="img-fluid rounded border" alt="카톡 주소 근거 캡쳐">
+                                                </a>
+                                            {% elif latest_auto_address_evidence.screenshot_data_url %}
+                                                <img src="{{ latest_auto_address_evidence.screenshot_data_url }}" class="img-fluid rounded border" alt="카톡 주소 근거 캡쳐">
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
                                     <button type="button" class="btn btn-sm btn-outline-primary mt-2"
                                             id="autoAddressBtn" data-order-pk="{{ order.pk }}">
                                         <i class="fas fa-magic"></i> 카톡에서 주소 자동 등록
@@ -1591,8 +1629,9 @@ document.addEventListener('DOMContentLoaded', function() {
             <label class="form-label mb-1">입금자명 <span id="depositConf" class="badge bg-secondary"></span></label>
             <input type="text" class="form-control" id="autoAddrDeposit">
           </div>
-          <div class="alert alert-warning py-2 small mb-0">
-            <i class="fas fa-exclamation-triangle"></i> 기존 값을 <b>덮어씁니다</b>. 확인 후 저장하세요.
+          <div id="autoAddrEvidence" class="border rounded bg-light p-2 small mb-2 d-none"></div>
+          <div class="alert alert-success py-2 small mb-0">
+            <i class="fas fa-check-circle"></i> 확실도가 높으면 제이가 ERP 배송정보를 <b>자동 등록</b>합니다. 아래 값과 근거를 같이 확인하세요.
           </div>
         </div>
       </div>
@@ -1618,6 +1657,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const formBox = document.getElementById('autoAddrForm');
     const saveBtn = document.getElementById('autoAddrSaveBtn');
     const notesBox = document.getElementById('autoAddrNotes');
+    const evidenceBox = document.getElementById('autoAddrEvidence');
 
     const elAddr = document.getElementById('autoAddrAddress');
     const elPhone = document.getElementById('autoAddrPhone');
@@ -1679,8 +1719,29 @@ document.addEventListener('DOMContentLoaded', function() {
             notesBox.classList.add('d-none');
         }
 
+        const ev = result.evidence || {};
+        const evMsgs = ev.messages || [];
+        if (evMsgs.length || ev.screenshot_url || ev.screenshot_data_url) {
+            let html = '<div class="fw-bold mb-1">제이가 본 카톡 근거</div>';
+            if (evMsgs.length) {
+                html += '<ul class="mb-2 ps-3">' + evMsgs.map(m => '<li>' + String(m).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</li>').join('') + '</ul>';
+            }
+            const imgSrc = ev.screenshot_url || ev.screenshot_data_url;
+            if (imgSrc) html += '<img src="' + imgSrc + '" class="img-fluid rounded border" alt="카톡 주소 근거 캡쳐">';
+            evidenceBox.innerHTML = html;
+            evidenceBox.classList.remove('d-none');
+        } else {
+            evidenceBox.classList.add('d-none');
+        }
+
+        const applied = result.auto_apply && result.auto_apply.applied;
         formBox.classList.remove('d-none');
-        saveBtn.classList.remove('d-none');
+        if (applied) {
+            saveBtn.classList.add('d-none');
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            saveBtn.classList.remove('d-none');
+        }
     }
 
     function pollStatus(requestId) {
@@ -1720,6 +1781,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formBox.classList.add('d-none');
         saveBtn.classList.add('d-none');
         notesBox.classList.add('d-none');
+        evidenceBox.classList.add('d-none');
         modal.show();
 
         try {
