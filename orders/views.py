@@ -1549,11 +1549,19 @@ def update_order_shipping_info(request, pk):
 
 
 def _check_ktalk_api_key(request):
-    """ktalk 전용 endpoint 인증. 헤더 X-Ktalk-Key 검증."""
+    """ktalk/제이 전용 endpoint 인증. 헤더 X-Ktalk-Key 검증.
+
+    기존 ktalk 데몬은 KTALK_API_KEY를 쓰고, 제이 워커는 이미 ERP Hermes
+    gateway에 등록된 HERMES_API_KEY를 재사용할 수 있게 한다. 둘 중 하나와
+    일치하면 허용하되, 빈 값은 허용하지 않는다.
+    """
     import os
-    expected = os.environ.get('KTALK_API_KEY', '')
     provided = request.headers.get('X-Ktalk-Key', '')
-    return bool(expected) and provided == expected
+    expected_keys = [
+        os.environ.get('KTALK_API_KEY', ''),
+        os.environ.get('HERMES_API_KEY', ''),
+    ]
+    return bool(provided) and any(provided == key for key in expected_keys if key)
 
 
 def _address_result_to_shipping_fields(result):
